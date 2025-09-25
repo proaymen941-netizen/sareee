@@ -8,15 +8,13 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { apiRequest, queryClient } from '@/lib/queryClient'
 import { Restaurant, Category } from '@shared/schema'
-import { Plus, Search, Edit, Trash2, Store, MapPin, Clock, Star, Phone, Navigation, AlertTriangle, Filter } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Store, MapPin, Clock, Star } from 'lucide-react'
 
 export default function RestaurantManagement() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -27,7 +25,6 @@ export default function RestaurantManagement() {
     name: '',
     description: '',
     address: '',
-    phone: '',
     categoryId: '',
     isOpen: true,
     rating: '4.5',
@@ -37,7 +34,6 @@ export default function RestaurantManagement() {
     image: '',
     latitude: '',
     longitude: '',
-    phone: '', // إضافة رقم هاتف المطعم
     isFeatured: false,
     isNew: false,
     isActive: true
@@ -103,7 +99,6 @@ export default function RestaurantManagement() {
       name: '',
       description: '',
       address: '',
-      phone: '', // إضافة رقم هاتف المطعم
       categoryId: '',
       isOpen: true,
       rating: '4.5',
@@ -134,7 +129,6 @@ export default function RestaurantManagement() {
       deliveryTime: formData.deliveryTime,
       description: formData.description || null,
       address: formData.address || null,
-      phone: formData.phone || null,
       categoryId: formData.categoryId || null,
       deliveryFee: formData.deliveryFee || "0",
       minimumOrder: formData.minimumOrder || "0", 
@@ -160,7 +154,6 @@ export default function RestaurantManagement() {
       name: restaurant.name || '',
       description: restaurant.description || '',
       address: restaurant.address || '',
-      phone: restaurant.phone || '', // إضافة رقم هاتف المطعم
       categoryId: restaurant.categoryId || '',
       isOpen: restaurant.isOpen,
       rating: restaurant.rating || '4.5',
@@ -178,12 +171,9 @@ export default function RestaurantManagement() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (restaurant: Restaurant) => {
-    // Enhanced delete confirmation with detailed warning
-    const confirmMessage = `هل أنت متأكد من حذف المطعم "${restaurant.name}" نهائياً؟\n\nسيتم حذف:\n- جميع الوجبات والأقسام المرتبطة\n- تاريخ الطلبات\n- التقييمات والمراجعات\n\nهذا الإجراء لا يمكن التراجع عنه!`;
-    
-    if (window.confirm(confirmMessage)) {
-      deleteMutation.mutate(restaurant.id);
+  const handleDelete = (id: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذا المطعم؟')) {
+      deleteMutation.mutate(id)
     }
   }
 
@@ -193,28 +183,11 @@ export default function RestaurantManagement() {
     return category?.name || 'غير محدد'
   }
 
-  // فتح خرائط جوجل لاختيار الموقع
-  const openLocationPicker = () => {
-    const defaultLat = formData.latitude || '15.3694';
-    const defaultLng = formData.longitude || '44.1910';
-    
-    const mapsUrl = `https://www.google.com/maps/@${defaultLat},${defaultLng},15z`;
-    window.open(mapsUrl, '_blank');
-    
-    toast({
-      title: "تم فتح خرائط جوجل",
-      description: "اختر موقع المطعم وانسخ الإحداثيات",
-    });
-  };
-  
-  // فلترة المطاعم حسب البحث والتصنيف
   const filteredRestaurants = restaurants.filter((restaurant) =>
-    (restaurant.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     getCategoryName(restaurant.categoryId).toLowerCase().includes(searchTerm.toLowerCase()) ||
-     restaurant.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     restaurant.phone?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (categoryFilter === 'all' || restaurant.categoryId === categoryFilter)
-  );
+    restaurant.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getCategoryName(restaurant.categoryId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    restaurant.address?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   if (isLoading) {
     return (
@@ -228,7 +201,7 @@ export default function RestaurantManagement() {
 
   return (
     <div className="space-y-6">
-      {/* قسم الرأس مع البحث والفلترة */}
+      {/* Header Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -269,28 +242,6 @@ export default function RestaurantManagement() {
                       data-testid="input-restaurant-name"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">رقم هاتف المطعم *</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone || ''}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+967771234567"
-                      data-testid="input-restaurant-phone"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">رقم هاتف المطعم</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone || ''}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+967771234567"
-                      data-testid="input-restaurant-phone"
-                    />
-                  </div>
-                  
                   <div className="space-y-2">
                     <Label htmlFor="categoryId">الفئة</Label>
                     <Select value={formData.categoryId || ''} onValueChange={(value) => setFormData({ ...formData, categoryId: value })}>
@@ -382,35 +333,25 @@ export default function RestaurantManagement() {
                       data-testid="input-restaurant-image"
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>موقع المطعم على الخريطة</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="خط العرض"
-                        value={formData.latitude || ''}
-                        onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                        data-testid="input-latitude"
-                      />
-                      <Input
-                        placeholder="خط الطول"
-                        value={formData.longitude || ''}
-                        onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                        data-testid="input-longitude"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={openLocationPicker}
-                        className="gap-2"
-                        data-testid="button-pick-location"
-                      >
-                        <Navigation className="h-4 w-4" />
-                        اختر من الخرائط
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      اختر موقع المطعم من خرائط جوجل وانسخ الإحداثيات هنا
-                    </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="latitude">خط العرض</Label>
+                    <Input
+                      id="latitude"
+                      value={formData.latitude || ''}
+                      onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                      placeholder="31.5204"
+                      data-testid="input-latitude"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="longitude">خط الطول</Label>
+                    <Input
+                      id="longitude"
+                      value={formData.longitude || ''}
+                      onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                      placeholder="34.4668"
+                      data-testid="input-longitude"
+                    />
                   </div>
                   <div className="flex items-center space-x-2 md:col-span-2 gap-4">
                     <div className="flex items-center space-x-2">
@@ -466,8 +407,7 @@ export default function RestaurantManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col lg:flex-row items-center gap-4 mb-6">
-            {/* شريط البحث */}
+          <div className="flex items-center gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -477,24 +417,6 @@ export default function RestaurantManagement() {
                 className="pr-10"
                 data-testid="input-search-restaurants"
               />
-            </div>
-            
-            {/* فلتر التصنيفات */}
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-500" />
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-48" data-testid="select-category-filter">
-                  <SelectValue placeholder="فلترة حسب التصنيف" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع التصنيفات</SelectItem>
-                  {categories?.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardContent>
@@ -525,12 +447,6 @@ export default function RestaurantManagement() {
                         </h3>
                         <p className="text-sm text-gray-600 mb-2">الفئة: {getCategoryName(restaurant.categoryId)}</p>
                         <p className="text-sm text-gray-500 line-clamp-2">{restaurant.description}</p>
-                        {restaurant.phone && (
-                          <div className="flex items-center gap-1 mt-2">
-                            <Phone className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">{restaurant.phone}</span>
-                          </div>
-                        )}
                       </div>
                       <div className="flex flex-col gap-1">
                         <Badge 
@@ -575,41 +491,6 @@ export default function RestaurantManagement() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {restaurant.phone && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(`tel:${restaurant.phone}`)}
-                          data-testid={`button-call-${restaurant.id}`}
-                        >
-                          <Phone className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {restaurant.latitude && restaurant.longitude && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const mapsUrl = `https://www.google.com/maps/@${restaurant.latitude},${restaurant.longitude},15z`;
-                            window.open(mapsUrl, '_blank');
-                          }}
-                          data-testid={`button-location-${restaurant.id}`}
-                        >
-                          <MapPin className="h-4 w-4" />
-                        </Button>
-                      )}
-                      
-                      {restaurant.phone && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(`tel:${restaurant.phone}`)}
-                          data-testid={`button-call-restaurant-${restaurant.id}`}
-                        >
-                          <Phone className="h-4 w-4" />
-                        </Button>
-                      )}
-                      
                       <Button
                         variant="outline"
                         size="sm"
@@ -619,53 +500,15 @@ export default function RestaurantManagement() {
                         <Edit className="h-4 w-4 ml-1" />
                         تعديل
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            data-testid={`button-delete-${restaurant.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 ml-1" />
-                            حذف
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="flex items-center gap-2">
-                              <AlertTriangle className="h-5 w-5 text-red-500" />
-                              تأكيد حذف المطعم
-                            </AlertDialogTitle>
-                            <AlertDialogDescription className="text-right">
-                              <div className="space-y-2">
-                                <p className="font-medium">هل أنت متأكد من حذف مطعم "{restaurant.name}" نهائياً؟</p>
-                                <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                                  <p className="text-sm text-red-800 font-medium mb-2">سيتم حذف:</p>
-                                  <ul className="text-sm text-red-700 space-y-1">
-                                    <li>• جميع الوجبات والأقسام المرتبطة</li>
-                                    <li>• تاريخ الطلبات والمبيعات</li>
-                                    <li>• التقييمات والمراجعات</li>
-                                    <li>• جميع البيانات والإحصائيات</li>
-                                    <li>• معلومات التواصل والموقع</li>
-                                  </ul>
-                                </div>
-                                <p className="text-sm text-gray-600 font-medium">
-                                  ⚠️ هذا الإجراء لا يمكن التراجع عنه!
-                                </p>
-                              </div>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(restaurant)}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              نعم، احذف نهائياً
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(restaurant.id)}
+                        data-testid={`button-delete-${restaurant.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 ml-1" />
+                        حذف
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
