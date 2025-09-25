@@ -257,7 +257,7 @@ export async function seedDefaultData() {
         email: "admin@alsarie-one.com",
         username: "admin",
         phone: "+967777777777",
-        password: "777146387", // كلمة مرور المدير الافتراضية
+        password: "admin123456", // كلمة مرور غير مشفرة للاختبار
         userType: "admin",
         isActive: true,
       },
@@ -266,7 +266,7 @@ export async function seedDefaultData() {
         email: "manager@alsarie-one.com", 
         username: "manager",
         phone: "+967777777778",
-        password: "777146387",
+        password: "manager123",
         userType: "admin",
         isActive: true,
       }
