@@ -17,14 +17,13 @@ export default function DriverLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // التحقق من تسجيل الدخول المسبق وإعادة التوجيه التلقائي
+  // التحقق من تسجيل الدخول المسبق
   useEffect(() => {
     const token = localStorage.getItem('driver_token');
     const driverData = localStorage.getItem('driver_user');
     
     if (token && driverData) {
-      // إعادة توجيه فورية لتطبيق السائق
-      window.location.href = '/driver';
+      setLocation('/driver');
     }
   }, [setLocation]);
 
@@ -54,12 +53,12 @@ export default function DriverLoginPage() {
       const result = await response.json();
       
       if (result.success) {
-        // حفظ بيانات السائق في localStorage للجلسة
+        // حفظ بيانات السائق في localStorage
         localStorage.setItem('driver_token', result.token);
         localStorage.setItem('driver_user', JSON.stringify(result.user));
         
-        // إعادة توجيه فورية لتطبيق السائق
-        window.location.href = '/driver';
+        // إعادة توجيه إلى تطبيق السائق
+        setLocation('/driver');
       } else {
         setError(result.message || 'فشل في تسجيل الدخول');
       }
@@ -80,7 +79,7 @@ export default function DriverLoginPage() {
     if (error) setError('');
   };
 
-  // ملء البيانات التجريبية للاختبار
+  // ملء البيانات التجريبية
   const fillDemoCredentials = () => {
     setFormData({
       phone: '+967771234567',
@@ -96,7 +95,7 @@ export default function DriverLoginPage() {
           <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Truck className="h-10 w-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2"> تطبيق السائق من سريع</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">تطبيق السائق</h1>
           <p className="text-gray-600">تسجيل دخول السائق</p>
         </div>
 
@@ -200,11 +199,11 @@ export default function DriverLoginPage() {
                   استخدام بيانات تجريبية
                 </Button>
                 
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-800 font-medium mb-2">💡 معلومات تسجيل الدخول:</p>
-                  <div className="text-xs text-blue-700 space-y-1">
-                    <p>استخدم البيانات المُعدة مسبقاً في قاعدة البيانات</p>
-                    <p>أو تواصل مع الإدارة للحصول على بيانات الدخول</p>
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <p className="text-sm text-green-800 font-medium mb-2">🔑 بيانات تجريبية:</p>
+                  <div className="text-xs text-green-700 space-y-1">
+                    <p>رقم الهاتف: +967771234567</p>
+                    <p>كلمة المرور: driver123</p>
                   </div>
                 </div>
               </div>
@@ -212,10 +211,10 @@ export default function DriverLoginPage() {
           </CardContent>
         </Card>
 
-        {/* التذييل */}
+        {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-gray-500 text-sm">
-            © 2025 السريع ون - جميع الحقوق محفوظة
+            © 2024 السريع ون - جميع الحقوق محفوظة
           </p>
         </div>
       </div>

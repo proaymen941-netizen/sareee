@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowRight, Bell, Globe, Moon, Sun, Lock, CreditCard, Smartphone, MapPin } from 'lucide-react';
+import { ArrowRight, Bell, Globe, Moon, Sun, Lock, CreditCard, Smartphone, Settings as SettingsIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
+import { UiControlPanel } from '@/components/UiControlPanel';
 import { PermissionsManager } from '@/components/PermissionsManager';
 
 interface SettingItem {
@@ -40,6 +42,7 @@ export default function Settings() {
     language: 'ar',
     currency: 'YER',
     autoLocation: true,
+    biometric: false,
   });
 
   const handleNotificationChange = (setting: string, value: boolean) => {
@@ -140,7 +143,7 @@ export default function Settings() {
       ],
     },
     {
-      title: 'الخصوصية والأمان',
+      title: 'الموقع والخصوصية',
       icon: Lock,
       items: [
         {
@@ -150,6 +153,14 @@ export default function Settings() {
           type: 'switch',
           value: settings.autoLocation,
           onChange: (value: boolean) => handleSimpleSettingChange('autoLocation', value),
+        },
+        {
+          key: 'biometric',
+          label: 'الحماية البيومترية',
+          description: 'استخدام بصمة الإصبع أو الوجه',
+          type: 'switch',
+          value: settings.biometric,
+          onChange: (value: boolean) => handleSimpleSettingChange('biometric', value),
         },
       ],
     },
@@ -164,13 +175,6 @@ export default function Settings() {
       testId: 'settings-payment-methods',
     },
     {
-      icon: MapPin,
-      label: 'صلاحيات التطبيق',
-      description: 'إدارة صلاحيات الوصول للخدمات',
-      action: () => setShowPermissions(true),
-      testId: 'settings-permissions',
-    },
-    {
       icon: Smartphone,
       label: 'حول التطبيق',
       description: 'معلومات النسخة والتحديثات',
@@ -179,11 +183,9 @@ export default function Settings() {
     },
   ];
 
-  const [showPermissions, setShowPermissions] = useState(false);
-
   return (
     <div>
-      {/* الرأس */}
+      {/* Header */}
       <header className="bg-card border-b border-border p-4">
         <div className="flex items-center gap-3">
           <Button
@@ -199,34 +201,24 @@ export default function Settings() {
       </header>
 
       <section className="p-4">
-        {/* نافذة إدارة الصلاحيات */}
-        {showPermissions && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold">إدارة صلاحيات التطبيق</h2>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowPermissions(false)}
-                  >
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-                </div>
-                <PermissionsManager 
-                  onPermissionUpdate={(permission, granted) => {
-                    console.log(`Permission ${permission} ${granted ? 'granted' : 'denied'}`);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="w-full">
-          <div className="space-y-6 mt-6">
-            {/* مجموعات الإعدادات */}
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="general" className="flex items-center gap-2">
+              <SettingsIcon className="h-4 w-4" />
+              إعدادات عامة
+            </TabsTrigger>
+            <TabsTrigger value="permissions" className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              الصلاحيات
+            </TabsTrigger>
+            <TabsTrigger value="ui-control" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              تحكم الواجهة
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="general" className="space-y-6 mt-6">
+            {/* Settings Groups */}
             {settingsGroups.map((group) => {
           const Icon = group.icon;
           return (
@@ -304,7 +296,7 @@ export default function Settings() {
           );
         })}
 
-            {/* الإجراءات السريعة */}
+            {/* Quick Actions */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">إعدادات إضافية</CardTitle>
@@ -334,7 +326,7 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            {/* تسجيل الخروج */}
+            {/* Sign Out */}
             <Button
               variant="destructive"
               className="w-full"
@@ -342,8 +334,23 @@ export default function Settings() {
             >
               تسجيل الخروج
             </Button>
-          </div>
-        </div>
+          </TabsContent>
+          
+          <TabsContent value="permissions" className="mt-6">
+            <PermissionsManager onPermissionUpdate={(permission, granted) => {
+              console.log(`Permission ${permission} ${granted ? 'granted' : 'denied'}`);
+              toast({
+                title: granted ? 'تم منح الإذن' : 'تم رفض الإذن',
+                description: `إذن ${permission} ${granted ? 'مُمنوح' : 'مرفوض'}`,
+                variant: granted ? 'default' : 'destructive',
+              });
+            }} />
+          </TabsContent>
+          
+          <TabsContent value="ui-control" className="mt-6">
+            <UiControlPanel />
+          </TabsContent>
+        </Tabs>
       </section>
     </div>
   );
