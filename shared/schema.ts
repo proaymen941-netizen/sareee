@@ -48,6 +48,7 @@ export const restaurants = pgTable("restaurants", {
   name: varchar("name", { length: 200 }).notNull(),
   description: text("description"),
   image: text("image").notNull(), // تم تغيير إلى notNull
+  phone: varchar("phone", { length: 20 }), // إضافة رقم هاتف المطعم
   rating: varchar("rating", { length: 10 }).default("0.0"),
   reviewCount: integer("review_count").default(0),
   deliveryTime: varchar("delivery_time", { length: 50 }).notNull(), // تم تغيير إلى notNull
@@ -101,12 +102,14 @@ export const drivers = pgTable("drivers", {
 // Orders table
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
-  orderNumber: varchar("order_number", { length: 50 }).notNull().unique(),
+  orderNumber: varchar("order_number", { length: 50 }),
   customerName: varchar("customer_name", { length: 100 }).notNull(),
   customerPhone: varchar("customer_phone", { length: 20 }).notNull(),
   customerEmail: varchar("customer_email", { length: 100 }),
   customerId: uuid("customer_id").references(() => users.id),
   deliveryAddress: text("delivery_address").notNull(),
+  customerLocationLat: decimal("customer_location_lat", { precision: 10, scale: 8 }), // إحداثيات العميل
+  customerLocationLng: decimal("customer_location_lng", { precision: 11, scale: 8 }), // إحداثيات العميل
   notes: text("notes"),
   paymentMethod: varchar("payment_method", { length: 50 }).notNull(),
   status: varchar("status", { length: 50 }).default("pending").notNull(),
@@ -144,6 +147,7 @@ export const adminUsers = pgTable("admin_users", {
   username: varchar("username", { length: 50 }).unique(),
   email: varchar("email", { length: 100 }).notNull().unique(),
   phone: varchar("phone", { length: 20 }),
+  password: text("password").notNull(), // إضافة حقل كلمة المرور
   userType: varchar("user_type", { length: 50 }).default("admin").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
