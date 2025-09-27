@@ -3,14 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Image as ImageIcon, Loader2, X } from 'lucide-react';
-import { uploadImage } from '@/lib/supabase';
+import { Upload, Image as ImageIcon, Loader as Loader2, X } from 'lucide-react';
 
 interface ImageUploadProps {
   label: string;
   value: string;
   onChange: (url: string) => void;
-  bucket?: string;
+  category?: string;
   placeholder?: string;
   required?: boolean;
   'data-testid'?: string;
@@ -20,7 +19,7 @@ export default function ImageUpload({
   label,
   value,
   onChange,
-  bucket = 'images',
+  category = 'general',
   placeholder = 'https://example.com/image.jpg',
   required = false,
   'data-testid': testId
@@ -32,6 +31,20 @@ export default function ImageUpload({
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // التحقق من توفر خدمة رفع الصور
+    const response = await fetch('/api/images/upload', {
+      method: 'HEAD'
+    });
+    
+    if (!response.ok) {
+      toast({
+        title: "خدمة رفع الصور غير متوفرة",
+        description: "يرجى إدخال رابط الصورة يدوياً",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -56,12 +69,38 @@ export default function ImageUpload({
     setIsUploading(true);
 
     try {
-      const result = await uploadImage(file, bucket);
-      onChange(result.url);
-      toast({
-        title: "تم رفع الصورة بنجاح",
-        description: "تم حفظ الصورة في التخزين السحابي",
+      // رفع الصورة عبر API الخادم
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('category', category);
+      formData.append('optimize', 'true');
+      
+      const response = await fetch('/api/images/upload', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // لا تضع Content-Type header عند استخدام FormData
+          // المتصفح سيضعه تلقائياً مع boundary
+        }
       });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'فشل في رفع الصورة');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.data?.url) {
+        onChange(result.data.url);
+        
+        toast({
+          title: "تم رفع الصورة بنجاح",
+          description: `تم حفظ الصورة (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+        });
+      } else {
+        throw new Error(result.message || 'فشل في رفع الصورة');
+      }
     } catch (error) {
       console.error('خطأ في رفع الصورة:', error);
       toast({

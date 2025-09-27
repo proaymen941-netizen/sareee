@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Search, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MapPin, Navigation, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
 export interface LocationData {
@@ -11,238 +11,271 @@ export interface LocationData {
   address: string;
   area?: string;
   city?: string;
-  placeId?: string;
+  distance?: number;
 }
 
 interface GoogleMapsLocationPickerProps {
   onLocationSelect: (location: LocationData) => void;
-  defaultLocation?: LocationData;
+  restaurantLocation?: { lat: number; lng: number };
   className?: string;
-  placeholder?: string;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export function GoogleMapsLocationPicker({ 
   onLocationSelect, 
-  defaultLocation, 
+  restaurantLocation,
   className = "",
-  placeholder = "ابحث عن موقع أو اختر من الخريطة..."
+  isOpen,
+  onClose
 }: GoogleMapsLocationPickerProps) {
-  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(defaultLocation || null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [showMap, setShowMap] = useState(false);
-  const mapRef = useRef<HTMLDivElement>(null);
+  const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const { toast } = useToast();
 
-  // Request location permission and get current location
-  const getCurrentLocation = async () => {
-    setIsGettingLocation(true);
-    
-    try {
-      if (!navigator.geolocation) {
-        throw new Error('خدمة تحديد الموقع غير مدعومة في هذا المتصفح');
+  // طلب إذن الموقع عند فتح النافذة
+  useEffect(() => {
+    if (isOpen) {
+      checkLocationPermission();
+    }
+  }, [isOpen]);
+
+  const checkLocationPermission = async () => {
+    if ('permissions' in navigator) {
+      try {
+        const permission = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+        setHasLocationPermission(permission.state === 'granted');
+        
+        if (permission.state === 'granted') {
+          getCurrentLocation();
+        }
+      } catch (error) {
+        console.error('Error checking location permission:', error);
       }
-
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 60000
-          }
-        );
-      });
-
-      const location: LocationData = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-        address: `الموقع الحالي (${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)})`,
-        area: 'الموقع الحالي',
-        city: 'صنعاء'
-      };
-
-      setSelectedLocation(location);
-      onLocationSelect(location);
-      
-      toast({
-        title: "تم تحديد الموقع بنجاح",
-        description: "تم الحصول على موقعك الحالي بدقة",
-      });
-
-    } catch (error) {
-      console.error('خطأ في تحديد الموقع:', error);
-      toast({
-        title: "خطأ في تحديد الموقع",
-        description: "لا يمكن الوصول لموقعك الحالي. يرجى منح الصلاحية أو اختيار موقع من القائمة.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGettingLocation(false);
     }
   };
 
-  // فتح خرائط جوجل لاختيار الموقع بدقة
-  const openGoogleMaps = () => {
-    const defaultLat = selectedLocation?.lat || 15.3694; // Sana'a coordinates
-    const defaultLng = selectedLocation?.lng || 44.1910;
+  const requestLocationPermission = async () => {
+    setIsGettingLocation(true);
     
-    // إنشاء رابط خرائط جوجل لاختيار الموقع
-    const mapsUrl = `https://www.google.com/maps/place/${defaultLat},${defaultLng}/@${defaultLat},${defaultLng},15z`;
-    
-    // فتح في نافذة/تبويب جديد
-    window.open(mapsUrl, '_blank');
-    
-    toast({
-      title: "تم فتح خرائط جوجل",
-      description: "اختر موقعك من الخريطة وانسخ الإحداثيات أو العنوان",
-    });
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setHasLocationPermission(true);
+          const location: LocationData = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            address: `الموقع الحالي (${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)})`,
+            area: 'الموقع الحالي',
+            city: 'صنعاء'
+          };
+          
+          // حساب المسافة إذا كان موقع المطعم متوفراً
+          if (restaurantLocation) {
+            location.distance = calculateDistance(
+              position.coords.latitude,
+              position.coords.longitude,
+              restaurantLocation.lat,
+              restaurantLocation.lng
+            );
+          }
+          
+          setSelectedLocation(location);
+          setIsGettingLocation(false);
+          
+          toast({
+            title: "تم تحديد موقعك بنجاح",
+            description: "يمكنك الآن المتابعة مع الطلب",
+          });
+        },
+        (error) => {
+          console.error('Location error:', error);
+          setIsGettingLocation(false);
+          toast({
+            title: "خطأ في تحديد الموقع",
+            description: "يرجى السماح بالوصول للموقع أو اختيار موقع يدوياً",
+            variant: "destructive",
+          });
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
+        }
+      );
+    } else {
+      setIsGettingLocation(false);
+      toast({
+        title: "خدمة الموقع غير متوفرة",
+        description: "يرجى اختيار موقع من القائمة المحفوظة",
+        variant: "destructive",
+      });
+    }
   };
 
-  // مواقع محددة مسبقاً في اليمن
-  const predefinedLocations: LocationData[] = [
+  const getCurrentLocation = () => {
+    if (hasLocationPermission) {
+      requestLocationPermission();
+    }
+  };
+
+  // حساب المسافة بين نقطتين (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // نصف قطر الأرض بالكيلومتر
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const toRadians = (degrees: number): number => {
+    return degrees * (Math.PI / 180);
+  };
+
+  // مواقع محفوظة للاختبار
+  const savedLocations: LocationData[] = [
     { lat: 15.3694, lng: 44.1910, address: 'صنعاء القديمة، باب اليمن', area: 'باب اليمن', city: 'صنعاء' },
     { lat: 15.3547, lng: 44.2066, address: 'صنعاء الجديدة، شارع الزبيري', area: 'الزبيري', city: 'صنعاء' },
     { lat: 15.3400, lng: 44.1947, address: 'صنعاء، حي السبعين', area: 'السبعين', city: 'صنعاء' },
     { lat: 15.3333, lng: 44.2167, address: 'صنعاء، شارع الستين', area: 'الستين', city: 'صنعاء' },
     { lat: 15.3250, lng: 44.2083, address: 'صنعاء، شارع الخمسين', area: 'الخمسين', city: 'صنعاء' },
-    { lat: 15.3100, lng: 44.1800, address: 'صنعاء، شارع الأربعين', area: 'الأربعين', city: 'صنعاء' },
-  ];
+  ].map(location => ({
+    ...location,
+    distance: restaurantLocation ? calculateDistance(
+      location.lat, location.lng, 
+      restaurantLocation.lat, restaurantLocation.lng
+    ) : undefined
+  }));
 
   const selectLocation = (location: LocationData) => {
     setSelectedLocation(location);
     onLocationSelect(location);
-    setShowMap(false);
+    onClose();
   };
 
-  const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      toast({
-        title: "أدخل عنوان للبحث",
-        description: "يرجى كتابة العنوان أو اسم المنطقة",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Simple search in predefined locations
-    const found = predefinedLocations.find(loc => 
-      loc.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      loc.area?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      loc.city?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    
-    if (found) {
-      selectLocation(found);
-      toast({
-        title: "تم العثور على الموقع",
-        description: found.address,
-      });
-    } else {
-      toast({
-        title: "لم يتم العثور على الموقع",
-        description: "جرب البحث بكلمات أخرى أو استخدم الموقع الحالي",
-        variant: "destructive",
-      });
-    }
+  const openGoogleMaps = (location: LocationData) => {
+    const url = `https://www.google.com/maps?q=${location.lat},${location.lng}`;
+    window.open(url, '_blank');
   };
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* شريط البحث */}
-      <div className="flex gap-2">
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={placeholder}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          className="flex-1"
-          data-testid="location-search-input"
-        />
-        <Button 
-          onClick={handleSearch}
-          variant="outline"
-          data-testid="location-search-button"
-        >
-          <Search className="h-4 w-4" />
-        </Button>
-      </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto" dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-primary" />
+            تحديد موقع التوصيل
+          </DialogTitle>
+        </DialogHeader>
 
-      {/* أزرار الإجراءات */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          onClick={getCurrentLocation}
-          disabled={isGettingLocation}
-          className="gap-2 bg-blue-500 hover:bg-blue-600"
-          data-testid="current-location-button"
-        >
-          <Navigation className="h-4 w-4" />
-          {isGettingLocation ? 'جاري التحديد...' : 'موقعي الحالي'}
-        </Button>
-        
-        <Button
-          onClick={openGoogleMaps}
-          variant="outline"
-          className="gap-2"
-          data-testid="google-maps-button"
-        >
-          <MapPin className="h-4 w-4" />
-          اختيار من الخرائط
-        </Button>
-      </div>
-
-      {/* المواقع المحددة مسبقاً */}
-      <Card>
-        <CardContent className="p-4">
-          <h4 className="font-medium mb-3 text-right">المواقع المتاحة:</h4>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {predefinedLocations.map((location, index) => (
-              <button
-                key={index}
-                onClick={() => selectLocation(location)}
-                className={`w-full p-3 text-right border rounded-lg transition-colors ${
-                  selectedLocation?.lat === location.lat && selectedLocation?.lng === location.lng
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-                data-testid={`predefined-location-${index}`}
+        <div className="space-y-4">
+          {/* زر الموقع الحالي */}
+          <Card>
+            <CardContent className="p-4">
+              <Button
+                onClick={requestLocationPermission}
+                disabled={isGettingLocation}
+                className="w-full flex items-center gap-2 bg-blue-500 hover:bg-blue-600"
+                data-testid="button-current-location"
               >
-                <div className="flex items-center justify-between">
-                  <div className="text-right">
-                    <div className="font-medium text-sm">{location.area}</div>
-                    <div className="text-xs text-gray-600">{location.address}</div>
-                  </div>
-                  {selectedLocation?.lat === location.lat && selectedLocation?.lng === location.lng && (
-                    <CheckCircle className="text-green-500 h-4 w-4" />
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                {isGettingLocation ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Navigation className="h-4 w-4" />
+                )}
+                {isGettingLocation ? 'جاري تحديد الموقع...' : 'استخدام موقعي الحالي'}
+              </Button>
+              
+              {!hasLocationPermission && (
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  يرجى السماح بالوصول للموقع للحصول على موقعك الدقيق
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* عرض الموقع المحدد */}
-      {selectedLocation && (
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="text-green-500 h-5 w-5" />
-              <div className="text-right flex-1">
-                <div className="font-medium text-green-800">تم تحديد الموقع:</div>
-                <div className="text-sm text-green-600">{selectedLocation.address}</div>
-                <div className="text-xs text-green-500">
-                  📍 الإحداثيات: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
-                </div>
-                <div className="text-xs text-green-500 mt-1">
-                  💡 يمكنك نسخ هذه الإحداثيات لاستخدامها في إعدادات المطعم
-                </div>
-              </div>
+          {/* المواقع المحفوظة */}
+          <div>
+            <h4 className="font-medium mb-3">المواقع المحفوظة</h4>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {savedLocations.map((location, index) => (
+                <Card 
+                  key={index} 
+                  className={`cursor-pointer transition-colors hover:bg-gray-50 ${
+                    selectedLocation?.lat === location.lat && selectedLocation?.lng === location.lng
+                      ? 'border-primary bg-primary/5'
+                      : ''
+                  }`}
+                  onClick={() => selectLocation(location)}
+                  data-testid={`location-option-${index}`}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium text-sm">{location.area}</p>
+                            <p className="text-xs text-muted-foreground">{location.address}</p>
+                            {location.distance && (
+                              <p className="text-xs text-blue-600">
+                                المسافة: {location.distance.toFixed(1)} كم
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openGoogleMaps(location);
+                          }}
+                          data-testid={`button-view-map-${index}`}
+                        >
+                          🗺️
+                        </Button>
+                        
+                        {selectedLocation?.lat === location.lat && selectedLocation?.lng === location.lng && (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          </div>
+
+          {/* الموقع المحدد */}
+          {selectedLocation && (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <div>
+                    <p className="text-sm font-medium text-green-800">تم تحديد الموقع:</p>
+                    <p className="text-xs text-green-700">{selectedLocation.address}</p>
+                    {selectedLocation.distance && (
+                      <p className="text-xs text-green-600">
+                        المسافة من المطعم: {selectedLocation.distance.toFixed(1)} كم
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
