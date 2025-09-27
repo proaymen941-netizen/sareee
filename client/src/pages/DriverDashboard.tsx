@@ -78,7 +78,7 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({ onLogout }) =>
       return availableOrders;
     },
     enabled: !!currentDriver && driverStatus === 'available',
-    refetchInterval: 3000, // تحديث كل 3 ثوانِ
+    refetchInterval: 5000, // تحديث كل 5 ثوانِ
   });
 
   // جلب طلبات السائق الحالية
@@ -92,7 +92,7 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({ onLogout }) =>
       return Array.isArray(data) ? data : [];
     },
     enabled: !!currentDriver,
-    refetchInterval: 2000, // تحديث كل ثانيتين
+    refetchInterval: 3000, // تحديث كل 3 ثوانِ
   });
 
   // جلب إحصائيات السائق

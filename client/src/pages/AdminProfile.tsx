@@ -38,8 +38,6 @@ export default function AdminProfile() {
   // جلب بيانات المدير الحالي
   const { data: adminProfile, isLoading } = useQuery<AdminProfile>({
     queryKey: ['/api/admin/profile'],
-    retry: 3,
-    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {

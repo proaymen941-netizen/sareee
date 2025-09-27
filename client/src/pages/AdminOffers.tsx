@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { SpecialOffer } from '@shared/schema';
-import ImageUpload from '@/components/ImageUpload';
 
 export default function AdminOffers() {
   const { toast } = useToast();
@@ -34,7 +33,6 @@ export default function AdminOffers() {
 
   const { data: offers, isLoading } = useQuery<SpecialOffer[]>({
     queryKey: ['/api/admin/special-offers'],
-    refetchInterval: 15000, // تحديث كل 15 ثانية
   });
 
   const createOfferMutation = useMutation({
@@ -228,15 +226,43 @@ export default function AdminOffers() {
               </div>
 
               <div>
-                <ImageUpload
-                  label="صورة العرض *"
-                  value={formData.image}
-                  onChange={(url) => setFormData(prev => ({ ...prev, image: url }))}
-                  category="offers"
-                  placeholder="رابط الصورة أو ارفع صورة من جهازك"
-                  required={true}
-                  data-testid="input-offer-image"
-                />
+                <Label htmlFor="image">رابط صورة العرض</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="image"
+                    value={formData.image}
+                    onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                    placeholder="https://example.com/offer-image.jpg"
+                    required
+                    data-testid="input-offer-image"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('offer-file-upload')?.click()}
+                    data-testid="button-select-offer-image"
+                  >
+                    اختيار صورة
+                  </Button>
+                  <input
+                    id="offer-file-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const result = event.target?.result as string;
+                          setFormData(prev => ({ ...prev, image: result }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

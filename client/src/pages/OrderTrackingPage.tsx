@@ -37,8 +37,7 @@ export default function OrderTrackingPage() {
   const { data: orderData, isLoading, error, refetch } = useQuery<{order: OrderDetails, tracking: OrderStatus[]}>({
     queryKey: [`/api/orders/${orderId}/track`],
     enabled: !!orderId,
-    refetchInterval: 3000, // تحديث كل 3 ثوانِ للحصول على تحديثات سريعة
-    refetchIntervalInBackground: true,
+    refetchInterval: 5000, // تحديث كل 5 ثوانِ للحصول على تحديثات سريعة
   });
 
   if (isLoading) {
