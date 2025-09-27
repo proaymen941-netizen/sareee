@@ -5,12 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "./contexts/CartContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LocationProvider, useLocation } from "./context/LocationContext";
 import { UiSettingsProvider, useUiSettings } from "./context/UiSettingsContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { LocationPermissionModal } from "./components/LocationPermissionModal";
 import Layout from "./components/Layout";
+import { LoginPage } from "./pages/LoginPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
@@ -48,21 +49,7 @@ function MainApp() {
 
   // Handle admin routes (direct access without authentication)
   if (window.location.pathname.startsWith('/admin')) {
-    // التحقق من تسجيل الدخول للمدير
-    const adminToken = localStorage.getItem('admin_token');
-    const adminUser = localStorage.getItem('admin_user');
-    
-    if (!adminToken || !adminUser) {
-      // إعادة توجيه إلى صفحة تسجيل الدخول
-      window.location.href = '/admin-login';
-      return null;
-    }
-    
-    return <AdminApp onLogout={() => {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_user');
-      window.location.href = '/admin-login';
-    }} />;
+    return <AdminApp onLogout={() => window.location.href = '/'} />;
   }
 
   // Handle driver routes (direct access without authentication)  
