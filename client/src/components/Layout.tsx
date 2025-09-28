@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Home, Search, Receipt, User, Menu, Settings, Shield, MapPin, Clock, Truck, UserCog, ShoppingCart } from 'lucide-react';
@@ -22,24 +21,15 @@ export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isFeatureEnabled } = useUiSettings();
   
+  
   // Get visibility settings from UiSettings instead of localStorage
   const showAdminPanel = isFeatureEnabled('show_admin_panel');
   const showDeliveryApp = isFeatureEnabled('show_delivery_app'); 
   const showOrdersPage = isFeatureEnabled('show_orders_page');
   const showTrackOrdersPage = isFeatureEnabled('show_track_orders_page');
 
-  // Listen for navigation settings changes
-  useEffect(() => {
-    const handleNavigationChange = () => {
-      // Force re-render by updating a state
-      setLocation(location); // This will trigger a re-render
-    };
-
-    window.addEventListener('navigationSettingsChanged', handleNavigationChange);
-    return () => {
-      window.removeEventListener('navigationSettingsChanged', handleNavigationChange);
-    };
-  }, [location, setLocation]);
+  // Settings are now handled automatically by UiSettings context
+  // No need for manual event listeners
 
   const isAdminPage = location.startsWith('/admin');
   const isDeliveryPage = location.startsWith('/delivery');

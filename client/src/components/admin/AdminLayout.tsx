@@ -98,7 +98,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     // مسح بيانات المدير من localStorage
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_user');
-    window.location.href = '/admin-login';
+    window.location.href = '/';
   };
 
   const currentPath = window.location.pathname;

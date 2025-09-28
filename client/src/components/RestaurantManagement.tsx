@@ -12,7 +12,6 @@ import { useToast } from '@/hooks/use-toast'
 import { apiRequest, queryClient } from '@/lib/queryClient'
 import { Restaurant, Category } from '@shared/schema'
 import { Plus, Search, Edit, Trash2, Store, MapPin, Clock, Star } from 'lucide-react'
-import ImageUploadComponent from './ImageUploadComponent'
 
 export default function RestaurantManagement() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -325,15 +324,13 @@ export default function RestaurantManagement() {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <ImageUploadComponent
-                      label="صورة المطعم *"
+                    <Label htmlFor="image">رابط الصورة *</Label>
+                    <Input
+                      id="image"
                       value={formData.image || ''}
-                      onChange={(url) => setFormData({...formData, image: url})}
-                      category="restaurants"
-                      placeholder="رابط الصورة أو ارفع صورة من جهازك"
-                      required={true}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      placeholder="https://example.com/image.jpg"
                       data-testid="input-restaurant-image"
-                      showPreview={true}
                     />
                   </div>
                   <div className="space-y-2">
