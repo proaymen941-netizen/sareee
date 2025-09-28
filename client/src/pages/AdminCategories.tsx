@@ -27,7 +27,6 @@ export default function AdminCategories() {
 
   const { data: categories, isLoading } = useQuery<Category[]>({
     queryKey: ['/api/admin/categories'],
-    refetchInterval: 30000, // تحديث كل 30 ثانية
   });
 
   const createCategoryMutation = useMutation({

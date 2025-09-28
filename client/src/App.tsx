@@ -5,11 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "./contexts/CartContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LocationProvider, useLocation } from "./context/LocationContext";
 import { UiSettingsProvider, useUiSettings } from "./context/UiSettingsContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { LocationPermissionModal } from "./components/LocationPermissionModal";
 import Layout from "./components/Layout";
+import { LoginPage } from "./pages/LoginPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
@@ -26,12 +28,15 @@ import TrackOrdersPage from "./pages/TrackOrdersPage";
 import Settings from "./pages/Settings";
 import Privacy from "./pages/Privacy";
 import SearchPage from "./pages/SearchPage";
+// Admin pages removed - now handled separately
 import NotFound from "@/pages/not-found";
 
 function MainApp() {
+  // const { userType, loading } = useAuth(); // تم إزالة نظام المصادقة
   const { location } = useLocation();
   const [showLocationModal, setShowLocationModal] = useState(true);
 
+  // تم إزالة loading state ومراجع المصادقة
 
   // Handle login pages first (without layout)
   if (window.location.pathname === '/admin-login') {
@@ -44,21 +49,7 @@ function MainApp() {
 
   // Handle admin routes (direct access without authentication)
   if (window.location.pathname.startsWith('/admin')) {
-    // التحقق من تسجيل الدخول للمدير
-    const adminToken = localStorage.getItem('admin_token');
-    const adminUser = localStorage.getItem('admin_user');
-    
-    if (!adminToken || !adminUser) {
-      // إعادة توجيه إلى صفحة تسجيل الدخول
-      window.location.href = '/admin-login';
-      return null;
-    }
-    
-    return <AdminApp onLogout={() => {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_user');
-      window.location.href = '/admin-login';
-    }} />;
+    return <AdminApp onLogout={() => window.location.href = '/'} />;
   }
 
   // Handle driver routes (direct access without authentication)  
@@ -80,6 +71,7 @@ function MainApp() {
     }} />;
   }
 
+  // Remove admin/driver routes from customer app routing
 
   // Default customer app
   return (
@@ -138,6 +130,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider>
+          <AuthProvider>
             <UiSettingsProvider>
               <LocationProvider>
                 <CartProvider>
@@ -148,6 +141,7 @@ function App() {
                 </CartProvider>
               </LocationProvider>
             </UiSettingsProvider>
+          </AuthProvider>
         </ThemeProvider>
       </TooltipProvider>
     </QueryClientProvider>

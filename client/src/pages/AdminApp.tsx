@@ -99,7 +99,7 @@ interface AdminAppProps {
   onLogout: () => void;
 }
 
-export const AdminApp: React.FC<AdminAppProps> = ({ onLogout }) => {
+export const AdminApp: React.FC<AdminAppProps> = () => {
   return (
     <AdminLayout>
       <Switch>
