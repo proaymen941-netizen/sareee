@@ -9,17 +9,16 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { useAuth } from '@/context/AuthContext';
 import type { User as UserType } from '@shared/schema';
 
 export default function Profile() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user: currentUser, isAuthenticated, loading: authLoading } = useAuth();
   
-  // Use the actual logged-in user's ID
-  const userId = currentUser?.id;
+  // Use demo user ID for testing
+  const userId = '5ea1edd8-b9e1-4c9e-84fb-25aa2741a0db';
+  const isAuthenticated = false; // Set to false for guest mode
   
   const [profile, setProfile] = useState({
     username: '',
@@ -34,14 +33,14 @@ export default function Profile() {
   // Fetch user data only if authenticated and have userId
   const { data: user, isLoading } = useQuery({
     queryKey: ['/api/users', userId],
-    enabled: !!userId && isAuthenticated,
+    enabled: false, // Disable for guest mode
     retry: false,
   });
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData: Partial<UserType>) => {
-      if (!userId) throw new Error('يجب تسجيل الدخول أولاً');
+      if (!userId) throw new Error('معرف المستخدم غير موجود');
       const response = await apiRequest('PUT', `/api/users/${userId}`, profileData);
       return response.json();
     },
@@ -89,8 +88,8 @@ export default function Profile() {
     }
   };
 
-  // Show loading if auth is loading or data is loading
-  if (authLoading || isLoading) {
+  // Show loading if data is loading
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
