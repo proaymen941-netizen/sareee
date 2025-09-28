@@ -2,13 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { dbStorage } from "./db";
-import { log } from "./vite";
+import { log } from "./viteServer";
 import authRoutes from "./routes/auth";
 import { customerRoutes } from "./routes/customer";
 import driverRoutes from "./routes/driver";
 import ordersRoutes from "./routes/orders";
 import { adminRoutes } from "./routes/admin";
-import imageUploadRoutes from "./imageUpload";
 import { 
   insertRestaurantSchema, 
   insertMenuItemSchema, 
@@ -32,16 +31,8 @@ import {
 import { randomUUID } from "crypto";
 import { eq, and, gte, lte, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
-import express from "express";
-import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-
-  // إعداد خدمة الملفات الثابتة للصور المرفوعة
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
-  // تسجيل مسارات رفع الصور
-  app.use("/api/images", imageUploadRoutes);
 
   // تم حذف مسارات المصادقة - تم إزالة نظام المصادقة بالكامل
 

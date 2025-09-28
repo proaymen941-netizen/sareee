@@ -39,7 +39,7 @@ router.post("/", async (req, res) => {
     }
 
     // إنشاء رقم طلب فريد
-    const orderNumber = `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // التأكد من أن العناصر هي JSON string
     let itemsString;
@@ -385,22 +385,21 @@ router.put("/:id", async (req, res) => {
 });
 
 // جلب الطلبات حسب العميل
-router.get("/customer/:customerId", async (req, res) => {
+router.get("/customer/:phone", async (req, res) => {
   try {
-    const { customerId } = req.params;
+    const phone = req.params.phone.trim().replace(/\s+/g, '');
     
-    if (!customerId) {
+    if (!phone) {
       return res.status(400).json({ 
-        error: "معرف العميل مطلوب"
+        error: "رقم الهاتف مطلوب"
       });
     }
     
     const orders = await storage.getOrders();
     
-    // فلترة الطلبات حسب معرف العميل أو رقم الهاتف
+    // فلترة الطلبات حسب رقم الهاتف
     const customerOrders = orders.filter(order => 
-      order.customerId === customerId || 
-      (order.customerPhone && order.customerPhone.replace(/\s+/g, '') === customerId.replace(/\s+/g, ''))
+      order.customerPhone && order.customerPhone.replace(/\s+/g, '') === phone
     );
     
     // ترتيب حسب التاريخ (الأحدث أولاً)

@@ -102,7 +102,7 @@ export const drivers = pgTable("drivers", {
 // Orders table
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
-  orderNumber: varchar("order_number", { length: 50 }),
+  orderNumber: varchar("order_number", { length: 50 }).notNull().unique(),
   customerName: varchar("customer_name", { length: 100 }).notNull(),
   customerPhone: varchar("customer_phone", { length: 20 }).notNull(),
   customerEmail: varchar("customer_email", { length: 100 }),
@@ -147,7 +147,6 @@ export const adminUsers = pgTable("admin_users", {
   username: varchar("username", { length: 50 }).unique(),
   email: varchar("email", { length: 100 }).notNull().unique(),
   phone: varchar("phone", { length: 20 }),
-  password: text("password").notNull(), // إضافة حقل كلمة المرور
   userType: varchar("user_type", { length: 50 }).default("admin").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
