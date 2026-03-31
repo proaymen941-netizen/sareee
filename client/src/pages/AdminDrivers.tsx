@@ -420,10 +420,6 @@ export default function AdminDrivers() {
     });
   };
 
-
-
-
-
   const getTransactionTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       commission: 'عمولة',
@@ -1524,7 +1520,6 @@ export default function AdminDrivers() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
       </div>
     </div>
   );
