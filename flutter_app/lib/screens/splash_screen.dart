@@ -1,9 +1,11 @@
 // lib/screens/splash_screen.dart
-// شاشة البداية مع جلب الإعدادات من السيرفر
+// شاشة البداية - تجلب الإعدادات من السيرفر ثم تنتقل للشاشة الرئيسية
 
 import 'package:flutter/material.dart';
 import '../services/config_service.dart';
-import 'webview_screen.dart';
+import '../providers/settings_provider.dart';
+import 'package:provider/provider.dart';
+import 'main_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,13 +14,15 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   late AnimationController _logoController;
-  late Animation<double> _logoAnimation;
+  late Animation<double> _logoScale;
   late Animation<double> _logoOpacity;
 
   late AnimationController _textController;
   late Animation<double> _textOpacity;
+  late Animation<Offset> _textSlide;
 
   AppConfig? _config;
   bool _configLoaded = false;
@@ -29,55 +33,67 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     _logoController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1200),
     );
 
-    _logoAnimation = Tween<double>(begin: -200, end: 0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.bounceOut),
+    _logoScale = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
     );
 
     _logoOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _logoController, curve: const Interval(0, 0.5, curve: Curves.easeIn)),
+      CurvedAnimation(
+          parent: _logoController,
+          curve: const Interval(0, 0.4, curve: Curves.easeIn)),
     );
 
     _textController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 700),
     );
 
     _textOpacity = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _textController, curve: Curves.easeIn),
     );
 
+    _textSlide = Tween<Offset>(
+            begin: const Offset(0, 0.3), end: Offset.zero)
+        .animate(
+            CurvedAnimation(parent: _textController, curve: Curves.easeOut));
+
     _initSplash();
   }
 
   Future<void> _initSplash() async {
-    final config = await ConfigService.fetchConfig();
-    if (mounted) {
-      setState(() {
-        _config = config;
-        _configLoaded = true;
-      });
-    }
-    await _startAnimation();
-  }
+    // تحميل الإعدادات بالتوازي مع تشغيل الرسوم المتحركة
+    final configFuture = ConfigService.fetchConfig();
 
-  Future<void> _startAnimation() async {
     await _logoController.forward();
+    await Future.delayed(const Duration(milliseconds: 200));
     await _textController.forward();
 
-    final duration = _config?.splashDuration ?? 2000;
-    await Future.delayed(Duration(milliseconds: duration));
+    _config = await configFuture;
+    if (mounted) {
+      setState(() => _configLoaded = true);
+      // تحديث SettingsProvider بالإعدادات الجديدة
+      context.read<SettingsProvider>().load();
+    }
+
+    final duration = _config?.splashDuration ?? 1500;
+    await Future.delayed(Duration(milliseconds: duration.clamp(500, 3000)));
 
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => WebViewScreen(config: _config),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MainScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
+            return FadeTransition(
+              opacity: CurvedAnimation(
+                  parent: animation, curve: Curves.easeInOut),
+              child: child,
+            );
           },
-          transitionDuration: const Duration(milliseconds: 800),
+          transitionDuration: const Duration(milliseconds: 600),
         ),
       );
     }
@@ -104,29 +120,41 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final bgColor = _parseColor(_config?.splashBackgroundColor, Colors.white);
-    final primaryColor = _parseColor(_config?.primaryColor, Colors.red);
-    final secondaryColor = _parseColor(_config?.secondaryColor, Colors.green);
+    final primaryColor = _parseColor(_config?.primaryColor, const Color(0xFFE53935));
+    final secondaryColor = _parseColor(_config?.secondaryColor, const Color(0xFF2E7D32));
     final logoUrl = _config?.logoUrl ?? '';
     final splashTitle = _config?.splashTitle ?? 'طمطوم';
     final splashSubtitle = _config?.splashSubtitle ?? 'متجر الخضار والفواكه';
     final splashImageUrl = _config?.splashImageUrl ?? '';
+    final hasImage = splashImageUrl.isNotEmpty;
 
     return Scaffold(
       backgroundColor: bgColor,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // خلفية الصورة إن وجدت
-          if (splashImageUrl.isNotEmpty)
+          // صورة الخلفية
+          if (hasImage)
             Image.network(
               splashImageUrl,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Container(color: bgColor),
             ),
 
-          // طبقة شفافة فوق الصورة
-          if (splashImageUrl.isNotEmpty)
-            Container(color: Colors.black.withOpacity(0.4)),
+          // طبقة التدرج اللوني
+          if (hasImage)
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.2),
+                    Colors.black.withOpacity(0.6),
+                  ],
+                ),
+              ),
+            ),
 
           // المحتوى المركزي
           Center(
@@ -136,67 +164,75 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 // الشعار
                 AnimatedBuilder(
                   animation: _logoController,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(0, _logoAnimation.value),
-                      child: Opacity(
-                        opacity: _logoOpacity.value,
-                        child: _buildLogo(logoUrl, primaryColor),
-                      ),
-                    );
-                  },
+                  builder: (context, child) => Transform.scale(
+                    scale: _logoScale.value,
+                    child: Opacity(
+                      opacity: _logoOpacity.value,
+                      child: _buildLogo(logoUrl, primaryColor),
+                    ),
+                  ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 36),
 
                 // النص
                 AnimatedBuilder(
                   animation: _textController,
-                  builder: (context, child) {
-                    return Opacity(
+                  builder: (context, child) => SlideTransition(
+                    position: _textSlide,
+                    child: Opacity(
                       opacity: _textOpacity.value,
                       child: Column(
                         children: [
                           Text(
                             splashTitle,
                             style: TextStyle(
-                              fontSize: 42,
+                              fontSize: 44,
                               fontWeight: FontWeight.bold,
-                              color: splashImageUrl.isNotEmpty ? Colors.white : primaryColor,
-                              letterSpacing: 2,
+                              color: hasImage ? Colors.white : primaryColor,
+                              letterSpacing: 1.5,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Text(
                             splashSubtitle,
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w500,
-                              color: splashImageUrl.isNotEmpty ? Colors.white70 : secondaryColor,
+                              color: hasImage
+                                  ? Colors.white70
+                                  : secondaryColor,
                             ),
                           ),
                         ],
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
 
-          // مؤشر تحميل صغير أثناء جلب الإعدادات
-          if (!_configLoaded)
-            Positioned(
-              bottom: 60,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: primaryColor,
-                  strokeWidth: 2,
+          // مؤشر تحميل أسفل الشاشة
+          Positioned(
+            bottom: 50,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: AnimatedOpacity(
+                opacity: _configLoaded ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 300),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: hasImage ? Colors.white : primaryColor,
+                    strokeWidth: 2.5,
+                  ),
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -205,20 +241,20 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   Widget _buildLogo(String logoUrl, Color primaryColor) {
     if (logoUrl.isNotEmpty) {
       return Container(
-        width: 120,
-        height: 120,
+        width: 130,
+        height: 130,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: primaryColor.withOpacity(0.3),
-              blurRadius: 20,
-              spreadRadius: 5,
+              color: primaryColor.withOpacity(0.4),
+              blurRadius: 25,
+              spreadRadius: 8,
             ),
           ],
         ),
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         child: ClipOval(
           child: Image.network(
             logoUrl,
@@ -234,15 +270,19 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: primaryColor,
+        gradient: LinearGradient(
+          colors: [primaryColor, primaryColor.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withOpacity(0.3),
-            blurRadius: 20,
-            spreadRadius: 5,
+            color: primaryColor.withOpacity(0.4),
+            blurRadius: 25,
+            spreadRadius: 8,
           ),
         ],
       ),

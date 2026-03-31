@@ -1,28 +1,50 @@
 // lib/main.dart
-// التطبيق الرئيسي - بدون شريط DEBUG
+// التطبيق الرئيسي - طمطوم للخضار والفواكه
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'dart:io';
+import 'providers/auth_provider.dart';
+import 'providers/cart_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
-  // 🔥 الخطوة 1: تأكد من تهيئة Flutter
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 🔥 الخطوة 2: تهيئة WebView حسب المنصة
+
+  // تهيئة WebView حسب المنصة
   if (Platform.isAndroid) {
-    // تهيئة لمنصة Android
     WebViewPlatform.instance = AndroidWebViewPlatform();
   } else if (Platform.isIOS) {
-    // تهيئة لمنصة iOS
     WebViewPlatform.instance = WebKitWebViewPlatform();
   }
-  
-  // 🔥 الخطوة 3: تشغيل التطبيق
-  runApp(const MyApp());
+
+  // إعداد اتجاه الشاشة (عمودي فقط)
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // إعداد شريط الحالة
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+  ));
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -31,49 +53,74 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'تطبيق طمطوم',
-      
-      // إخفاء شريط DEBUG (Banner)
+      title: 'طمطوم',
       debugShowCheckedModeBanner: false,
-      
-      // إعدادات السمة (Theme) - مبسطة بدون شريط علوي
+      locale: const Locale('ar', 'SA'),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.red,
-          primary: Colors.red,
-          secondary: Colors.green,
+          seedColor: const Color(0xFFE53935),
+          primary: const Color(0xFFE53935),
+          secondary: const Color(0xFF2E7D32),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        
-        // إعدادات شريط التطبيق (لن يظهر لأننا أزلناه من WebViewScreen)
+        fontFamily: 'Cairo',
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
           elevation: 0,
           centerTitle: true,
+          titleTextStyle: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        
-        // تخصيص الأزرار
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFE53935),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),
-        
-        // تخصيص زر الفلوتينج أكشن
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Colors.red,
+          backgroundColor: Color(0xFF2E7D32),
           foregroundColor: Colors.white,
         ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Colors.white,
+          selectedItemColor: Color(0xFFE53935),
+          unselectedItemColor: Colors.grey,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: TextStyle(fontSize: 10),
+        ),
+        // ✅ تم إصلاح CardThemeData بشكل صحيح
+        cardTheme: CardThemeData(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
+          color: Colors.white,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          filled: true,
+          fillColor: const Color(0xFFF5F5F5),
+        ),
       ),
-      
-      // تعيين الشاشة الرئيسية إلى SplashScreen
       home: const SplashScreen(),
     );
   }
