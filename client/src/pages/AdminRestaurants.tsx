@@ -15,12 +15,14 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { Restaurant, Category } from '@shared/schema';
+import LocationPicker from '@/components/maps/GoogleMapPicker';
 
 export default function AdminRestaurants() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [formData, setFormData] = useState({
@@ -30,6 +32,8 @@ export default function AdminRestaurants() {
     phone: '', // إضافة رقم الهاتف
     deliveryTime: '',
     deliveryFee: '0',
+    perKmFee: '0', // سعر الكيلومتر الواحد
+    commissionRate: '10', // نسبة الشركة من المتجر (افتراضي 10%)
     minimumOrder: '0',
     isOpen: true,
     categoryId: '',
@@ -62,6 +66,8 @@ export default function AdminRestaurants() {
       const submitData = {
         ...data,
         deliveryFee: parseFloat(data.deliveryFee) || 0,
+        perKmFee: parseFloat(data.perKmFee) || 0,
+        commissionRate: data.commissionRate ? parseFloat(data.commissionRate) : 10,
         minimumOrder: parseFloat(data.minimumOrder) || 0,
         // تحويل إحداثيات الموقع للأرقام مع التحقق
         latitude: data.latitude ? parseFloat(data.latitude) : null,
@@ -73,8 +79,8 @@ export default function AdminRestaurants() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/restaurants'] });
       toast({
-        title: "تم إضافة المطعم",
-        description: "تم إضافة المطعم الجديد بنجاح",
+        title: "تم إضافة المتجر",
+        description: "تم إضافة المتجر الجديد بنجاح",
       });
       resetForm();
       setIsDialogOpen(false);
@@ -86,6 +92,8 @@ export default function AdminRestaurants() {
       const submitData = {
         ...data,
         deliveryFee: data.deliveryFee != null ? parseFloat(data.deliveryFee) : undefined,
+        perKmFee: data.perKmFee != null ? parseFloat(data.perKmFee) : undefined,
+        commissionRate: data.commissionRate != null ? parseFloat(data.commissionRate) : undefined,
         minimumOrder: data.minimumOrder != null ? parseFloat(data.minimumOrder) : undefined,
         // تحويل إحداثيات الموقع للأرقام مع التحقق - يسمح بالمسح
         latitude: data.latitude === '' ? null : data.latitude != null ? parseFloat(data.latitude) : undefined,
@@ -97,8 +105,8 @@ export default function AdminRestaurants() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/restaurants'] });
       toast({
-        title: "تم تحديث المطعم",
-        description: "تم تحديث بيانات المطعم بنجاح",
+        title: "تم تحديث المتجر",
+        description: "تم تحديث بيانات المتجر بنجاح",
       });
       resetForm();
       setEditingRestaurant(null);
@@ -114,8 +122,8 @@ export default function AdminRestaurants() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/restaurants'] });
       toast({
-        title: "تم حذف المطعم",
-        description: "تم حذف المطعم بنجاح",
+        title: "تم حذف المتجر",
+        description: "تم حذف المتجر بنجاح",
       });
     },
   });
@@ -128,6 +136,8 @@ export default function AdminRestaurants() {
       phone: '',
       deliveryTime: '',
       deliveryFee: '0',
+      perKmFee: '0',
+      commissionRate: '10',
       minimumOrder: '0',
       isOpen: true,
       categoryId: '',
@@ -156,6 +166,8 @@ export default function AdminRestaurants() {
       image: restaurant.image,
       deliveryTime: restaurant.deliveryTime,
       deliveryFee: restaurant.deliveryFee || '0',
+      perKmFee: restaurant.perKmFee || '0',
+      commissionRate: restaurant.commissionRate || '10',
       minimumOrder: restaurant.minimumOrder || '0',
       isOpen: restaurant.isOpen,
       categoryId: restaurant.categoryId || '',
@@ -182,7 +194,7 @@ export default function AdminRestaurants() {
     if (!formData.name.trim()) {
       toast({
         title: "خطأ",
-        description: "يرجى إدخال اسم المطعم",
+        description: "يرجى إدخال اسم المتجر",
         variant: "destructive",
       });
       return;
@@ -199,12 +211,32 @@ export default function AdminRestaurants() {
 
     // Validate numeric fields
     const deliveryFee = parseFloat(formData.deliveryFee);
+    const perKmFee = parseFloat(formData.perKmFee);
     const minimumOrder = parseFloat(formData.minimumOrder);
+    const commissionRate = parseFloat(formData.commissionRate);
     
     if (isNaN(deliveryFee) || deliveryFee < 0) {
       toast({
         title: "خطأ",
         description: "يرجى إدخال رسوم توصيل صحيحة",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNaN(perKmFee) || perKmFee < 0) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال رسوم كيلومتر صحيحة",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNaN(commissionRate) || commissionRate < 0 || commissionRate > 100) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال نسبة عمولة صحيحة (0-100)",
         variant: "destructive",
       });
       return;
@@ -276,7 +308,7 @@ export default function AdminRestaurants() {
     const category = categories?.find(c => c.id === categoryId);
     return category?.name || 'غير محدد';
   };
-  // فلترة المطاعم حسب البحث
+  // فلترة المتاجر حسب البحث
   const filteredRestaurants = restaurants.filter((restaurant) =>
     restaurant.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     getCategoryName(restaurant.categoryId).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -284,7 +316,7 @@ export default function AdminRestaurants() {
     restaurant.phone?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // فتح موقع المطعم على خرائط جوجل
+  // فتح موقع المتجر على خرائط جوجل
   const openRestaurantOnMap = (restaurant: Restaurant) => {
     if (restaurant.latitude && restaurant.longitude) {
       const url = `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`;
@@ -296,7 +328,7 @@ export default function AdminRestaurants() {
     } else {
       toast({
         title: "موقع غير متوفر",
-        description: "لم يتم تحديد موقع لهذا المطعم",
+        description: "لم يتم تحديد موقع لهذا المتجر",
         variant: "destructive",
       });
     }
@@ -316,8 +348,8 @@ export default function AdminRestaurants() {
         <div className="flex items-center gap-3">
           <Store className="h-8 w-8 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold text-foreground">إدارة المطاعم</h1>
-            <p className="text-muted-foreground">إدارة المطاعم والمتاجر</p>
+            <h1 className="text-2xl font-bold text-foreground">إدارة المتاجر</h1>
+            <p className="text-muted-foreground">إدارة المتاجر والعلامات التجارية</p>
           </div>
         </div>
         
@@ -332,32 +364,32 @@ export default function AdminRestaurants() {
               data-testid="button-add-restaurant"
             >
               <Plus className="h-4 w-4" />
-              إضافة مطعم جديد
+              إضافة متجر جديد
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {editingRestaurant ? 'تعديل بيانات المطعم' : 'إضافة مطعم جديد'}
+                {editingRestaurant ? 'تعديل بيانات المتجر' : 'إضافة متجر جديد'}
               </DialogTitle>
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="name">اسم المطعم</Label>
+                  <Label htmlFor="name">اسم المتجر</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="أدخل اسم المطعم"
+                    placeholder="أدخل اسم المتجر"
                     required
                     data-testid="input-restaurant-name"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="phone">رقم هاتف المطعم</Label>
+                  <Label htmlFor="phone">رقم هاتف المتجر</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
@@ -371,7 +403,7 @@ export default function AdminRestaurants() {
                   <Label htmlFor="category">القسم</Label>
                   <Select value={formData.categoryId} onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}>
                     <SelectTrigger data-testid="select-restaurant-category">
-                      <SelectValue placeholder="اختر قسم المطعم" />
+                      <SelectValue placeholder="اختر قسم المتجر" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories?.map((category) => (
@@ -390,7 +422,7 @@ export default function AdminRestaurants() {
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="وصف المطعم"
+                  placeholder="وصف المتجر"
                   rows={3}
                   data-testid="input-restaurant-description"
                 />
@@ -450,7 +482,7 @@ export default function AdminRestaurants() {
                 </div>
 
                 <div>
-                  <Label htmlFor="deliveryFee">رسوم التوصيل (ريال)</Label>
+                  <Label htmlFor="deliveryFee">رسوم التوصيل الأساسية (ريال)</Label>
                   <Input
                     id="deliveryFee"
                     type="number"
@@ -459,6 +491,33 @@ export default function AdminRestaurants() {
                     value={formData.deliveryFee}
                     onChange={(e) => setFormData(prev => ({ ...prev, deliveryFee: e.target.value }))}
                     data-testid="input-restaurant-delivery-fee"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="perKmFee">رسوم الكيلومتر الواحد (ريال)</Label>
+                  <Input
+                    id="perKmFee"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.perKmFee}
+                    onChange={(e) => setFormData(prev => ({ ...prev, perKmFee: e.target.value }))}
+                    data-testid="input-restaurant-per-km-fee"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="commissionRate">نسبة عمولة الشركة (%)</Label>
+                  <Input
+                    id="commissionRate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={formData.commissionRate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, commissionRate: e.target.value }))}
+                    data-testid="input-restaurant-commission-rate"
                   />
                 </div>
 
@@ -598,7 +657,7 @@ export default function AdminRestaurants() {
                     id="address"
                     value={formData.address}
                     onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder="عنوان المطعم الكامل"
+                    placeholder="عنوان المتجر الكامل"
                     rows={2}
                     data-testid="input-restaurant-address"
                   />
@@ -637,36 +696,44 @@ export default function AdminRestaurants() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      const address = formData.address || formData.name;
-                      if (address) {
-                        const encodedAddress = encodeURIComponent(address);
-                        const url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-                        window.open(url, '_blank');
-                        toast({
-                          title: "تم فتح الخريطة",
-                          description: "يمكنك نسخ الإحداثيات من الخريطة وإدخالها في الحقول أعلاه",
-                        });
-                      } else {
-                        toast({
-                          title: "أدخل العنوان أولاً",
-                          description: "يرجى إدخال عنوان المطعم للبحث في الخريطة",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
+                    onClick={() => setIsLocationPickerOpen(true)}
                     className="flex-1"
                     data-testid="button-open-maps"
                   >
                     <MapPin className="h-4 w-4 mr-2" />
-                    تحديد الموقع عبر الخريطة
+                    تحديد الموقع عبر الخريطة (مدمج)
                   </Button>
                 </div>
+
+                {isLocationPickerOpen && (
+                  <LocationPicker
+                    isOpen={isLocationPickerOpen}
+                    onClose={() => setIsLocationPickerOpen(false)}
+                    onLocationSelect={(location) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        latitude: location.lat.toString(),
+                        longitude: location.lng.toString(),
+                        address: location.address || prev.address
+                      }));
+                      setIsLocationPickerOpen(false);
+                      toast({
+                        title: "تم تحديد الموقع",
+                        description: "تم تحديث الإحداثيات والعنوان بنجاح",
+                      });
+                    }}
+                    initialLocation={
+                      formData.latitude && formData.longitude
+                        ? { lat: parseFloat(formData.latitude), lng: parseFloat(formData.longitude) }
+                        : undefined
+                    }
+                  />
+                )}
 
                 {/* Status Flags */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="isActive">المطعم مفعل</Label>
+                    <Label htmlFor="isActive">المتجر مفعل</Label>
                     <Switch
                       id="isActive"
                       checked={formData.isActive}
@@ -676,7 +743,7 @@ export default function AdminRestaurants() {
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="isFeatured">مطعم مميز</Label>
+                    <Label htmlFor="isFeatured">متجر مميز</Label>
                     <Switch
                       id="isFeatured"
                       checked={formData.isFeatured}
@@ -686,7 +753,7 @@ export default function AdminRestaurants() {
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="isNew">مطعم جديد</Label>
+                    <Label htmlFor="isNew">متجر جديد</Label>
                     <Switch
                       id="isNew"
                       checked={formData.isNew}
@@ -731,7 +798,7 @@ export default function AdminRestaurants() {
           <div className="relative">
             <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="البحث في المطاعم..."
+              placeholder="البحث في المتاجر..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pr-10"
@@ -864,18 +931,18 @@ export default function AdminRestaurants() {
                         data-testid={`button-delete-restaurant-${restaurant.id}`}
                       >
                         <Trash2 className="h-3 w-3" />
-                        حذف المطعم
+                        حذف المتجر
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
                         <AlertDialogDescription>
-                          هل أنت متأكد من حذف المطعم "{restaurant.name}" نهائياً؟
+                          هل أنت متأكد من حذف المتجر "{restaurant.name}" نهائياً؟
                           <br /><br />
                           <strong className="text-red-600">تحذير:</strong> سيتم حذف:
                           <ul className="list-disc list-inside mt-2 text-sm">
-                            <li>جميع وجبات المطعم</li>
+                            <li>جميع منتجات المتجر</li>
                             <li>جميع أقسام القائمة</li>
                             <li>جميع البيانات المرتبطة</li>
                           </ul>
@@ -905,10 +972,10 @@ export default function AdminRestaurants() {
               {searchTerm ? 'لا توجد نتائج' : 'لا توجد مطاعم'}
             </h3>
             <p className="text-muted-foreground mb-4">
-              {searchTerm ? 'جرب البحث بكلمات مختلفة' : 'ابدأ بإضافة المطاعم والمتاجر'}
+              {searchTerm ? 'جرب البحث بكلمات مختلفة' : 'ابدأ بإضافة المتاجر والمتاجر'}
             </p>
             <Button onClick={() => setIsDialogOpen(true)} data-testid="button-add-first-restaurant">
-              إضافة المطعم الأول
+              إضافة المتجر الأول
             </Button>
           </div>
         )}
