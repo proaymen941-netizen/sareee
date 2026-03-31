@@ -1,8 +1,8 @@
 name: tamtom
-description: تطبيق Tamtom الرسمي لعرض الموقع الإلكتروني
+description: تطبيق طمطوم الأصلي - متجر الخضار والفواكه
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
   sdk: ^3.8.1
@@ -13,26 +13,18 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # حزمة WebView الأساسية
   webview_flutter: ^4.8.0
-
-  # حزمة تهيئة WebView لمنصة Android
   webview_flutter_android: ^4.0.0
-
-  # حزمة تهيئة WebView لمنصة iOS
   webview_flutter_wkwebview: ^3.13.0
 
-  # فحص الاتصال بالإنترنت
   connectivity_plus: ^6.0.0
-
-  # فتح الروابط الخارجية
   url_launcher: ^6.3.0
-
-  # طلبات HTTP لجلب الإعدادات من السيرفر
   http: ^1.2.0
-
-  # تخزين الإعدادات محلياً
   shared_preferences: ^2.2.2
+
+  provider: ^6.1.2
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:
