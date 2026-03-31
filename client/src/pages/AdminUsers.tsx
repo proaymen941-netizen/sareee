@@ -527,6 +527,7 @@ const AdminUsers = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };
@@ -650,8 +651,6 @@ const UsersList: React.FC<UsersListProps> = ({
           </CardContent>
         </Card>
       ))}
-    </div>
-      </div>
     </div>
   );
 };
