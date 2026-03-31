@@ -1,77 +1,85 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation as useWouterLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { CartProvider } from "./contexts/CartContext";
+import { CartProvider } from "./context/CartContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { LocationProvider, useLocation } from "./context/LocationContext";
+import { LocationProvider, useUserLocation } from "./context/LocationContext";
 import { UiSettingsProvider, useUiSettings } from "./context/UiSettingsContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { LocationPermissionModal } from "./components/LocationPermissionModal";
 import Layout from "./components/Layout";
+import FloatingCartNotification from "./components/FloatingCartNotification";
 import { LoginPage } from "./pages/LoginPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
-import { DriverDashboard } from "./pages/DriverDashboard";
+import DriverAppPage from "./pages/driver/DriverApp";
 import { useState } from "react";
 import Home from "./pages/Home";
 import Restaurant from "./pages/Restaurant";
 import Cart from "./pages/Cart";
 import Profile from "./pages/Profile";
 import Location from "./pages/Location";
-import OrderTracking from "./pages/OrderTracking";
+import OrderTrackingPage from "./pages/OrderTrackingPage";
 import OrdersPage from "./pages/OrdersPage";
 import TrackOrdersPage from "./pages/TrackOrdersPage";
 import Settings from "./pages/Settings";
 import Privacy from "./pages/Privacy";
 import SearchPage from "./pages/SearchPage";
-// Admin pages removed - now handled separately
 import NotFound from "@/pages/not-found";
 
 function MainApp() {
-  // const { userType, loading } = useAuth(); // تم إزالة نظام المصادقة
-  const { location } = useLocation();
+  const { location: userLocation } = useUserLocation();
+  const [currentLocation, setLocation] = useWouterLocation();
   const [showLocationModal, setShowLocationModal] = useState(true);
+  const [isGuest, setIsGuest] = useState(() => {
+    return localStorage.getItem('is_guest') === 'true';
+  });
 
-  // تم إزالة loading state ومراجع المصادقة
+  const { isAuthenticated } = useAuth();
+  const { loading: settingsLoading } = useUiSettings();
 
-  // Handle login pages first (without layout)
-  if (window.location.pathname === '/admin-login') {
+  const isAuthPage = currentLocation === '/auth' || 
+                     currentLocation === '/admin-login' || 
+                     currentLocation === '/driver-login';
+
+  const isAdminRoute = currentLocation.startsWith('/admin');
+  const isDriverRoute = currentLocation.startsWith('/driver');
+
+  if (settingsLoading && !isAdminRoute && !isAuthPage) {
+    return null;
+  }
+
+  if (!isAuthenticated && !isGuest && !isAuthPage && !currentLocation.startsWith('/admin') && !currentLocation.startsWith('/driver')) {
+    setLocation('/auth');
+    return null;
+  }
+
+  if (currentLocation === '/admin-login') {
     return <AdminLoginPage />;
   }
   
-  if (window.location.pathname === '/driver-login') {
+  if (currentLocation === '/driver-login') {
     return <DriverLoginPage />;
   }
 
-  // Handle admin routes (direct access without authentication)
-  if (window.location.pathname.startsWith('/admin')) {
-    return <AdminApp onLogout={() => window.location.href = '/'} />;
-  }
-
-  // Handle driver routes (direct access without authentication)  
-  if (window.location.pathname.startsWith('/driver')) {
-    // التحقق من تسجيل الدخول للسائق
-    const driverToken = localStorage.getItem('driver_token');
-    const driverUser = localStorage.getItem('driver_user');
-    
-    if (!driverToken || !driverUser) {
-      // إعادة توجيه إلى صفحة تسجيل الدخول
-      window.location.href = '/driver-login';
+  // Handle admin routes - AdminApp has its own AdminLayout, no wrapper needed here
+  if (currentLocation.startsWith('/admin')) {
+    const adminToken = localStorage.getItem('admin_token');
+    if (!adminToken) {
+      setLocation('/admin-login');
       return null;
     }
-    
-    return <DriverDashboard onLogout={() => {
-      localStorage.removeItem('driver_token');
-      localStorage.removeItem('driver_user');
-      window.location.href = '/';
-    }} />;
+    return <AdminApp />;
   }
 
-  // Remove admin/driver routes from customer app routing
+  // Handle driver routes
+  if (currentLocation.startsWith('/driver')) {
+    return <DriverAppPage />;
+  }
 
   // Default customer app
   return (
@@ -79,8 +87,9 @@ function MainApp() {
       <Layout>
         <Router />
       </Layout>
+      <FloatingCartNotification />
       
-      {showLocationModal && !location.hasPermission && (
+      {showLocationModal && !userLocation.hasPermission && (
         <LocationPermissionModal
           onPermissionGranted={(position) => {
             console.log('تم منح الإذن للموقع:', position);
@@ -96,8 +105,12 @@ function MainApp() {
   );
 }
 
+import CategoryPage from "./pages/CategoryPage";
+import ProductDetails from "./pages/ProductDetails";
+import CustomerAuthPage from "./pages/CustomerAuthPage";
+import Favorites from "./pages/Favorites";
+
 function Router() {
-  // Check UiSettings for page visibility
   const { isFeatureEnabled } = useUiSettings();
   const showOrdersPage = isFeatureEnabled('show_orders_page');
   const showTrackOrdersPage = isFeatureEnabled('show_track_orders_page');
@@ -106,17 +119,20 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/search" component={SearchPage} />
+      <Route path="/category/:slug" component={CategoryPage} />
+      <Route path="/product/:id" component={ProductDetails} />
       <Route path="/restaurant/:id" component={Restaurant} />
       <Route path="/cart" component={Cart} />
       <Route path="/profile" component={Profile} />
+      <Route path="/auth" component={CustomerAuthPage} />
+      <Route path="/favorites" component={Favorites} />
       <Route path="/addresses" component={Location} />
       {showOrdersPage && <Route path="/orders" component={OrdersPage} />}
-      <Route path="/orders/:orderId" component={OrderTracking} />
+      <Route path="/orders/:orderId" component={OrderTrackingPage} />
       {showTrackOrdersPage && <Route path="/track-orders" component={TrackOrdersPage} />}
       <Route path="/settings" component={Settings} />
       <Route path="/privacy" component={Privacy} />
       
-      {/* Authentication Routes */}
       <Route path="/admin-login" component={AdminLoginPage} />
       <Route path="/driver-login" component={DriverLoginPage} />
       
@@ -125,23 +141,27 @@ function Router() {
   );
 }
 
+import { LanguageProvider } from "./context/LanguageContext";
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider>
-          <AuthProvider>
-            <UiSettingsProvider>
-              <LocationProvider>
-                <CartProvider>
-                  <NotificationProvider>
-                    <Toaster />
-                    <MainApp />
-                  </NotificationProvider>
-                </CartProvider>
-              </LocationProvider>
-            </UiSettingsProvider>
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <UiSettingsProvider>
+                <LocationProvider>
+                  <CartProvider>
+                    <NotificationProvider>
+                      <Toaster />
+                      <MainApp />
+                    </NotificationProvider>
+                  </CartProvider>
+                </LocationProvider>
+              </UiSettingsProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </TooltipProvider>
     </QueryClientProvider>
