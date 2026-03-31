@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { storage } from "../storage";
 import { z } from "zod";
+import { broadcastSettingsChanged } from "../broadcast";
 import { eq, and, desc, sql, or, like, asc, inArray } from "drizzle-orm";
 import {
   insertRestaurantSchema,
@@ -1926,6 +1927,9 @@ router.put("/ui-settings/:key", async (req, res) => {
     if (!setting) {
       return res.status(404).json({ error: "فشل في تحديث الإعداد" });
     }
+
+    // Broadcast real-time settings change to all connected clients (web + Flutter)
+    broadcastSettingsChanged(key);
 
     res.json(setting);
   } catch (error) {

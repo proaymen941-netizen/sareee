@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { deviceTokens, notifications } from "../../shared/schema.js";
 import { eq, and, gt, desc, or } from "drizzle-orm";
+import { getSettingsVersion } from "../broadcast.js";
 
 const router = express.Router();
 
@@ -64,6 +65,38 @@ router.get("/app-config", async (req, res) => {
     res.json({ success: true, config });
   } catch (error) {
     console.error("خطأ في جلب إعدادات Flutter:", error);
+    res.status(500).json({ success: false, message: "خطأ في الخادم" });
+  }
+});
+
+// GET /api/flutter/settings-version
+// Flutter يستدعي هذا endpoint كل 30 ثانية للتحقق من وجود تحديثات
+router.get("/settings-version", (req, res) => {
+  const version = getSettingsVersion();
+  res.json({
+    success: true,
+    version,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// GET /api/flutter/full-config
+// إعدادات كاملة تشمل جميع إعدادات الواجهة
+router.get("/full-config", async (req, res) => {
+  try {
+    const settings = await storage.getUiSettings();
+    const serverUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : `http://localhost:${process.env.PORT || 5000}`;
+
+    res.json({
+      success: true,
+      settings: Array.isArray(settings) ? settings : [],
+      serverUrl,
+      version: getSettingsVersion(),
+    });
+  } catch (error) {
+    console.error("خطأ في جلب الإعدادات الكاملة:", error);
     res.status(500).json({ success: false, message: "خطأ في الخادم" });
   }
 });

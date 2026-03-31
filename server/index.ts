@@ -5,6 +5,7 @@ import { setupWebSockets } from "./socket";
 import { setupVite, serveStatic, log } from "./viteServer";
 import { seedDefaultData, ensureDefaultSettings } from "./seed";
 import { storage } from "./storage";
+import { registerBroadcast } from "./broadcast";
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
@@ -56,6 +57,7 @@ app.use((req, res, next) => {
     // Setup WebSockets
     const ws = setupWebSockets(server);
     app.set('ws', ws);
+    registerBroadcast(ws.broadcast);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
