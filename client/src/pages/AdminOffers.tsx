@@ -591,6 +591,6 @@ export default function AdminOffers() {
         )}
       </div>
       </div>
-    </div>
+    
   );
 }
