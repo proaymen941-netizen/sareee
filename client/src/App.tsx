@@ -11,11 +11,27 @@ import { UiSettingsProvider, useUiSettings } from "./context/UiSettingsContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { LocationPermissionModal } from "./components/LocationPermissionModal";
 import Layout from "./components/Layout";
+import { AdminLayout } from "./components/admin/AdminLayout";
 import FloatingCartNotification from "./components/FloatingCartNotification";
 import { LoginPage } from "./pages/LoginPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminDeliveryFees from "./pages/admin/AdminDeliveryFees";
+import AdminUiSettings from "./pages/admin/AdminUiSettings";
+import AdminCoupons from "./pages/admin/AdminCoupons";
+import AdminPaymentMethods from "./pages/admin/AdminPaymentMethods";
+import AdminDetailedReports from "./pages/admin/AdminDetailedReports";
+import AdvancedReports from "./pages/admin/AdvancedReports";
+import RestaurantReports from "./pages/admin/RestaurantReports";
+import AdminDriversAdvanced from "./pages/AdminDriversAdvanced";
+import AdminFinancialReports from "./pages/AdminFinancialReports";
+import AdminHRManagement from "./pages/AdminHRManagement";
+import AdminRestaurantsAdvanced from "./pages/AdminRestaurantsAdvanced";
+import AdminSecurity from "./pages/AdminSecurity";
+import RatingsManagement from "./pages/RatingsManagement";
+import WalletManagement from "./pages/WalletManagement";
 import DriverAppPage from "./pages/driver/DriverApp";
 import { useState } from "react";
 import Home from "./pages/Home";
@@ -29,6 +45,7 @@ import TrackOrdersPage from "./pages/TrackOrdersPage";
 import Settings from "./pages/Settings";
 import Privacy from "./pages/Privacy";
 import SearchPage from "./pages/SearchPage";
+// Admin pages removed - now handled separately
 import NotFound from "@/pages/not-found";
 
 function MainApp() {
@@ -42,6 +59,7 @@ function MainApp() {
   const { isAuthenticated } = useAuth();
   const { loading: settingsLoading } = useUiSettings();
 
+  // If not authenticated and not guest, redirect to auth (unless already on auth or login pages)
   const isAuthPage = currentLocation === '/auth' || 
                      currentLocation === '/admin-login' || 
                      currentLocation === '/driver-login';
@@ -58,6 +76,7 @@ function MainApp() {
     return null;
   }
 
+  // Handle login pages first (without layout)
   if (currentLocation === '/admin-login') {
     return <AdminLoginPage />;
   }
@@ -66,14 +85,36 @@ function MainApp() {
     return <DriverLoginPage />;
   }
 
-  // Handle admin routes - AdminApp has its own AdminLayout, no wrapper needed here
+  // Handle admin routes - require authentication
   if (currentLocation.startsWith('/admin')) {
     const adminToken = localStorage.getItem('admin_token');
     if (!adminToken) {
       setLocation('/admin-login');
       return null;
     }
-    return <AdminApp />;
+    return (
+      <AdminLayout>
+        <Switch>
+          <Route path="/admin" component={AdminApp} />
+          <Route path="/admin/dashboard" component={AdminDashboard} />
+          <Route path="/admin/delivery-fees" component={AdminDeliveryFees} />
+          <Route path="/admin/ui-settings" component={AdminUiSettings} />
+          <Route path="/admin/coupons" component={AdminCoupons} />
+          <Route path="/admin/payment-methods" component={AdminPaymentMethods} />
+          <Route path="/admin/detailed-reports" component={AdminDetailedReports} />
+          <Route path="/admin/advanced-reports" component={AdvancedReports} />
+          <Route path="/admin/restaurant-reports" component={RestaurantReports} />
+          <Route path="/admin/drivers-advanced" component={AdminDriversAdvanced} />
+          <Route path="/admin/financial-reports" component={AdminFinancialReports} />
+          <Route path="/admin/hr-management" component={AdminHRManagement} />
+          <Route path="/admin/restaurants-advanced" component={AdminRestaurantsAdvanced} />
+          <Route path="/admin/security" component={AdminSecurity} />
+          <Route path="/admin/ratings" component={RatingsManagement} />
+          <Route path="/admin/wallet" component={WalletManagement} />
+          <Route path="/admin/:rest*" component={AdminApp} />
+        </Switch>
+      </AdminLayout>
+    );
   }
 
   // Handle driver routes
@@ -111,6 +152,7 @@ import CustomerAuthPage from "./pages/CustomerAuthPage";
 import Favorites from "./pages/Favorites";
 
 function Router() {
+  // Check UiSettings for page visibility
   const { isFeatureEnabled } = useUiSettings();
   const showOrdersPage = isFeatureEnabled('show_orders_page');
   const showTrackOrdersPage = isFeatureEnabled('show_track_orders_page');
@@ -133,6 +175,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/privacy" component={Privacy} />
       
+      {/* Authentication Routes */}
       <Route path="/admin-login" component={AdminLoginPage} />
       <Route path="/driver-login" component={DriverLoginPage} />
       
