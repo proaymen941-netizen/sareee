@@ -25,18 +25,6 @@ Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
 - **Schema**: `shared/schema.ts`
 - **Migrations**: `drizzle/` directory
 
-### Flutter Mobile App (`flutter_app/`)
-- **Type**: WebView wrapper app (loads the web app URL)
-- **Framework**: Flutter (Dart)
-- **Push Notifications**: Firebase Cloud Messaging (FCM)
-- **Server API Endpoints** (all under `/api/flutter/`):
-  - `GET /api/flutter/app-config` — Returns app configuration (colors, title, splash, webAppUrl, etc.)
-  - `POST /api/flutter/register-token` — Registers FCM device token for push notifications
-  - `POST /api/flutter/deregister-token` — Deregisters FCM device token
-  - `GET /api/flutter/device-tokens` — Lists active device tokens (admin use)
-- **Device Tokens Table**: `device_tokens` in PostgreSQL
-- **Important**: Firebase credentials in `flutter_app/lib/main.dart` must be replaced with real Firebase project values before building
-
 ## Project Structure
 
 ```
@@ -151,6 +139,48 @@ The `drivers` table has these important fields:
 - **الأقسام**: Search bar (sticky) added
 - **العروض الخاصة**: No restaurant association required (global store offers)
 - **Currency**: SAR everywhere (ر.س) — locale: ar-SA
+
+## Flutter Mobile App (tamtoom_flutter/)
+
+A complete Flutter mobile customer app for Android/iOS that mirrors the web customer app features.
+
+### Architecture
+- **Framework**: Flutter (Dart)
+- **State Management**: Provider (ChangeNotifier)
+- **HTTP**: `http` package
+- **Caching**: `cached_network_image`
+- **Storage**: `shared_preferences`
+- **Navigation**: Named routes + Navigator.push
+
+### Key Files
+- `lib/main.dart` — Entry point with AuthProvider, CartProvider, UiSettingsProvider
+- `lib/config/api_config.dart` — API base URL (Replit domain)
+- `lib/services/api_service.dart` — All API calls (singleton)
+- `lib/services/auth_service.dart` — Login/register/token management
+- `lib/providers/` — auth_provider, cart_provider, ui_settings_provider
+
+### Screens
+- `splash_screen.dart` — Animated splash with auth check
+- `main_scaffold.dart` — Bottom nav (Home, Search, Orders, Favorites, Profile)
+- `home_screen.dart` — Offers carousel, categories, featured products, stores
+- `category_screen.dart` — Products grid by category with sort
+- `product_detail_screen.dart` — Full product view with add-to-cart
+- `restaurant_screen.dart` — Store menu with category tabs
+- `search_screen.dart` — Search products/categories with navigation
+- `cart_screen.dart` — Cart + coupon + delivery fee + checkout
+- `orders_screen.dart` — My orders + order tracking by number
+- `order_tracking_screen.dart` — Step-by-step tracking with auto-refresh
+- `favorites_screen.dart` — Saved favorite products
+- `addresses_screen.dart` — Manage delivery addresses
+- `profile_screen.dart` — User profile, support, privacy, logout
+- `privacy_screen.dart` — Privacy policy (from UI settings)
+- `auth/auth_screen.dart` — Login/register tabs
+
+### Dependencies Added
+- `url_launcher: ^6.3.0` — For WhatsApp/phone support links
+
+### API Base URL
+`f8566af7-f859-48c1-90a0-b9059cec078a-00-35k6ytyjmrrzj.pike.replit.dev`
 
 ## Recent Improvements (March 2026)
 
