@@ -363,30 +363,32 @@ export default function AdminMenuItems() {
     item.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <Package className="h-7 w-7 text-primary" />
-            <div>
-              <h1 className="text-xl font-bold text-foreground">إدارة المنتجات - طمطوم</h1>
-              <p className="text-sm text-muted-foreground">إدارة منتجات متجر طمطوم</p>
-            </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Package className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">إدارة المنتجات - طمطوم</h1>
+            <p className="text-muted-foreground">إدارة منتجات متجر طمطوم</p>
           </div>
-          <Button
-            className="gap-2"
-            onClick={() => { resetForm(); setIsDialogOpen(true); }}
-            data-testid="button-add-menu-item"
-          >
-            <Plus className="h-4 w-4" />
-            إضافة منتج
-          </Button>
         </div>
-      </div>
-
-      {/* Dialog - portal renders outside DOM flow */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        
+        <div className="flex items-center gap-3">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="gap-2"
+                onClick={() => {
+                  resetForm();
+                  setIsDialogOpen(true);
+                }}
+                data-testid="button-add-menu-item"
+              >
+                <Plus className="h-4 w-4" />
+                إضافة منتج
+              </Button>
+            </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -562,6 +564,8 @@ export default function AdminMenuItems() {
               </form>
             </DialogContent>
           </Dialog>
+        </div>
+      </div>
 
       {/* شريط البحث */}
       {true && (

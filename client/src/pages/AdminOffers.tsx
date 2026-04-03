@@ -214,31 +214,31 @@ export default function AdminOffers() {
   };
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <Percent className="h-7 w-7 text-primary" />
-            <div>
-              <h1 className="text-xl font-bold text-foreground">إدارة العروض الخاصة</h1>
-              <p className="text-sm text-muted-foreground">إنشاء وإدارة العروض والخصومات</p>
-            </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Percent className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">إدارة العروض الخاصة</h1>
+            <p className="text-muted-foreground">إنشاء وإدارة العروض والخصومات</p>
           </div>
-          <Button
-            className="gap-2"
-            onClick={() => { resetForm(); setIsDialogOpen(true); }}
-            data-testid="button-add-offer"
-          >
-            <Plus className="h-4 w-4" />
-            إضافة عرض جديد
-          </Button>
         </div>
-      </div>
-
-      <div className="p-6 space-y-6">
+        
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger className="hidden" />
+          <DialogTrigger asChild>
+            <Button 
+              className="gap-2"
+              onClick={() => {
+                resetForm();
+                setIsDialogOpen(true);
+              }}
+              data-testid="button-add-offer"
+            >
+              <Plus className="h-4 w-4" />
+              إضافة عرض جديد
+            </Button>
+          </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -590,7 +590,6 @@ export default function AdminOffers() {
           </div>
         )}
       </div>
-      </div>
-    
+    </div>
   );
 }

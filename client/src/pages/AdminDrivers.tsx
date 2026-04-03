@@ -420,6 +420,10 @@ export default function AdminDrivers() {
     });
   };
 
+
+
+
+
   const getTransactionTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       commission: 'عمولة',
@@ -467,14 +471,14 @@ export default function AdminDrivers() {
         </Button>
       </div>
 
-      {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-        <div className="flex items-center justify-between px-4 md:px-6 py-4">
+      <div className="space-y-6 p-4 md:p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Truck className="h-7 w-7 text-primary" />
+            <Truck className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-xl font-bold text-foreground">إدارة السائقين</h1>
-              <p className="text-sm text-muted-foreground">إدارة سائقي التوصيل وأرصدتهم</p>
+              <h1 className="text-2xl font-bold text-foreground">إدارة السائقين</h1>
+              <p className="text-muted-foreground">إدارة سائقي التوصيل وأرصدتهم</p>
             </div>
           </div>
           
@@ -722,9 +726,7 @@ export default function AdminDrivers() {
             </Dialog>
           </div>
         </div>
-      </div>
 
-      <div className="p-4 md:p-6 space-y-6">
         {/* Drivers Grid */}
         <div ref={driversGridRef} className="space-y-4">
           <div className="flex items-center justify-between">

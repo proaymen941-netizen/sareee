@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Save, Settings, Eye, Image as ImageIcon, Smartphone, Truck, 
   MessageCircle, Phone, Share2, Lock, ShoppingCart, Star, Bell,
-  ChevronDown, ChevronRight, Hash, Globe
+  ChevronDown, ChevronRight, Hash
 } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
@@ -112,7 +112,6 @@ export default function AdminUiSettings() {
     driver_pages: true,
     driver_permissions: true,
     order_number: true,
-    flutter_splash: true,
   });
 
   const { data: uiSettings, isLoading } = useQuery<UiSettings[]>({
@@ -305,44 +304,37 @@ export default function AdminUiSettings() {
   }
 
   return (
-    <div className="flex flex-col min-h-full" dir="rtl">
-      {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4 flex-wrap gap-3">
-          <div className="flex items-center gap-3">
+    <div className="p-6 space-y-6" dir="rtl">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Settings className="h-7 w-7 text-orange-500" />
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">إدارة إعدادات المتجر والواجهة</h1>
-              <p className="text-sm text-gray-500">التحكم الكامل في مظهر وخيارات التطبيق</p>
-            </div>
-          </div>
-          {hasChanges && (
-            <Button onClick={saveAll} disabled={updateSettingMutation.isPending} className="bg-orange-500 hover:bg-orange-600">
-              <Save className="h-4 w-4 ml-2" />
-              حفظ جميع التغييرات ({Object.keys(pendingChanges).length})
-            </Button>
-          )}
+            إدارة إعدادات المتجر والواجهة
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">التحكم الكامل في مظهر وخيارات التطبيق</p>
         </div>
+        {hasChanges && (
+          <Button onClick={saveAll} disabled={updateSettingMutation.isPending} className="bg-orange-500 hover:bg-orange-600">
+            <Save className="h-4 w-4 ml-2" />
+            حفظ جميع التغييرات ({Object.keys(pendingChanges).length})
+          </Button>
+        )}
       </div>
 
-      <div className="p-6 space-y-6">
       <Tabs defaultValue="customer" className="w-full">
-        <TabsList className="grid grid-cols-4 w-full mb-6 bg-orange-50 border border-orange-100">
-          <TabsTrigger value="customer" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-            <Smartphone className="h-3.5 w-3.5" />
+        <TabsList className="grid grid-cols-3 w-full max-w-lg mb-6 bg-orange-50 border border-orange-100">
+          <TabsTrigger value="customer" className="gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+            <Smartphone className="h-4 w-4" />
             تطبيق العميل
           </TabsTrigger>
-          <TabsTrigger value="driver" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-            <Truck className="h-3.5 w-3.5" />
+          <TabsTrigger value="driver" className="gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+            <Truck className="h-4 w-4" />
             تطبيق السائق
           </TabsTrigger>
-          <TabsTrigger value="store" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-            <Settings className="h-3.5 w-3.5" />
+          <TabsTrigger value="store" className="gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+            <Settings className="h-4 w-4" />
             إعدادات المتجر
-          </TabsTrigger>
-          <TabsTrigger value="flutter" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-            <Globe className="h-3.5 w-3.5" />
-            تطبيق Flutter
           </TabsTrigger>
         </TabsList>
 
@@ -631,74 +623,7 @@ export default function AdminUiSettings() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* ===== FLUTTER APP TAB ===== */}
-        <TabsContent value="flutter" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Globe className="h-5 w-5 text-orange-500" />
-                رابط تطبيق الويب (WebView URL)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="divide-y divide-gray-100">
-              <div className="py-3">
-                <div className="bg-blue-50 rounded-lg p-3 text-xs text-blue-700 mb-4">
-                  💡 هذا هو الرابط الذي يحمّله تطبيق Flutter داخل الـ WebView. قم بتحديثه إذا انتقلت الخدمة إلى نطاق جديد.
-                </div>
-              </div>
-              <SettingRow 
-                label="رابط تطبيق الويب"
-                settingKey="webAppUrl"
-                placeholder="https://your-domain.replit.app"
-                description="الرابط الكامل للموقع الذي يعرضه تطبيق Flutter"
-              />
-            </CardContent>
-          </Card>
-
-          <SectionCard sectionKey="flutter_splash" title="شاشة البداية (Flutter Splash Screen)" icon={Star} color="text-yellow-600">
-            <SettingRow 
-              label="تفعيل شاشة البداية"
-              settingKey="splashEnabled"
-              type="boolean"
-              description="عرض شاشة البداية عند فتح تطبيق Flutter"
-            />
-            <SettingRow 
-              label="عنوان شاشة البداية"
-              settingKey="splashTitle"
-              placeholder="طمطوم"
-              description="النص الرئيسي في شاشة البداية"
-            />
-            <SettingRow 
-              label="وصف شاشة البداية"
-              settingKey="splashSubtitle"
-              type="textarea"
-              placeholder="متجر الخضار والفواكه الطازجة..."
-              description="النص الفرعي أسفل العنوان"
-              rows={2}
-            />
-            <SettingRow 
-              label="لون خلفية شاشة البداية (hex)"
-              settingKey="splashBackgroundColor"
-              placeholder="#FFFFFF"
-              description="لون خلفية شاشة البداية (مثال: #FFFFFF للأبيض)"
-            />
-            <SettingRow 
-              label="مدة ظهور شاشة البداية (ميلي ثانية)"
-              settingKey="splashDuration"
-              placeholder="3000"
-              description="المدة التي تبقى فيها شاشة البداية مرئية. 3000 = 3 ثوان"
-            />
-            <SettingRow 
-              label="صورة شاشة البداية"
-              settingKey="splashImageUrl"
-              type="image"
-              description="الشعار أو الصورة في شاشة البداية"
-            />
-          </SectionCard>
-        </TabsContent>
       </Tabs>
-      </div>
     </div>
   );
 }
