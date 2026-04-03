@@ -4,7 +4,6 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { deviceTokens, notifications } from "../../shared/schema.js";
 import { eq, and, gt, desc, or } from "drizzle-orm";
-import { getSettingsVersion } from "../broadcast.js";
 
 const router = express.Router();
 
@@ -26,8 +25,7 @@ router.get("/app-config", async (req, res) => {
     const settings = await storage.getUiSettings();
 
     const getValue = (key: string, fallback: any = "") => {
-      if (!Array.isArray(settings)) return fallback;
-      const setting = settings.find((s: any) => s.key === key);
+      const setting = (settings as any[]).find((s: any) => s.key === key);
       return setting ? setting.value : fallback;
     };
 
@@ -44,59 +42,20 @@ router.get("/app-config", async (req, res) => {
       splashBackgroundColor: getValue("splashBackgroundColor", "#FFFFFF"),
       splashDuration: parseInt(getValue("splashDuration", "3000"), 10),
       appName: getValue("appName", "طمطوم"),
-      appVersion: getValue("appVersion", "1.1.0"),
-      primaryColor: getValue("primaryColor", "#E53935"),
-      secondaryColor: getValue("secondaryColor", "#4CAF50"),
-      accentColor: getValue("accentColor", "#FF9800"),
+      appVersion: getValue("appVersion", "1.0.0"),
+      primaryColor: getValue("primaryColor", "#4CAF50"),
+      secondaryColor: getValue("secondaryColor", "#FF9800"),
+      accentColor: getValue("accentColor", "#2196F3"),
       logoUrl: getValue("logoUrl", ""),
       webAppUrl: getValue("webAppUrl", serverUrl),
       storeStatus: getValue("storeStatus", "open"),
       privacyPolicyText: getValue("privacyPolicyText", ""),
-      showSearchBar: getValue("showSearchBar", "true") !== "false",
-      showCategories: getValue("showCategories", "true") !== "false",
-      showSpecialOffers: getValue("showSpecialOffers", "true") !== "false",
-      showSupportButton: getValue("showSupportButton", "true") !== "false",
-      supportWhatsapp: getValue("supportWhatsapp", "966500000000"),
-      openingTime: getValue("openingTime", "08:00"),
-      closingTime: getValue("closingTime", "23:00"),
       serverUrl,
     };
 
     res.json({ success: true, config });
   } catch (error) {
     console.error("خطأ في جلب إعدادات Flutter:", error);
-    res.status(500).json({ success: false, message: "خطأ في الخادم" });
-  }
-});
-
-// GET /api/flutter/settings-version
-// Flutter يستدعي هذا endpoint كل 30 ثانية للتحقق من وجود تحديثات
-router.get("/settings-version", (req, res) => {
-  const version = getSettingsVersion();
-  res.json({
-    success: true,
-    version,
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// GET /api/flutter/full-config
-// إعدادات كاملة تشمل جميع إعدادات الواجهة
-router.get("/full-config", async (req, res) => {
-  try {
-    const settings = await storage.getUiSettings();
-    const serverUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : `http://localhost:${process.env.PORT || 5000}`;
-
-    res.json({
-      success: true,
-      settings: Array.isArray(settings) ? settings : [],
-      serverUrl,
-      version: getSettingsVersion(),
-    });
-  } catch (error) {
-    console.error("خطأ في جلب الإعدادات الكاملة:", error);
     res.status(500).json({ success: false, message: "خطأ في الخادم" });
   }
 });
