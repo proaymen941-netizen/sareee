@@ -1230,23 +1230,3 @@ export const insertCouponUsageSchema = createInsertSchema(couponUsages).partial(
 export const selectCouponUsageSchema = createSelectSchema(couponUsages);
 export type CouponUsage = z.infer<typeof selectCouponUsageSchema>;
 export type InsertCouponUsage = z.infer<typeof insertCouponUsageSchema>;
-
-// Device tokens table (for Flutter push notifications)
-export const deviceTokens = pgTable("device_tokens", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  token: text("token").notNull().unique(),
-  platform: varchar("platform", { length: 20 }).notNull().default("android"),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertDeviceTokenSchema = createInsertSchema(deviceTokens).partial({
-  id: true,
-  isActive: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const selectDeviceTokenSchema = createSelectSchema(deviceTokens);
-export type DeviceToken = z.infer<typeof selectDeviceTokenSchema>;
-export type InsertDeviceToken = z.infer<typeof insertDeviceTokenSchema>;

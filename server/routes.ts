@@ -10,7 +10,6 @@ import ordersRoutes from "./routes/orders";
 import deliveryFeeRoutes from "./routes/delivery-fees";
 import { adminRoutes } from "./routes/admin";
 import { registerAdvancedRoutes } from "./routes/advanced";
-import flutterRoutes from "./routes/flutter";
 import { 
   insertRestaurantSchema, 
   insertMenuItemSchema, 
@@ -39,9 +38,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth Routes
   app.use("/api/auth", authRoutes);
-
-  // Flutter App Routes
-  app.use("/api/flutter", flutterRoutes);
 
   // Admin and Advanced Routes
   app.use("/api/admin", adminRoutes);
