@@ -4,18 +4,6 @@
 منصة متكاملة لتجارة الخضار والفواكه إلكترونياً في المملكة العربية السعودية. تحتوي على ثلاثة واجهات: تطبيق العميل، تطبيق السائق، ولوحة الإدارة.
 Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
 
-## Flutter App Integration
-- تطبيق Flutter (`flutter_app/`) يعرض الموقع عبر WebView
-- شاشة البداية في Flutter تجلب إعداداتها (الشعار، العنوان، الألوان) من السيرفر عبر `/api/flutter/app-config`
-- تم حذف شاشة الترحيب الخضراء من تطبيق العميل (web) بالكامل - Flutter يتولى ذلك
-- عند الفتح من Flutter: يُكتشف تلقائياً عبر User-Agent ويُتجاوز تحميل الـ splash
-- دعم كامل للروابط الخارجية: WhatsApp, tel, SMS, mailto, Telegram, Maps
-- رسالة تأكيد عند الخروج من التطبيق
-- رسالة "لا يوجد اتصال بالإنترنت" مع إمكانية إعادة المحاولة
-- صلاحيات Android كاملة: كاميرا، موقع، هاتف، رسائل، واتساب، تيليجرام
-- صلاحيات iOS كاملة: كاميرا، موقع، جهات اتصال
-- رابط السيرفر في `flutter_app/lib/utils/constants.dart` - يجب تحديثه عند تغيير الاستضافة
-
 ## Architecture
 
 ### Frontend
@@ -36,6 +24,18 @@ Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
 - **ORM**: Drizzle ORM
 - **Schema**: `shared/schema.ts`
 - **Migrations**: `drizzle/` directory
+
+### Flutter Mobile App (`flutter_app/`)
+- **Type**: WebView wrapper app (loads the web app URL)
+- **Framework**: Flutter (Dart)
+- **Push Notifications**: Firebase Cloud Messaging (FCM)
+- **Server API Endpoints** (all under `/api/flutter/`):
+  - `GET /api/flutter/app-config` — Returns app configuration (colors, title, splash, webAppUrl, etc.)
+  - `POST /api/flutter/register-token` — Registers FCM device token for push notifications
+  - `POST /api/flutter/deregister-token` — Deregisters FCM device token
+  - `GET /api/flutter/device-tokens` — Lists active device tokens (admin use)
+- **Device Tokens Table**: `device_tokens` in PostgreSQL
+- **Important**: Firebase credentials in `flutter_app/lib/main.dart` must be replaced with real Firebase project values before building
 
 ## Project Structure
 
