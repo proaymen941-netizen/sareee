@@ -148,7 +148,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       permission: null,
       items: [
         { icon: Smartphone, label: 'إدارة الواجهات', path: '/admin/ui-settings', description: 'تطبيق العميل والسائق', permission: 'manage_settings' },
-        { icon: Bell, label: 'إشعارات التطبيق', path: '/admin/flutter-notifications', description: 'إرسال إشعارات لمستخدمي الجوال', permission: 'manage_settings' },
         { icon: Database, label: 'النسخ الاحتياطي', path: '/admin/backup', description: 'حفظ واستعادة البيانات', permission: 'manage_settings' },
         { icon: User, label: 'الملف الشخصي', path: '/admin/profile', description: 'إدارة معلومات الحساب', permission: null },
       ]
