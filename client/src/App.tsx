@@ -21,6 +21,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminDeliveryFees from "./pages/admin/AdminDeliveryFees";
 import AdminUiSettings from "./pages/admin/AdminUiSettings";
 import AdminCoupons from "./pages/admin/AdminCoupons";
+import AdminFlutterNotifications from "./pages/admin/AdminFlutterNotifications";
 import AdminPaymentMethods from "./pages/admin/AdminPaymentMethods";
 import AdminDetailedReports from "./pages/admin/AdminDetailedReports";
 import AdvancedReports from "./pages/admin/AdvancedReports";
@@ -48,16 +49,27 @@ import SearchPage from "./pages/SearchPage";
 // Admin pages removed - now handled separately
 import NotFound from "@/pages/not-found";
 
+import SplashScreen from "./components/SplashScreen";
+
 function MainApp() {
   const { location: userLocation } = useUserLocation();
   const [currentLocation, setLocation] = useWouterLocation();
   const [showLocationModal, setShowLocationModal] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    return !sessionStorage.getItem('splash_seen');
+  });
   const [isGuest, setIsGuest] = useState(() => {
     return localStorage.getItem('is_guest') === 'true';
   });
 
   const { isAuthenticated } = useAuth();
   const { loading: settingsLoading } = useUiSettings();
+
+  // Handle splash finish
+  const handleSplashFinish = () => {
+    sessionStorage.setItem('splash_seen', 'true');
+    setShowSplash(false);
+  };
 
   // If not authenticated and not guest, redirect to auth (unless already on auth or login pages)
   const isAuthPage = currentLocation === '/auth' || 
@@ -67,8 +79,20 @@ function MainApp() {
   const isAdminRoute = currentLocation.startsWith('/admin');
   const isDriverRoute = currentLocation.startsWith('/driver');
 
+  // انتظار تحميل إعدادات الواجهة للتطبيقات (ليس الأدمن أو صفحات الدخول)
   if (settingsLoading && !isAdminRoute && !isAuthPage) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">جاري التحميل...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (showSplash && !isAdminRoute && !isDriverRoute && !isAuthPage) {
+    return <SplashScreen onFinish={handleSplashFinish} />;
   }
 
   if (!isAuthenticated && !isGuest && !isAuthPage && !currentLocation.startsWith('/admin') && !currentLocation.startsWith('/driver')) {
@@ -104,6 +128,7 @@ function MainApp() {
           <Route path="/admin/detailed-reports" component={AdminDetailedReports} />
           <Route path="/admin/advanced-reports" component={AdvancedReports} />
           <Route path="/admin/restaurant-reports" component={RestaurantReports} />
+          <Route path="/admin/flutter-notifications" component={AdminFlutterNotifications} />
           <Route path="/admin/drivers-advanced" component={AdminDriversAdvanced} />
           <Route path="/admin/financial-reports" component={AdminFinancialReports} />
           <Route path="/admin/hr-management" component={AdminHRManagement} />
