@@ -12,7 +12,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const [show, setShow] = useState(true);
 
   if (settingsLoading) {
-    return null;
+    return (
+      <div className="fixed inset-0 bg-white z-[9999] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   const splashImageUrl = getSetting('splash_image_url', 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?q=80&w=800');
