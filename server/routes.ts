@@ -10,6 +10,7 @@ import ordersRoutes from "./routes/orders";
 import deliveryFeeRoutes from "./routes/delivery-fees";
 import { adminRoutes } from "./routes/admin";
 import { registerAdvancedRoutes } from "./routes/advanced";
+import { publicRoutes } from "./routes/public";
 import { 
   insertRestaurantSchema, 
   insertMenuItemSchema, 
@@ -877,6 +878,9 @@ app.get("/api/notifications", async (req, res) => {
 
   // Register delivery fee routes
   app.use("/api/delivery-fees", deliveryFeeRoutes);
+
+  // Register public routes (including Flutter API)
+  app.use("/api", publicRoutes);
 
   // Enhanced notifications endpoint
   app.get("/api/notifications", async (req, res) => {

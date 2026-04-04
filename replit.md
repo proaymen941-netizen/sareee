@@ -4,6 +4,18 @@
 منصة متكاملة لتجارة الخضار والفواكه إلكترونياً في المملكة العربية السعودية. تحتوي على ثلاثة واجهات: تطبيق العميل، تطبيق السائق، ولوحة الإدارة.
 Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
 
+## Flutter App Integration
+- تطبيق Flutter (`flutter_app/`) يعرض الموقع عبر WebView
+- شاشة البداية في Flutter تجلب إعداداتها (الشعار، العنوان، الألوان) من السيرفر عبر `/api/flutter/app-config`
+- تم حذف شاشة الترحيب الخضراء من تطبيق العميل (web) بالكامل - Flutter يتولى ذلك
+- عند الفتح من Flutter: يُكتشف تلقائياً عبر User-Agent ويُتجاوز تحميل الـ splash
+- دعم كامل للروابط الخارجية: WhatsApp, tel, SMS, mailto, Telegram, Maps
+- رسالة تأكيد عند الخروج من التطبيق
+- رسالة "لا يوجد اتصال بالإنترنت" مع إمكانية إعادة المحاولة
+- صلاحيات Android كاملة: كاميرا، موقع، هاتف، رسائل، واتساب، تيليجرام
+- صلاحيات iOS كاملة: كاميرا، موقع، جهات اتصال
+- رابط السيرفر في `flutter_app/lib/utils/constants.dart` - يجب تحديثه عند تغيير الاستضافة
+
 ## Architecture
 
 ### Frontend
@@ -139,48 +151,6 @@ The `drivers` table has these important fields:
 - **الأقسام**: Search bar (sticky) added
 - **العروض الخاصة**: No restaurant association required (global store offers)
 - **Currency**: SAR everywhere (ر.س) — locale: ar-SA
-
-## Flutter Mobile App (tamtoom_flutter/)
-
-A complete Flutter mobile customer app for Android/iOS that mirrors the web customer app features.
-
-### Architecture
-- **Framework**: Flutter (Dart)
-- **State Management**: Provider (ChangeNotifier)
-- **HTTP**: `http` package
-- **Caching**: `cached_network_image`
-- **Storage**: `shared_preferences`
-- **Navigation**: Named routes + Navigator.push
-
-### Key Files
-- `lib/main.dart` — Entry point with AuthProvider, CartProvider, UiSettingsProvider
-- `lib/config/api_config.dart` — API base URL (Replit domain)
-- `lib/services/api_service.dart` — All API calls (singleton)
-- `lib/services/auth_service.dart` — Login/register/token management
-- `lib/providers/` — auth_provider, cart_provider, ui_settings_provider
-
-### Screens
-- `splash_screen.dart` — Animated splash with auth check
-- `main_scaffold.dart` — Bottom nav (Home, Search, Orders, Favorites, Profile)
-- `home_screen.dart` — Offers carousel, categories, featured products, stores
-- `category_screen.dart` — Products grid by category with sort
-- `product_detail_screen.dart` — Full product view with add-to-cart
-- `restaurant_screen.dart` — Store menu with category tabs
-- `search_screen.dart` — Search products/categories with navigation
-- `cart_screen.dart` — Cart + coupon + delivery fee + checkout
-- `orders_screen.dart` — My orders + order tracking by number
-- `order_tracking_screen.dart` — Step-by-step tracking with auto-refresh
-- `favorites_screen.dart` — Saved favorite products
-- `addresses_screen.dart` — Manage delivery addresses
-- `profile_screen.dart` — User profile, support, privacy, logout
-- `privacy_screen.dart` — Privacy policy (from UI settings)
-- `auth/auth_screen.dart` — Login/register tabs
-
-### Dependencies Added
-- `url_launcher: ^6.3.0` — For WhatsApp/phone support links
-
-### API Base URL
-`f8566af7-f859-48c1-90a0-b9059cec078a-00-35k6ytyjmrrzj.pike.replit.dev`
 
 ## Recent Improvements (March 2026)
 

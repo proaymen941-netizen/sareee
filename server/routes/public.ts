@@ -254,4 +254,77 @@ router.post("/coupons/validate", async (req, res) => {
   }
 });
 
+// ==========================================
+// 📱 Flutter App Configuration API
+// ==========================================
+router.get("/flutter/app-config", async (req, res) => {
+  try {
+    const settingKeys = [
+      'splash_image_url', 'splash_image_url2', 'splash_title', 'splash_subtitle',
+      'splash_background_color', 'splash_duration', 'logo_url', 'app_name',
+      'primary_color', 'secondary_color', 'accent_color', 'store_status',
+      'privacy_policy_text', 'show_splash_screen'
+    ];
+
+    const settings: Record<string, string> = {};
+    for (const key of settingKeys) {
+      try {
+        const setting = await storage.getUiSetting(key);
+        if (setting) settings[key] = String(setting.value ?? '');
+      } catch {}
+    }
+
+    const webAppUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : process.env.REPL_SLUG
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+        : process.env.WEB_APP_URL || '';
+
+    res.json({
+      success: true,
+      config: {
+        splashEnabled: settings['show_splash_screen'] !== 'false',
+        splashImageUrl: settings['splash_image_url'] || '',
+        splashImageUrl2: settings['splash_image_url2'] || '',
+        splashTitle: settings['splash_title'] || 'طمطوم',
+        splashSubtitle: settings['splash_subtitle'] || 'متجر الخضار والفواكه',
+        splashBackgroundColor: settings['splash_background_color'] || '#FFFFFF',
+        splashDuration: parseInt(settings['splash_duration'] || '3000'),
+        logoUrl: settings['logo_url'] || '',
+        appName: settings['app_name'] || 'طمطوم',
+        appVersion: '1.0.0',
+        primaryColor: settings['primary_color'] || '#4CAF50',
+        secondaryColor: settings['secondary_color'] || '#FF9800',
+        accentColor: settings['accent_color'] || '#2196F3',
+        webAppUrl: webAppUrl,
+        storeStatus: settings['store_status'] || 'open',
+        privacyPolicyText: settings['privacy_policy_text'] || '',
+      }
+    });
+  } catch (error) {
+    console.error("Flutter config error:", error);
+    res.json({
+      success: false,
+      config: {
+        splashEnabled: true,
+        splashImageUrl: '',
+        splashImageUrl2: '',
+        splashTitle: 'طمطوم',
+        splashSubtitle: 'متجر الخضار والفواكه',
+        splashBackgroundColor: '#FFFFFF',
+        splashDuration: 3000,
+        logoUrl: '',
+        appName: 'طمطوم',
+        appVersion: '1.0.0',
+        primaryColor: '#4CAF50',
+        secondaryColor: '#FF9800',
+        accentColor: '#2196F3',
+        webAppUrl: '',
+        storeStatus: 'open',
+        privacyPolicyText: '',
+      }
+    });
+  }
+});
+
 export { router as publicRoutes };
