@@ -143,8 +143,8 @@ export default function MenuItemCard({
             </Badge>
           )}
           {item.isFeatured && (
-            <Badge className="bg-black/80 text-white border-none rounded-sm text-[8px] px-1.5 py-0 font-black">
-              M-S
+            <Badge className="bg-amber-500 text-white border-none rounded-sm text-[8px] px-1.5 py-0 font-black">
+              مميز
             </Badge>
           )}
           {discountPercent > 0 && (
