@@ -429,6 +429,52 @@ router.get("/menu-items", async (req, res) => {
   }
 });
 
+// ── Restaurant Sections CRUD ───────────────────────────────────────────────
+router.get("/restaurants/:restaurantId/sections", async (req, res) => {
+  try {
+    const { restaurantId } = req.params;
+    const sections = await storage.getRestaurantSections(restaurantId);
+    res.json(sections);
+  } catch (error) {
+    console.error("خطأ في جلب أقسام المطعم:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.post("/restaurant-sections", async (req, res) => {
+  try {
+    const section = await storage.createRestaurantSection(req.body);
+    res.status(201).json(section);
+  } catch (error) {
+    console.error("خطأ في إضافة قسم المطعم:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.put("/restaurant-sections/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const section = await storage.updateRestaurantSection(id, req.body);
+    if (!section) return res.status(404).json({ error: "القسم غير موجود" });
+    res.json(section);
+  } catch (error) {
+    console.error("خطأ في تحديث قسم المطعم:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.delete("/restaurant-sections/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = await storage.deleteRestaurantSection(id);
+    if (!success) return res.status(404).json({ error: "القسم غير موجود" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("خطأ في حذف قسم المطعم:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
 router.get("/restaurants/:restaurantId/menu", async (req, res) => {
   try {
     const { restaurantId } = req.params;

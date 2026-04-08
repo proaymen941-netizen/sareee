@@ -193,8 +193,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/restaurants/:restaurantId/menu", async (req, res) => {
     try {
       const { restaurantId } = req.params;
-      const menuItems = await storage.getMenuItems(restaurantId);
-      res.json(menuItems);
+      const allItems = await storage.getMenuItems(restaurantId);
+      res.json({ allItems });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch menu items" });
     }
@@ -561,8 +561,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Available orders for drivers are handled in routes/orders.ts
 
-  // ================= RESTAURANT SECTIONS API - DISABLED =================
-  // Restaurant sections functionality temporarily disabled - would require additional database methods
+  // ================= RESTAURANT SECTIONS API =================
+  app.get("/api/restaurants/:restaurantId/sections", async (req, res) => {
+    try {
+      const { restaurantId } = req.params;
+      const sections = await storage.getRestaurantSections(restaurantId);
+      res.json(sections);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch sections" });
+    }
+  });
 
   // ================= RATINGS & REVIEWS API - DISABLED =================
   // Ratings functionality temporarily disabled - would require additional database methods
@@ -809,19 +817,7 @@ app.get("/api/notifications", async (req, res) => {
     }
   });
 
-  // Favorites endpoints (path-param style) - المفضلة بمعرّف المسار
-  // GET /api/favorites/check/:userId/:restaurantId must come BEFORE /api/favorites/:userId
-  app.get("/api/favorites/check/:userId/:restaurantId", async (req, res) => {
-    try {
-      const { userId, restaurantId } = req.params;
-      const isFavorite = await storage.isRestaurantFavorite(userId, restaurantId);
-      res.json({ isFavorite });
-    } catch (error) {
-      console.error('Error checking favorite status:', error);
-      res.status(500).json({ message: 'Failed to check favorite status' });
-    }
-  });
-
+  // Favorites endpoints - مسارات المفضلة
   app.get("/api/favorites/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
@@ -830,6 +826,17 @@ app.get("/api/notifications", async (req, res) => {
     } catch (error) {
       console.error('Error fetching favorites:', error);
       res.status(500).json({ message: 'Failed to fetch favorite restaurants' });
+    }
+  });
+
+  app.post("/api/favorites", async (req, res) => {
+    try {
+      const validatedData = insertFavoritesSchema.parse(req.body);
+      const newFavorite = await storage.addToFavorites(validatedData);
+      res.status(201).json(newFavorite);
+    } catch (error) {
+      console.error('Error adding to favorites:', error);
+      res.status(500).json({ message: 'Failed to add restaurant to favorites' });
     }
   });
 
@@ -849,6 +856,25 @@ app.get("/api/notifications", async (req, res) => {
     }
   });
 
+  app.get("/api/favorites/check/:userId/:restaurantId", async (req, res) => {
+    try {
+      const { userId, restaurantId } = req.params;
+      const isFavorite = await storage.isRestaurantFavorite(userId, restaurantId);
+      res.json({ isFavorite });
+    } catch (error) {
+      console.error('Error checking favorite status:', error);
+      res.status(500).json({ message: 'Failed to check favorite status' });
+    }
+  });
+
+  // تم حذف مسارات المصادقة - لا حاجة لها
+  
+  // Register auth routes
+  app.use("/api/auth", authRoutes);
+  
+  // Register admin routes
+  app.use("/api/admin", adminRoutes);
+  
   // Register customer routes
   app.use("/api/customer", customerRoutes);
   

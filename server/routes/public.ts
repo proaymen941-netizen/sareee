@@ -81,6 +81,49 @@ router.get("/restaurants/:id/menu", async (req, res) => {
   }
 });
 
+// جلب أقسام المطعم
+router.get("/restaurants/:id/sections", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sections = await storage.getRestaurantSections(id);
+    res.json(sections);
+  } catch (error) {
+    console.error("خطأ في جلب أقسام المطعم:", error);
+    res.status(500).json({ message: "Failed to fetch restaurant sections" });
+  }
+});
+
+// تقييم مطعم مباشرة
+router.post("/restaurants/:id/rate", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, comment, customerName } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: "التقييم يجب أن يكون بين 1 و 5" });
+    }
+
+    const restaurant = await storage.getRestaurant(id);
+    if (!restaurant) {
+      return res.status(404).json({ message: "المطعم غير موجود" });
+    }
+
+    const ratingData = {
+      restaurantId: id,
+      customerName: customerName || "زائر",
+      rating: Number(rating),
+      comment: comment || null,
+      isApproved: false,
+    };
+
+    const newRating = await storage.createRating(ratingData as any);
+    res.status(201).json({ success: true, rating: newRating });
+  } catch (error) {
+    console.error("خطأ في إرسال التقييم:", error);
+    res.status(500).json({ message: "فشل في إرسال التقييم" });
+  }
+});
+
 // جلب العروض الخاصة
 router.get("/special-offers", async (req, res) => {
   try {

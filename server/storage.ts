@@ -1,6 +1,7 @@
 import { 
   type Category, type InsertCategory,
   type Restaurant, type InsertRestaurant,
+  type RestaurantSection, type InsertRestaurantSection,
   type MenuItem, type InsertMenuItem,
   type Order, type InsertOrder,
   type Driver, type InsertDriver,
@@ -54,6 +55,12 @@ export interface IStorage {
   createRestaurant(restaurant: InsertRestaurant): Promise<Restaurant>;
   updateRestaurant(id: string, restaurant: Partial<InsertRestaurant>): Promise<Restaurant | undefined>;
   deleteRestaurant(id: string): Promise<boolean>;
+
+  // Restaurant Sections
+  getRestaurantSections(restaurantId: string): Promise<RestaurantSection[]>;
+  createRestaurantSection(section: InsertRestaurantSection): Promise<RestaurantSection>;
+  updateRestaurantSection(id: string, section: Partial<InsertRestaurantSection>): Promise<RestaurantSection | undefined>;
+  deleteRestaurantSection(id: string): Promise<boolean>;
 
   // Menu Items
   getMenuItems(restaurantId: string): Promise<MenuItem[]>;
@@ -912,6 +919,22 @@ export class MemStorage implements IStorage {
 
   async deleteRestaurant(id: string): Promise<boolean> {
     return this.restaurants.delete(id);
+  }
+
+  async getRestaurantSections(restaurantId: string): Promise<RestaurantSection[]> {
+    return [];
+  }
+
+  async createRestaurantSection(section: InsertRestaurantSection): Promise<RestaurantSection> {
+    return section as RestaurantSection;
+  }
+
+  async updateRestaurantSection(id: string, section: Partial<InsertRestaurantSection>): Promise<RestaurantSection | undefined> {
+    return undefined;
+  }
+
+  async deleteRestaurantSection(id: string): Promise<boolean> {
+    return false;
   }
 
   // Menu Items

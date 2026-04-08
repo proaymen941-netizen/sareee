@@ -46,7 +46,7 @@ import {
   type CouponUsage, type InsertCouponUsage
 } from "@shared/schema";
 import { IStorage } from "./storage";
-import { eq, and, desc, sql, or, like, asc, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, or, like, asc, inArray, isNull } from "drizzle-orm";
 
 // Database connection
 let db: ReturnType<typeof drizzle> | null = null;
@@ -324,6 +324,29 @@ export class DatabaseStorage {
   }
 
   // Menu Items
+  async getRestaurantSections(restaurantId: string): Promise<RestaurantSection[]> {
+    return await this.db
+      .select()
+      .from(restaurantSections)
+      .where(eq(restaurantSections.restaurantId, restaurantId))
+      .orderBy(restaurantSections.sortOrder);
+  }
+
+  async createRestaurantSection(section: InsertRestaurantSection): Promise<RestaurantSection> {
+    const [newSection] = await this.db.insert(restaurantSections).values(section).returning();
+    return newSection;
+  }
+
+  async updateRestaurantSection(id: string, section: Partial<InsertRestaurantSection>): Promise<RestaurantSection | undefined> {
+    const [updated] = await this.db.update(restaurantSections).set(section).where(eq(restaurantSections.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRestaurantSection(id: string): Promise<boolean> {
+    const result = await this.db.delete(restaurantSections).where(eq(restaurantSections.id, id)).returning();
+    return result.length > 0;
+  }
+
   async getMenuItems(restaurantId: string): Promise<MenuItem[]> {
     if (restaurantId === 'all') {
       return await this.db.select().from(menuItems);
@@ -2112,7 +2135,9 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async createCoupon(couponData: InsertCoupon): Promise<Coupon> {
-    const data = { ...couponData, code: couponData.code.toUpperCase() };
+    const data: any = { ...couponData, code: couponData.code.toUpperCase() };
+    if (data.startDate && typeof data.startDate === 'string') data.startDate = new Date(data.startDate);
+    if (data.endDate && typeof data.endDate === 'string') data.endDate = new Date(data.endDate);
     const [newCoupon] = await this.db.insert(coupons).values(data).returning();
     return newCoupon;
   }
@@ -2120,6 +2145,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   async updateCoupon(id: string, couponData: Partial<InsertCoupon>): Promise<Coupon | undefined> {
     const updateData: any = { ...couponData, updatedAt: new Date() };
     if (updateData.code) updateData.code = updateData.code.toUpperCase();
+    if (updateData.startDate && typeof updateData.startDate === 'string') updateData.startDate = new Date(updateData.startDate);
+    if (updateData.endDate && typeof updateData.endDate === 'string') updateData.endDate = new Date(updateData.endDate);
     const [updated] = await this.db.update(coupons).set(updateData).where(eq(coupons.id, id)).returning();
     return updated;
   }
