@@ -141,9 +141,12 @@ export function canOrderFromRestaurant(restaurant: any): { canOrder: boolean; me
   const status = getRestaurantStatus(restaurant);
   
   if (!status.isOpen) {
+    const openMsg = status.nextOpenTime 
+      ? `سيفتح ${status.nextOpenTime}` 
+      : '';
     return {
       canOrder: false,
-      message: `عذراً، لا يمكن الطلب الآن. ${status.message}`
+      message: `عذراً، المتجر مغلق حالياً. ${openMsg}`
     };
   }
   
