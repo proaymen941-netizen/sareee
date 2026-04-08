@@ -41,11 +41,12 @@ export default function Profile() {
 
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: user, isLoading } = useQuery({
+  const { data: userData, isLoading } = useQuery({
     queryKey: ['/api/users', userId],
     enabled: !!userId && isAuthenticated,
     retry: false,
   });
+  const user = userData as { createdAt?: string | Date; name?: string; phone?: string; email?: string; address?: string } | undefined;
 
   const { data: userOrders = [] } = useQuery({
     queryKey: ['/api/orders/customer', profile.phone],

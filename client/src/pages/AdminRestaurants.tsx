@@ -311,7 +311,7 @@ export default function AdminRestaurants() {
   // فلترة المتاجر حسب البحث
   const filteredRestaurants = restaurants.filter((restaurant) =>
     restaurant.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    getCategoryName(restaurant.categoryId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getCategoryName(restaurant.categoryId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     restaurant.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     restaurant.phone?.toLowerCase().includes(searchTerm.toLowerCase())
   );

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowRight, MapPin, Clock, Phone, CheckCircle, Truck, Package, User, Star, MessageCircle, Map as MapIcon } from 'lucide-react';
+import { ArrowRight, MapPin, Clock, Phone, CheckCircle, Truck, Package, User, Star, MessageCircle, Map as MapIcon, Loader2 as Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -344,7 +344,7 @@ export default function OrderTrackingPage() {
                   <div className={`w-4 h-4 rounded-full ${getStatusColor(status.status)} mt-1 flex-shrink-0`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-foreground font-medium" data-testid={`timeline-description-${index}`}>
-                      {status.description || status.message || 'تحديث الطلب'}
+                      {status.description || 'تحديث الطلب'}
                     </p>
                     <p className="text-sm text-muted-foreground" data-testid={`timeline-time-${index}`}>
                       {new Date(status.timestamp).toLocaleTimeString('ar-SA', { 

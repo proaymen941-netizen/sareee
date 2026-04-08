@@ -280,7 +280,7 @@ export default function AdminDrivers() {
       currentLocation: driver.currentLocation || '',
       isAvailable: driver.isAvailable,
       isActive: driver.isActive,
-      commissionRate: driver.commissionRate || 70,
+      commissionRate: parseFloat(driver.commissionRate?.toString() || '70'),
       paymentMode: (driver as any).paymentMode || 'commission',
       salaryAmount: parseFloat((driver as any).salaryAmount || '0'),
       vehicleType: driver.vehicleType || '',
@@ -401,7 +401,7 @@ export default function AdminDrivers() {
   };
 
   const handleWithdrawal = () => {
-    if (!driverBalance || driverBalance.availableBalance <= 0) {
+    if (!driverBalance || parseFloat(driverBalance.availableBalance?.toString() || '0') <= 0) {
       toast({
         title: "خطأ",
         description: "لا يوجد رصيد متاح للسحب",
@@ -798,7 +798,7 @@ export default function AdminDrivers() {
                       <div className="flex items-center gap-2">
                         <Wallet className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium text-foreground">
-                          الرصيد: {formatCurrency(driver.totalEarnings || 0)}
+                          الرصيد: {formatCurrency(parseFloat((driver as any).earnings?.toString() || '0'))}
                         </span>
                       </div>
                     </div>
@@ -1306,7 +1306,7 @@ export default function AdminDrivers() {
                         </div>
                         <Button
                           onClick={handleWithdrawal}
-                          disabled={!driverBalance || driverBalance.availableBalance <= 0 || processWithdrawalMutation.isPending}
+                          disabled={!driverBalance || parseFloat(driverBalance.availableBalance?.toString() || '0') <= 0 || processWithdrawalMutation.isPending}
                           className="gap-2"
                         >
                           <ArrowUpDown className="h-4 w-4" />
@@ -1393,7 +1393,7 @@ export default function AdminDrivers() {
                                       {formatCurrency(transaction.amount)}
                                     </TableCell>
                                     <TableCell>{transaction.description}</TableCell>
-                                    <TableCell>{formatCurrency(transaction.balanceAfter)}</TableCell>
+                                    <TableCell>{formatCurrency(parseFloat(transaction.balanceAfter?.toString() || '0'))}</TableCell>
                                   </TableRow>
                                 ))
                               ) : (

@@ -192,6 +192,7 @@ export default function CartPage() {
       paymentMethod: orderForm.paymentMethod,
       items: JSON.stringify(items),
       subtotal: subtotal.toString(),
+      totalAmount: finalTotal.toString(),
       deliveryFee: deliveryFee.toString(),
       total: finalTotal.toString(),
       restaurantId: items[0]?.restaurantId || undefined,

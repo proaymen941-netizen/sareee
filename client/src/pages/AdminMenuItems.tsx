@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import type { MenuItem, Restaurant } from '@shared/schema';
+import type { MenuItem, Restaurant, Category } from '@shared/schema';
 
 export default function AdminMenuItems() {
   const { toast } = useToast();
@@ -686,14 +686,14 @@ export default function AdminMenuItems() {
                     <div className="text-center">
                       <p className="text-[10px] text-muted-foreground">مميز</p>
                       <Switch
-                        checked={item.isFeatured}
+                        checked={item.isFeatured ?? false}
                         onCheckedChange={() => toggleItemStatus(item, 'isFeatured')}
                       />
                     </div>
                     <div className="text-center">
                       <p className="text-[10px] text-muted-foreground">جديد</p>
                       <Switch
-                        checked={item.isNew}
+                        checked={item.isNew ?? false}
                         onCheckedChange={() => toggleItemStatus(item, 'isNew')}
                       />
                     </div>

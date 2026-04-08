@@ -585,9 +585,9 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
       case 'wallet':
         return <WalletPage />;
       case 'map':
-        return <div className="h-[calc(100vh-120px)] p-4"><DriverMapView currentLocation={currentLocation} orders={ordersForMap} /></div>;
+        return <div className="h-[calc(100vh-120px)] p-4"><DriverMapView driverLocation={currentLocation} orders={ordersForMap} /></div>;
       case 'history':
-        return <HistoryPage driverId={driverId} onSelectOrder={setSelectedOrderId} />;
+        return <HistoryPage onSelectOrder={setSelectedOrderId} />;
       case 'stats':
         return <StatsPage driverId={driverId} />;
       case 'profile':
