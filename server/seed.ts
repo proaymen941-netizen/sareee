@@ -14,8 +14,8 @@ const defaultUiSettings = [
   { key: "show_featured_products", value: "true", category: "navigation", description: "عرض المنتجات المميزة" },
   { key: "bottom_bar_enabled", value: "true", category: "navigation", description: "إظهار شريط التنقل السفلي" },
   // إعدادات عامة
-  { key: "app_name", value: "طمطوم للتوصيل", category: "general", description: "اسم التطبيق" },
-  { key: "app_theme", value: "#16a34a", category: "general", description: "اللون الأساسي للتطبيق (hex)" },
+  { key: "app_name", value: "السريع ون", category: "general", description: "اسم التطبيق" },
+  { key: "app_theme", value: "#ec3714", category: "general", description: "اللون الأساسي للتطبيق (hex)" },
   { key: "delivery_fee_default", value: "5", category: "general", description: "رسوم التوصيل الافتراضية (ريال)" },
   { key: "minimum_order_default", value: "25", category: "general", description: "الحد الأدنى لقيمة الطلب (ريال)" },
   // إعدادات التوصيل
@@ -33,7 +33,20 @@ const defaultUiSettings = [
   { key: "sidebar_image_url", value: "", category: "branding", description: "صورة خلفية القائمة الجانبية" },
   { key: "sidebar_logo_url", value: "", category: "branding", description: "شعار القائمة الجانبية (إذا كان مختلفاً عن شعار الهيدر)" },
   { key: "show_sidebar_logo", value: "true", category: "branding", description: "إظهار شعار القائمة الجانبية" },
-  { key: "sidebar_tagline", value: "كل ما تحتاجونه في مكان واحد", category: "branding", description: "الشعار النصي في القائمة الجانبية" },
+  { key: "sidebar_tagline", value: "خدمة التوصيل الأسرع في المملكة", category: "branding", description: "الشعار النصي في القائمة الجانبية" },
+  { key: "address_text", value: "أختار العنوان", category: "branding", description: "نص عنوان الموقع في الشريط العلوي" },
+  // إعدادات الشاشة الرئيسية - بانر العروض
+  { key: "offer_banner_1_title", value: "عروض حصرية يومية للتوصيل", category: "home", description: "عنوان البانر الأول" },
+  { key: "offer_banner_1_subtitle", value: "اطلب الآن واستمتع بأسرع توصيل", category: "home", description: "نص البانر الأول" },
+  { key: "offer_banner_2_title", value: "اكتشف أحدث العروض والخصومات", category: "home", description: "عنوان البانر الثاني" },
+  { key: "offer_banner_2_subtitle", value: "خصومات حصرية على الطلبات", category: "home", description: "نص البانر الثاني" },
+  // إعدادات أزرار التصنيف والصفحة الرئيسية
+  { key: "btn_tab_all", value: "الكل", category: "home", description: "نص تبويب كل المطاعم" },
+  { key: "btn_tab_nearest", value: "الأقرب", category: "home", description: "نص تبويب الأقرب" },
+  { key: "btn_tab_new", value: "الجديدة", category: "home", description: "نص تبويب الجديدة" },
+  { key: "btn_tab_favorites", value: "المفضلة", category: "home", description: "نص تبويب المفضلة" },
+  { key: "btn_shop_now", value: "تسوق الآن", category: "home", description: "نص زر التسوق" },
+  { key: "text_all_categories", value: "كل التصنيفات", category: "home", description: "نص زر كل التصنيفات" },
   { key: "app_version", value: "1.0.0", category: "general", description: "إصدار التطبيق" },
   { key: "top_bar_logo_url", value: "", category: "branding", description: "شعار الشريط العلوي الثانوي" },
   { key: "logo_animation_duration", value: "2.5", category: "branding", description: "مدة ظهور الشعار (ثواني)" },
@@ -41,7 +54,7 @@ const defaultUiSettings = [
   { key: "show_splash_screen", value: "true", category: "splash", description: "عرض شاشة الترحيب" },
   { key: "splash_image_url", value: "", category: "splash", description: "صورة شاشة الترحيب" },
   { key: "splash_image_url_2", value: "", category: "splash", description: "صورة إضافية للترحيب" },
-  { key: "splash_title", value: "طمطوم", category: "splash", description: "عنوان شاشة الترحيب" },
+  { key: "splash_title", value: "السريع ون", category: "splash", description: "عنوان شاشة الترحيب" },
   { key: "splash_subtitle", value: "أفضل الخضار والفواكه الطازجة توصل لبابك", category: "splash", description: "نص الترحيب" },
   { key: "splash_button_text", value: "ابدأ الآن", category: "splash", description: "نص زر البداية" },
   // إعدادات الدعم والتواصل
@@ -52,7 +65,7 @@ const defaultUiSettings = [
   // إعدادات المشاركة والقائمة الجانبية
   { key: "show_share_button", value: "true", category: "sidebar", description: "إظهار زر المشاركة في القائمة" },
   { key: "show_contact_button", value: "true", category: "sidebar", description: "إظهار زر التواصل في القائمة" },
-  { key: "share_text", value: "جرب تطبيق طمطوم الآن!", category: "sidebar", description: "نص المشاركة" },
+  { key: "share_text", value: "جرب السريع ون الآن!", category: "sidebar", description: "نص المشاركة" },
   { key: "share_url", value: "", category: "sidebar", description: "رابط المشاركة" },
   // إعدادات الخصوصية
   { key: "show_privacy_button", value: "true", category: "privacy", description: "إظهار زر سياسة الخصوصية" },
@@ -119,7 +132,7 @@ export async function seedDefaultData() {
     // Seed restaurants
     const restaurants = [
       {
-        name: "متجر طمطوم",
+        name: "متجر السريع ون",
         description: "أجود أنواع الفواكه والخضروات الطازجة يومياً",
         image: "https://images.unsplash.com/photo-1542838132-92c53300491e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
         phone: "+967777777777",

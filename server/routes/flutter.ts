@@ -25,7 +25,8 @@ router.get("/app-config", async (req, res) => {
     const settings = await storage.getUiSettings();
 
     const getValue = (key: string, fallback: any = "") => {
-      const setting = (settings as any[]).find((s: any) => s.key === key);
+      if (!Array.isArray(settings)) return fallback;
+      const setting = settings.find((s: any) => s.key === key);
       return setting ? setting.value : fallback;
     };
 
@@ -37,19 +38,26 @@ router.get("/app-config", async (req, res) => {
       splashEnabled: getValue("splashEnabled", "true") !== "false",
       splashImageUrl: getValue("splashImageUrl", ""),
       splashImageUrl2: getValue("splashImageUrl2", ""),
-      splashTitle: getValue("splashTitle", "طمطوم"),
+      splashTitle: getValue("splashTitle", "السريع ون"),
       splashSubtitle: getValue("splashSubtitle", "متجر الخضار والفواكه"),
       splashBackgroundColor: getValue("splashBackgroundColor", "#FFFFFF"),
       splashDuration: parseInt(getValue("splashDuration", "3000"), 10),
-      appName: getValue("appName", "طمطوم"),
-      appVersion: getValue("appVersion", "1.0.0"),
-      primaryColor: getValue("primaryColor", "#4CAF50"),
-      secondaryColor: getValue("secondaryColor", "#FF9800"),
-      accentColor: getValue("accentColor", "#2196F3"),
+      appName: getValue("appName", "السريع ون"),
+      appVersion: getValue("appVersion", "1.1.0"),
+      primaryColor: getValue("primaryColor", "#E53935"),
+      secondaryColor: getValue("secondaryColor", "#4CAF50"),
+      accentColor: getValue("accentColor", "#FF9800"),
       logoUrl: getValue("logoUrl", ""),
       webAppUrl: getValue("webAppUrl", serverUrl),
       storeStatus: getValue("storeStatus", "open"),
       privacyPolicyText: getValue("privacyPolicyText", ""),
+      showSearchBar: getValue("showSearchBar", "true") !== "false",
+      showCategories: getValue("showCategories", "true") !== "false",
+      showSpecialOffers: getValue("showSpecialOffers", "true") !== "false",
+      showSupportButton: getValue("showSupportButton", "true") !== "false",
+      supportWhatsapp: getValue("supportWhatsapp", "966500000000"),
+      openingTime: getValue("openingTime", "08:00"),
+      closingTime: getValue("closingTime", "23:00"),
       serverUrl,
     };
 
