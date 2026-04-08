@@ -1,8 +1,15 @@
-# طمطوم - Tamtom | منصة التجارة الإلكترونية للخضار والفواكه في السعودية
+# السريع ون | منصة توصيل الطلبات في المملكة العربية السعودية
 
 ## Overview
-منصة متكاملة لتجارة الخضار والفواكه إلكترونياً في المملكة العربية السعودية. تحتوي على ثلاثة واجهات: تطبيق العميل، تطبيق السائق، ولوحة الإدارة.
+منصة متكاملة لخدمة التوصيل في المملكة العربية السعودية. تحتوي على ثلاثة واجهات: تطبيق العميل، تطبيق السائق، ولوحة الإدارة.
 Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
+Primary Color: Red-Orange — hsl(13 95% 52%) / #ec3714
+
+## Branding
+- **App Name**: السريع ون (Al-Saree One)
+- **Primary Color**: Red-Orange `hsl(13 95% 52%)` replacing all green colors
+- **CSS Classes**: `.header-gradient`, `.orange-gradient`, `.red-gradient` (all red-orange)
+- **DB Settings**: Updated in `system_settings_table` via admin UI or direct DB query
 
 ## Flutter App Integration
 - تطبيق Flutter (`flutter_app/`) يعرض الموقع عبر WebView
@@ -15,6 +22,12 @@ Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
 - صلاحيات Android كاملة: كاميرا، موقع، هاتف، رسائل، واتساب، تيليجرام
 - صلاحيات iOS كاملة: كاميرا، موقع، جهات اتصال
 - رابط السيرفر في `flutter_app/lib/utils/constants.dart` - يجب تحديثه عند تغيير الاستضافة
+
+## Replit Setup Notes
+- **Workflow**: `npm run dev` on port 5000 (webview)
+- **Database**: PostgreSQL via Replit built-in (DATABASE_URL env var)
+- **CSS Fix**: Root `tailwind.config.js` content paths fixed to point at `./client/src/**`. A `client/postcss.config.js` was added so Vite middleware mode picks up PostCSS/Tailwind correctly.
+- **HMR Warning**: WebSocket HMR connection shows a warning in the browser console due to Replit's proxy — this is normal and does not affect app functionality.
 
 ## Architecture
 
