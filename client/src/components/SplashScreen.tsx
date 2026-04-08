@@ -20,9 +20,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   }
 
   const splashImageUrl = getSetting('splash_image_url') || 'https://images.unsplash.com/photo-1565299507177-b0ac66763828?q=80&w=800';
-  const splashTitle = getSetting('splash_title') || 'السريع ون';
+  const logoUrl = getSetting('logo_url') || '';
+  const splashTitle = getSetting('splash_title') || 'مرحباً بك في السريع ون';
   const splashSubtitle = getSetting('splash_subtitle') || 'أفضل خدمة توصيل طلبات بسرعة وأمان';
   const buttonText = getSetting('splash_button_text') || 'ابدأ الآن';
+  const appName = getSetting('app_name') || 'السريع ون';
 
   const handleStart = () => {
     setShow(false);
@@ -37,19 +39,25 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 
   return (
     <div className="fixed inset-0 bg-white z-[9999] flex flex-col transition-opacity duration-500 overflow-hidden">
-      {/* Top Image Section - بدون نص فوق الصورة */}
+      {/* Top Image Section */}
       <div className="h-[50vh] md:h-[55vh] relative overflow-hidden rounded-b-[3rem] md:rounded-b-[5rem] shadow-2xl">
         <img 
           src={splashImageUrl} 
           alt="Splash" 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-[20s] hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        
+        {logoUrl && (
+          <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+            <img src={logoUrl} alt="Logo" className="h-20 md:h-28 object-contain drop-shadow-2xl" />
+          </div>
+        )}
       </div>
       
       {/* Content Section */}
       <div className="flex-1 flex flex-col items-center justify-between p-8 md:p-12 text-center relative z-10 bg-white">
-        <div className="w-full max-w-md space-y-4 pt-4">
+        <div className="w-full max-w-md space-y-6 pt-4">
           <h1 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight tracking-tight">
             {splashTitle}
           </h1>

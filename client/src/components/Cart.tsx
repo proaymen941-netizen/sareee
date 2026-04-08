@@ -66,7 +66,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
   });
 
   // جلب بيانات المطعم للحصول على موقعه بدقة
-  const { data: restaurant } = useQuery<{ latitude?: string | null; longitude?: string | null }>({
+  const { data: restaurant } = useQuery({
     queryKey: [`/api/restaurants/${state.restaurantId}`],
     enabled: !!state.restaurantId,
   });

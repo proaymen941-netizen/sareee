@@ -30,24 +30,22 @@ export default function DriversManagement() {
   const { toast } = useToast()
 
   // جلب قائمة السائقين
-  const { data: driversData, isLoading } = useQuery({
+  const { data: drivers = [], isLoading } = useQuery({
     queryKey: ['/api/admin/drivers'],
     retry: 3
   })
-  const drivers: Driver[] = Array.isArray(driversData) ? driversData : []
 
   // جلب إحصائيات السائق
-  const { data: driverStatsRaw } = useQuery({
+  const { data: driverStats } = useQuery({
     queryKey: ['/api/admin/drivers', selectedDriver?.id, 'stats'],
     enabled: !!selectedDriver && isStatsDialogOpen,
     retry: 2
   })
-  const driverStats = driverStatsRaw as { totalOrders?: number; completedOrders?: number; cancelledOrders?: number; totalEarnings?: number } | undefined
 
   // إنشاء سائق جديد
   const createDriverMutation = useMutation({
     mutationFn: async (data: InsertDriver) => 
-      apiRequest('POST', '/api/admin/drivers', data),
+      apiRequest('/api/admin/drivers', { method: 'POST', body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/drivers'] })
       toast({ title: 'تم إنشاء السائق بنجاح', description: 'تم إضافة السائق إلى النظام' })
@@ -66,7 +64,7 @@ export default function DriversManagement() {
   // تحديث سائق
   const updateDriverMutation = useMutation({
     mutationFn: async (data: Partial<InsertDriver> & { id: string }) => 
-      apiRequest('PUT', `/api/admin/drivers/${data.id}`, data),
+      apiRequest(`/api/admin/drivers/${data.id}`, { method: 'PUT', body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/drivers'] })
       toast({ title: 'تم تحديث السائق بنجاح', description: 'تم حفظ التغييرات' })
@@ -85,7 +83,7 @@ export default function DriversManagement() {
   // حذف سائق
   const deleteDriverMutation = useMutation({
     mutationFn: async (id: string) => 
-      apiRequest('DELETE', `/api/admin/drivers/${id}`),
+      apiRequest(`/api/admin/drivers/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/drivers'] })
       toast({ title: 'تم حذف السائق بنجاح', description: 'تم إزالة السائق من النظام' })
