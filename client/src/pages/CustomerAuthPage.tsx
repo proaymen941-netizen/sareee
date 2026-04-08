@@ -38,7 +38,7 @@ export default function CustomerAuthPage() {
       if (result.success) {
         toast({
           title: "تم تسجيل الدخول",
-          description: "مرحباً بك مجدداً في طمطوم",
+          description: "مرحباً بك مجدداً في السريع ون",
         });
         setLocation('/');
       } else {
@@ -68,7 +68,7 @@ export default function CustomerAuthPage() {
       if (result.success) {
         toast({
           title: "تم إنشاء الحساب",
-          description: "مرحباً بك في طمطوم، تم إنشاء حسابك بنجاح",
+          description: "مرحباً بك في السريع ون، تم إنشاء حسابك بنجاح",
         });
         setLocation('/');
       } else {
@@ -85,7 +85,7 @@ export default function CustomerAuthPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 py-12" dir="rtl">
       <div className="mb-8 text-center">
         <div className="text-5xl md:text-6xl mb-4 flex justify-center font-black">
-          <span className="text-[#388e3c]">طم</span>
+          <span className="text-[#ec3714]">طم</span>
           <span className="text-[#d32f2f]">طوم</span>
         </div>
         <p className="text-muted-foreground font-bold">خضروات وفواكه طازجة تصلك لباب بيتك</p>
@@ -279,7 +279,7 @@ export default function CustomerAuthPage() {
       </Card>
       
       <p className="mt-8 text-sm text-muted-foreground max-w-xs text-center">
-        بتسجيلك في طمطوم، أنت توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا.
+        بتسجيلك في السريع ون، أنت توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا.
       </p>
     </div>
   );

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Save, Settings, Eye, Image as ImageIcon, Smartphone, Truck, 
   MessageCircle, Phone, Share2, Lock, ShoppingCart, Star, Bell,
-  ChevronDown, ChevronRight, Hash
+  ChevronDown, ChevronRight, Hash, Globe
 } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
@@ -112,6 +112,7 @@ export default function AdminUiSettings() {
     driver_pages: true,
     driver_permissions: true,
     order_number: true,
+    flutter_splash: true,
   });
 
   const { data: uiSettings, isLoading } = useQuery<UiSettings[]>({
@@ -304,37 +305,44 @@ export default function AdminUiSettings() {
   }
 
   return (
-    <div className="p-6 space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+    <div className="flex flex-col min-h-full" dir="rtl">
+      {/* Sticky Toolbar */}
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
             <Settings className="h-7 w-7 text-orange-500" />
-            إدارة إعدادات المتجر والواجهة
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">التحكم الكامل في مظهر وخيارات التطبيق</p>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">إدارة إعدادات المتجر والواجهة</h1>
+              <p className="text-sm text-gray-500">التحكم الكامل في مظهر وخيارات التطبيق</p>
+            </div>
+          </div>
+          {hasChanges && (
+            <Button onClick={saveAll} disabled={updateSettingMutation.isPending} className="bg-orange-500 hover:bg-orange-600">
+              <Save className="h-4 w-4 ml-2" />
+              حفظ جميع التغييرات ({Object.keys(pendingChanges).length})
+            </Button>
+          )}
         </div>
-        {hasChanges && (
-          <Button onClick={saveAll} disabled={updateSettingMutation.isPending} className="bg-orange-500 hover:bg-orange-600">
-            <Save className="h-4 w-4 ml-2" />
-            حفظ جميع التغييرات ({Object.keys(pendingChanges).length})
-          </Button>
-        )}
       </div>
 
+      <div className="p-6 space-y-6">
       <Tabs defaultValue="customer" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-lg mb-6 bg-orange-50 border border-orange-100">
-          <TabsTrigger value="customer" className="gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-            <Smartphone className="h-4 w-4" />
+        <TabsList className="grid grid-cols-4 w-full mb-6 bg-orange-50 border border-orange-100">
+          <TabsTrigger value="customer" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+            <Smartphone className="h-3.5 w-3.5" />
             تطبيق العميل
           </TabsTrigger>
-          <TabsTrigger value="driver" className="gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-            <Truck className="h-4 w-4" />
+          <TabsTrigger value="driver" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+            <Truck className="h-3.5 w-3.5" />
             تطبيق السائق
           </TabsTrigger>
-          <TabsTrigger value="store" className="gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-            <Settings className="h-4 w-4" />
+          <TabsTrigger value="store" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+            <Settings className="h-3.5 w-3.5" />
             إعدادات المتجر
+          </TabsTrigger>
+          <TabsTrigger value="flutter" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+            <Globe className="h-3.5 w-3.5" />
+            تطبيق Flutter
           </TabsTrigger>
         </TabsList>
 
@@ -342,7 +350,7 @@ export default function AdminUiSettings() {
         <TabsContent value="customer" className="space-y-4">
           {/* Branding */}
           <SectionCard sectionKey="branding" title="الهوية البصرية والشعار" icon={ImageIcon} color="text-purple-600">
-            <SettingRow label="اسم التطبيق" settingKey="app_name" placeholder="طمطوم" description="الاسم الذي يظهر في الشريط العلوي" />
+            <SettingRow label="اسم التطبيق" settingKey="app_name" placeholder="السريع ون" description="الاسم الذي يظهر في الشريط العلوي" />
             <SettingRow label="إصدار التطبيق" settingKey="app_version" placeholder="1.0.0" description="رقم إصدار التطبيق الظاهر في القائمة الجانبية" />
             <SettingRow label="اللون الأساسي (hex)" settingKey="app_theme" placeholder="#16a34a" description="لون الموضوع الرئيسي" />
             <SettingRow label="شعار الشريط العلوي" settingKey="header_logo_url" type="image" description="الشعار الصغير في أعلى التطبيق" />
@@ -356,7 +364,7 @@ export default function AdminUiSettings() {
             <SettingRow label="إظهار شاشة الترحيب" settingKey="show_splash_screen" type="boolean" description="عرض شاشة الترحيب عند فتح التطبيق لأول مرة" />
             <SettingRow label="صورة شاشة الترحيب" settingKey="splash_image_url" type="image" description="الصورة الرئيسية في شاشة الترحيب" />
             <SettingRow label="صورة إضافية للترحيب" settingKey="splash_image_url_2" type="image" description="صورة ثانية تظهر في الشاشة (اختياري)" />
-            <SettingRow label="عنوان شاشة الترحيب" settingKey="splash_title" placeholder="طمطوم" description="النص الرئيسي في شاشة الترحيب" />
+            <SettingRow label="عنوان شاشة الترحيب" settingKey="splash_title" placeholder="السريع ون" description="النص الرئيسي في شاشة الترحيب" />
             <SettingRow label="نص الترحيب (وصف)" settingKey="splash_subtitle" type="textarea" placeholder="أفضل وجبات طازجة..." description="الوصف أسفل العنوان" />
             <SettingRow label="نص زر البداية" settingKey="splash_button_text" placeholder="ابدأ الآن" description="النص على زر البدء في شاشة الترحيب" />
           </SectionCard>
@@ -378,7 +386,7 @@ export default function AdminUiSettings() {
           <SectionCard sectionKey="sidebar" title="القائمة الجانبية والمشاركة" icon={Share2} color="text-blue-600">
             <SettingRow label="إظهار زر المشاركة في القائمة" settingKey="show_share_button" type="boolean" description="إظهار أو إخفاء زر مشاركة التطبيق" />
             <SettingRow label="إظهار زر التواصل في القائمة" settingKey="show_contact_button" type="boolean" description="إظهار أو إخفاء زر التواصل في القائمة الجانبية" />
-            <SettingRow label="نص المشاركة" settingKey="share_text" type="textarea" placeholder="جرب تطبيق طمطوم الآن!" description="النص الافتراضي عند مشاركة التطبيق" rows={2} />
+            <SettingRow label="نص المشاركة" settingKey="share_text" type="textarea" placeholder="جرب تطبيق السريع ون الآن!" description="النص الافتراضي عند مشاركة التطبيق" rows={2} />
             <SettingRow label="رابط المشاركة" settingKey="share_url" placeholder="https://tamtom.app" description="الرابط الذي يشاركه المستخدم" />
           </SectionCard>
 
@@ -601,7 +609,7 @@ export default function AdminUiSettings() {
               </CardTitle>
             </CardHeader>
             <CardContent className="divide-y divide-gray-100">
-              <SettingRow label="الحد الأدنى للطلب (ر.س)" settingKey="minimum_order_default" placeholder="20" description="أقل قيمة للطلب يمكن قبولها" />
+              <SettingRow label="الحد الأدنى للطلب (ريال)" settingKey="minimum_order_default" placeholder="20" description="أقل قيمة للطلب يمكن قبولها" />
               <SettingRow label="وقت الفتح" settingKey="opening_time" placeholder="08:00" description="وقت فتح المتجر يومياً" />
               <SettingRow label="وقت الإغلاق" settingKey="closing_time" placeholder="23:00" description="وقت إغلاق المتجر يومياً" />
             </CardContent>
@@ -623,7 +631,74 @@ export default function AdminUiSettings() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ===== FLUTTER APP TAB ===== */}
+        <TabsContent value="flutter" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Globe className="h-5 w-5 text-orange-500" />
+                رابط تطبيق الويب (WebView URL)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y divide-gray-100">
+              <div className="py-3">
+                <div className="bg-blue-50 rounded-lg p-3 text-xs text-blue-700 mb-4">
+                  💡 هذا هو الرابط الذي يحمّله تطبيق Flutter داخل الـ WebView. قم بتحديثه إذا انتقلت الخدمة إلى نطاق جديد.
+                </div>
+              </div>
+              <SettingRow 
+                label="رابط تطبيق الويب"
+                settingKey="webAppUrl"
+                placeholder="https://your-domain.replit.app"
+                description="الرابط الكامل للموقع الذي يعرضه تطبيق Flutter"
+              />
+            </CardContent>
+          </Card>
+
+          <SectionCard sectionKey="flutter_splash" title="شاشة البداية (Flutter Splash Screen)" icon={Star} color="text-yellow-600">
+            <SettingRow 
+              label="تفعيل شاشة البداية"
+              settingKey="splashEnabled"
+              type="boolean"
+              description="عرض شاشة البداية عند فتح تطبيق Flutter"
+            />
+            <SettingRow 
+              label="عنوان شاشة البداية"
+              settingKey="splashTitle"
+              placeholder="السريع ون"
+              description="النص الرئيسي في شاشة البداية"
+            />
+            <SettingRow 
+              label="وصف شاشة البداية"
+              settingKey="splashSubtitle"
+              type="textarea"
+              placeholder="متجر الخضار والفواكه الطازجة..."
+              description="النص الفرعي أسفل العنوان"
+              rows={2}
+            />
+            <SettingRow 
+              label="لون خلفية شاشة البداية (hex)"
+              settingKey="splashBackgroundColor"
+              placeholder="#FFFFFF"
+              description="لون خلفية شاشة البداية (مثال: #FFFFFF للأبيض)"
+            />
+            <SettingRow 
+              label="مدة ظهور شاشة البداية (ميلي ثانية)"
+              settingKey="splashDuration"
+              placeholder="3000"
+              description="المدة التي تبقى فيها شاشة البداية مرئية. 3000 = 3 ثوان"
+            />
+            <SettingRow 
+              label="صورة شاشة البداية"
+              settingKey="splashImageUrl"
+              type="image"
+              description="الشعار أو الصورة في شاشة البداية"
+            />
+          </SectionCard>
+        </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

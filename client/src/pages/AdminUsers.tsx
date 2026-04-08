@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -266,13 +266,19 @@ const AdminUsers = () => {
   }
 
   return (
-    <div className="p-6" data-testid="page-admin-users">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">إدارة المستخدمين</h1>
-        <p className="text-gray-600 dark:text-gray-400">إدارة بيانات جميع مستخدمي النظام والتحكم في الصلاحيات</p>
+    <div className="flex flex-col min-h-full" data-testid="page-admin-users">
+      {/* Sticky Toolbar */}
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
+        <div className="flex items-center gap-3 px-6 py-4">
+          <Users className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">إدارة المستخدمين</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">إدارة بيانات جميع مستخدمي النظام والتحكم في الصلاحيات</p>
+          </div>
+        </div>
       </div>
 
+      <div className="p-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col lg:flex-row gap-4 mb-6">
           <TabsList className="grid w-full lg:w-auto grid-cols-4">
@@ -521,6 +527,7 @@ const AdminUsers = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };

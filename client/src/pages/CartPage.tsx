@@ -223,7 +223,7 @@ export default function CartPage() {
           >
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <h2 className="text-xl font-bold text-foreground">طمطوم - السلة</h2>
+          <h2 className="text-xl font-bold text-foreground">السريع ون - السلة</h2>
         </div>
       </header>
 

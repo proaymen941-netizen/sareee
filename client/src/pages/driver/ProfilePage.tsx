@@ -215,7 +215,7 @@ export default function ProfilePage({ onLogout }: ProfilePageProps) {
                 </p>
                 <p className="font-bold text-primary">
                   {formData.paymentMode === 'salary'
-                    ? `${formData.salaryAmount || 0} ر.س`
+                    ? `${formData.salaryAmount || 0} ريال`
                     : `${formData.commissionRate || 70}%`}
                 </p>
               </div>

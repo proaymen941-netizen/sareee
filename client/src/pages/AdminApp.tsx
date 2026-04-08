@@ -13,19 +13,23 @@ import AdminFinancialReports from "./AdminFinancialReports";
 import AdminHRManagement from "./AdminHRManagement"; 
 import AdminSecurity from "./AdminSecurity"; 
 import AdminDriversAdvanced from "./AdminDriversAdvanced";
+import AdminRestaurantsAdvanced from "./AdminRestaurantsAdvanced";
 import AdminDashboard from "./admin/AdminDashboard";
 import AdminDeliveryFees from "./admin/AdminDeliveryFees";
 import AdminBackup from "./admin/AdminBackup";
 import AdminCoupons from "./admin/AdminCoupons";
 import AdminPaymentMethods from "./admin/AdminPaymentMethods";
 import AdvancedReports from "./admin/AdvancedReports";
+import AdminDetailedReports from "./admin/AdminDetailedReports";
+import RestaurantReports from "./admin/RestaurantReports";
+import AdminRestaurantAccounts from "./admin/AdminRestaurantAccounts";
 import RatingsManagement from "./RatingsManagement";
 import WalletManagement from "./WalletManagement";
 import NotFound from "./not-found";
 import React from "react";
 
 interface AdminAppProps {
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
 export const AdminApp: React.FC<AdminAppProps> = () => {
@@ -52,7 +56,11 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/backup" component={AdminBackup} />
         <Route path="/admin/coupons" component={AdminCoupons} />
         <Route path="/admin/payment-methods" component={AdminPaymentMethods} />
-        <Route path="/admin/detailed-reports" component={AdvancedReports} />
+        <Route path="/admin/detailed-reports" component={AdminDetailedReports} />
+        <Route path="/admin/advanced-reports" component={AdvancedReports} />
+        <Route path="/admin/restaurant-reports" component={RestaurantReports} />
+        <Route path="/admin/restaurants-advanced" component={AdminRestaurantsAdvanced} />
+        <Route path="/admin/restaurant-accounts" component={AdminRestaurantAccounts} />
         <Route component={NotFound} />
       </Switch>
     </AdminLayout>

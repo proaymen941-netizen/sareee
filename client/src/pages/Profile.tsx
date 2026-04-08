@@ -124,7 +124,7 @@ export default function Profile() {
   const supportWhatsapp = getSetting('support_whatsapp', '');
   const supportPhone = getSetting('support_phone', '');
   const shareUrl = getSetting('share_url', '');
-  const shareText = getSetting('share_text', 'انضم إلى تطبيق طمطوم الآن!');
+  const shareText = getSetting('share_text', 'انضم إلى تطبيق السريع ون الآن!');
 
   const profileStats = [
     { 
@@ -171,7 +171,7 @@ export default function Profile() {
       testId: 'profile-share',
       onClick: () => {
         if (navigator.share) {
-          navigator.share({ title: 'طمطوم', text: shareText, url: shareUrl });
+          navigator.share({ title: 'السريع ون', text: shareText, url: shareUrl });
         } else {
           toast({ title: 'نسخ الرابط', description: shareUrl });
         }

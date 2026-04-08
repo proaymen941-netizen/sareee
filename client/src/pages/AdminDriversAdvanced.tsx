@@ -236,7 +236,7 @@ export default function AdminDriversAdvanced() {
               <div>
                 <p className="text-xs lg:text-sm text-muted-foreground">إجمالي الأرباح</p>
                 <p className="text-lg lg:text-2xl font-bold">
-                  {(drivers?.reduce((sum, d) => sum + d.totalEarnings, 0) || 0).toFixed(0)} ر.س
+                  {(drivers?.reduce((sum, d) => sum + d.totalEarnings, 0) || 0).toFixed(0)} ريال
                 </p>
               </div>
               <TrendingUp className="h-6 lg:h-8 w-6 lg:w-8 text-green-600" />
@@ -379,7 +379,7 @@ export default function AdminDriversAdvanced() {
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <span className="font-medium text-xs">
-                            {(driver.totalEarnings || 0).toFixed(0)} ر.س
+                            {(driver.totalEarnings || 0).toFixed(0)} ريال
                           </span>
                         </TableCell>
                         <TableCell className="text-center">

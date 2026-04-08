@@ -179,18 +179,19 @@ export default function AdminOrders() {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col min-h-full">
+      {/* Sticky Toolbar */}
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm px-6 py-4">
         <div className="flex items-center gap-3">
-          <Package className="h-8 w-8 text-primary" />
+          <Package className="h-7 w-7 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold text-foreground">إدارة الطلبات</h1>
-            <p className="text-muted-foreground">متابعة وإدارة جميع الطلبات</p>
+            <h1 className="text-xl font-bold text-foreground">إدارة الطلبات</h1>
+            <p className="text-sm text-muted-foreground">متابعة وإدارة جميع الطلبات</p>
           </div>
         </div>
       </div>
 
+      <div className="p-6">
       <div className="flex flex-col lg:flex-row gap-6">
         {/* القائمة الجانبية للفرز - ثابتة عند التمرير */}
         <div className="lg:w-64 flex-shrink-0">
@@ -553,6 +554,7 @@ export default function AdminOrders() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

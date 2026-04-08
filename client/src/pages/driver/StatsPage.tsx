@@ -155,7 +155,7 @@ export default function StatsPage({ driverId }: StatsPageProps) {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">متوسط الربح لكل طلب</span>
                   <span className="text-2xl font-bold text-blue-600">
-                    {stats.totalOrders > 0 ? formatCurrency(stats.totalEarnings / stats.totalOrders) : '0 ر.س'}
+                    {stats.totalOrders > 0 ? formatCurrency(stats.totalEarnings / stats.totalOrders) : '0 ريال'}
                   </span>
                 </div>
               </div>

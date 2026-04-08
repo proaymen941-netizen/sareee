@@ -99,7 +99,7 @@ export default function AdminFlutterNotifications() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">إشعارات تطبيق الجوال</h1>
-          <p className="text-gray-500 text-sm">أرسل إشعارات لمستخدمي تطبيق طمطوم مباشرةً عبر الخادم</p>
+          <p className="text-gray-500 text-sm">أرسل إشعارات لمستخدمي تطبيق السريع ون مباشرةً عبر الخادم</p>
         </div>
       </div>
 
