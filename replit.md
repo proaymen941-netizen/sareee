@@ -27,10 +27,26 @@ Primary Color: Red-Orange — hsl(14 92% 52%) / ~#f04a17
 ## Replit Setup Notes
 - **Workflow**: `npm run dev` on port 5000 (webview)
 - **Database**: PostgreSQL via Replit built-in (DATABASE_URL env var)
+- **DB Init**: Run `npm run db:push` to create/sync tables, then seeding runs automatically on startup
 - **CSS Fix**: Root `tailwind.config.js` content paths fixed to point at `./client/src/**`. A `client/postcss.config.js` was added so Vite middleware mode picks up PostCSS/Tailwind correctly.
 - **HMR Warning**: WebSocket HMR connection shows a warning in the browser console due to Replit's proxy — this is normal and does not affect app functionality.
 - **PWA Files**: `client/public/manifest.json` and `client/public/sw.js` — service worker registration is in `client/index.html`
 - **Clean-up**: Removed root-level duplicate files (App.tsx, main.tsx, index.html, index.css, vite-env.d.ts)
+
+## Bug Fixes Applied (April 2026)
+- **Driver Routes Ordering**: Fixed critical route conflict in `server/routes/driver.ts` where wildcard `GET /:id` was intercepting specific routes like `/orders`, `/stats`, `/balance`, `/profile` before they could be reached. Specific routes are now registered before the wildcard.
+- **Duplicate Route Registration**: Removed duplicate auth and admin route registrations in `server/routes.ts` (were registered twice).
+- **Favorites Route Ordering**: Fixed `GET /api/favorites/check/:userId/:restaurantId` being intercepted by `GET /api/favorites/:userId`. Now ordered correctly.
+- **TypeScript Fixes**: 
+  - Created missing `client/src/lib/auth.ts` service file
+  - Created missing `client/src/components/ui/date-range-picker.tsx` component
+  - Fixed `ProtectedRoute.tsx` - `userType` now accessed from `user.userType`
+  - Fixed `AdminDashboard.tsx` - properly destructures `token` from auth context
+  - Fixed `DriversManagement.tsx` - corrected `apiRequest` call signature
+  - Fixed various `boolean | null` type errors in switch components
+  - Fixed `Loader` import in `OrderTrackingPage.tsx`
+  - Fixed `DriverMapView` and `HistoryPage` component prop names in `EnhancedDriverDashboard.tsx`
+  - Fixed `RestaurantReports.tsx` untyped data handling
 
 ## Architecture
 
