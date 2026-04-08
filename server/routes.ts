@@ -809,7 +809,19 @@ app.get("/api/notifications", async (req, res) => {
     }
   });
 
-  // Favorites endpoints - مسارات المفضلة
+  // Favorites endpoints (path-param style) - المفضلة بمعرّف المسار
+  // GET /api/favorites/check/:userId/:restaurantId must come BEFORE /api/favorites/:userId
+  app.get("/api/favorites/check/:userId/:restaurantId", async (req, res) => {
+    try {
+      const { userId, restaurantId } = req.params;
+      const isFavorite = await storage.isRestaurantFavorite(userId, restaurantId);
+      res.json({ isFavorite });
+    } catch (error) {
+      console.error('Error checking favorite status:', error);
+      res.status(500).json({ message: 'Failed to check favorite status' });
+    }
+  });
+
   app.get("/api/favorites/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
@@ -818,17 +830,6 @@ app.get("/api/notifications", async (req, res) => {
     } catch (error) {
       console.error('Error fetching favorites:', error);
       res.status(500).json({ message: 'Failed to fetch favorite restaurants' });
-    }
-  });
-
-  app.post("/api/favorites", async (req, res) => {
-    try {
-      const validatedData = insertFavoritesSchema.parse(req.body);
-      const newFavorite = await storage.addToFavorites(validatedData);
-      res.status(201).json(newFavorite);
-    } catch (error) {
-      console.error('Error adding to favorites:', error);
-      res.status(500).json({ message: 'Failed to add restaurant to favorites' });
     }
   });
 
@@ -848,25 +849,6 @@ app.get("/api/notifications", async (req, res) => {
     }
   });
 
-  app.get("/api/favorites/check/:userId/:restaurantId", async (req, res) => {
-    try {
-      const { userId, restaurantId } = req.params;
-      const isFavorite = await storage.isRestaurantFavorite(userId, restaurantId);
-      res.json({ isFavorite });
-    } catch (error) {
-      console.error('Error checking favorite status:', error);
-      res.status(500).json({ message: 'Failed to check favorite status' });
-    }
-  });
-
-  // تم حذف مسارات المصادقة - لا حاجة لها
-  
-  // Register auth routes
-  app.use("/api/auth", authRoutes);
-  
-  // Register admin routes
-  app.use("/api/admin", adminRoutes);
-  
   // Register customer routes
   app.use("/api/customer", customerRoutes);
   
