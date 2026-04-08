@@ -19,6 +19,7 @@ import AdminApp from "./pages/AdminApp";
 import DriverAppPage from "./pages/driver/DriverApp";
 import { useState } from "react";
 import Home from "./pages/Home";
+import HomePage from "./pages/HomePage";
 import Restaurant from "./pages/Restaurant";
 import Cart from "./pages/Cart";
 import Profile from "./pages/Profile";
@@ -38,8 +39,10 @@ function MainApp() {
   const { location: userLocation } = useUserLocation();
   const [currentLocation, setLocation] = useWouterLocation();
   const [showLocationModal, setShowLocationModal] = useState(true);
+  const { getSetting } = useUiSettings();
+  const splashEnabled = getSetting('show_splash_screen') !== 'false';
   const [showSplash, setShowSplash] = useState(() => {
-    return !sessionStorage.getItem('splash_seen');
+    return splashEnabled && !sessionStorage.getItem('splash_seen');
   });
   const [isGuest, setIsGuest] = useState(() => {
     return localStorage.getItem('is_guest') === 'true';
@@ -126,7 +129,8 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={HomePage} />
+      <Route path="/browse" component={Home} />
       <Route path="/search" component={SearchPage} />
       <Route path="/category/:slug" component={CategoryPage} />
       <Route path="/product/:id" component={ProductDetails} />
