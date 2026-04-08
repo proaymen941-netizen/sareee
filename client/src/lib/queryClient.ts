@@ -71,11 +71,11 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: 15000, // Increased interval to 15 seconds to reduce noise
-      refetchOnWindowFocus: true,
-      staleTime: 5000,
+      refetchInterval: false,       // Disable auto-refetch by default (use WebSockets instead)
+      refetchOnWindowFocus: false,  // Disable refetch on window focus to reduce requests
+      staleTime: 60 * 1000,         // 1 minute cache for most data
+      gcTime: 5 * 60 * 1000,        // Keep in cache for 5 minutes
       retry: (failureCount, error: any) => {
-        // Only retry if it's not a 401, 403 or 500 error
         if (error?.message?.includes('401') || error?.message?.includes('403') || error?.message?.includes('500')) {
           return false;
         }

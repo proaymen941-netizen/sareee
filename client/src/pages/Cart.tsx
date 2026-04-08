@@ -168,7 +168,7 @@ export default function Cart() {
         <div className="flex items-center justify-between mb-8 border-b pb-4">
           <div className="flex items-center gap-3">
             <div className="text-3xl font-black tracking-tighter">
-              <span className="text-[#ec3714]">طم</span><span className="text-[#d32f2f]">طوم</span>
+              <span className="text-primary">السريع</span> <span className="text-black">ون</span>
             </div>
             <h1 className="text-3xl font-black uppercase tracking-tighter"> - السلة</h1>
           </div>

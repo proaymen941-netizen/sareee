@@ -39,6 +39,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
         <Route path="/admin/orders" component={AdminOrders} />
+        <Route path="/admin/restaurants" component={AdminRestaurants} />
         <Route path="/admin/menu-items" component={AdminMenuItems} />
         <Route path="/admin/drivers" component={AdminDrivers} />
         <Route path="/admin/drivers-advanced" component={AdminDriversAdvanced} />

@@ -498,6 +498,22 @@ export default function AdminOffers() {
               </CardHeader>
               
               <CardContent className="space-y-4">
+                {/* Linked Restaurant Badge */}
+                {offer.restaurantId && (
+                  <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5">
+                    <Store className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span className="text-sm font-semibold text-primary">
+                      {restaurants.find(r => r.id === offer.restaurantId)?.name || 'مطعم مرتبط'}
+                    </span>
+                  </div>
+                )}
+                {!offer.restaurantId && (
+                  <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+                    <Store className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-sm text-gray-400">عرض عام لكل المتاجر</span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   {offer.discountPercent && (
                     <div className="flex items-center gap-1">

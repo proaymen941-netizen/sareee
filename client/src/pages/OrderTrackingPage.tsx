@@ -16,6 +16,7 @@ interface OrderStatus {
   status: 'pending' | 'confirmed' | 'preparing' | 'on_way' | 'delivered' | 'cancelled';
   timestamp: Date;
   description: string;
+  message?: string;
 }
 
 interface OrderDetails {
@@ -344,7 +345,7 @@ export default function OrderTrackingPage() {
                   <div className={`w-4 h-4 rounded-full ${getStatusColor(status.status)} mt-1 flex-shrink-0`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-foreground font-medium" data-testid={`timeline-description-${index}`}>
-                      {status.description || 'تحديث الطلب'}
+                      {status.description || status.message || 'تحديث الطلب'}
                     </p>
                     <p className="text-sm text-muted-foreground" data-testid={`timeline-time-${index}`}>
                       {new Date(status.timestamp).toLocaleTimeString('ar-SA', { 

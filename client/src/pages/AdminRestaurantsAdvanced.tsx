@@ -168,7 +168,7 @@ export default function AdminRestaurantsAdvanced() {
             <div className="text-center">
               <p className="text-sm text-muted-foreground">متوسط سعر الطلب</p>
               <p className="text-2xl font-bold">
-                {((restaurants?.reduce((sum, r) => sum + ((r as any).avgOrderValue || 0), 0) ?? 0) / (restaurants?.length || 1)).toFixed(0)} ريال
+                {restaurants?.reduce((sum, r) => sum + r.avgOrderValue, 0) / (restaurants?.length || 1)} ريال
               </p>
             </div>
           </CardContent>
@@ -179,7 +179,7 @@ export default function AdminRestaurantsAdvanced() {
             <div className="text-center">
               <p className="text-sm text-muted-foreground">متوسط التقييم</p>
               <p className="text-2xl font-bold">
-                {((restaurants?.reduce((sum, r) => sum + (parseFloat(r.rating?.toString() || '0')), 0) ?? 0) / (restaurants?.length || 1)).toFixed(1)} ⭐
+                {(restaurants?.reduce((sum, r) => sum + r.rating, 0) / (restaurants?.length || 1)).toFixed(1)} ⭐
               </p>
             </div>
           </CardContent>

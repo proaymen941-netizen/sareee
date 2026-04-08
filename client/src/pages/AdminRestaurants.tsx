@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Store, Save, X, Clock, Star, Search, MapPin, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Store, Save, X, Clock, Star, Search, MapPin, Phone, Layers, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,11 @@ export default function AdminRestaurants() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sectionsRestaurant, setSectionsRestaurant] = useState<Restaurant | null>(null);
+  const [isSectionsDialogOpen, setIsSectionsDialogOpen] = useState(false);
+  const [newSectionName, setNewSectionName] = useState('');
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingSectionName, setEditingSectionName] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -59,6 +64,55 @@ export default function AdminRestaurants() {
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ['/api/admin/categories'],
+  });
+
+  const { data: restaurantSections = [], refetch: refetchSections } = useQuery<any[]>({
+    queryKey: ['/api/admin/restaurants', sectionsRestaurant?.id, 'sections'],
+    queryFn: async () => {
+      if (!sectionsRestaurant?.id) return [];
+      const res = await apiRequest('GET', `/api/admin/restaurants/${sectionsRestaurant.id}/sections`);
+      return res.json();
+    },
+    enabled: !!sectionsRestaurant?.id && isSectionsDialogOpen,
+  });
+
+  const createSectionMutation = useMutation({
+    mutationFn: async ({ restaurantId, name }: { restaurantId: string; name: string }) => {
+      const res = await apiRequest('POST', '/api/admin/restaurant-sections', { restaurantId, name, isActive: true });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/restaurants', sectionsRestaurant?.id, 'sections'] });
+      setNewSectionName('');
+      toast({ title: 'تم إضافة القسم', description: 'تم إضافة القسم الجديد بنجاح' });
+    },
+    onError: () => toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في إضافة القسم' }),
+  });
+
+  const updateSectionMutation = useMutation({
+    mutationFn: async ({ id, name, isActive }: { id: string; name: string; isActive?: boolean }) => {
+      const res = await apiRequest('PUT', `/api/admin/restaurant-sections/${id}`, { name, isActive });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/restaurants', sectionsRestaurant?.id, 'sections'] });
+      setEditingSectionId(null);
+      setEditingSectionName('');
+      toast({ title: 'تم تحديث القسم' });
+    },
+    onError: () => toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في تحديث القسم' }),
+  });
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/admin/restaurant-sections/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/restaurants', sectionsRestaurant?.id, 'sections'] });
+      toast({ title: 'تم حذف القسم' });
+    },
+    onError: () => toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في حذف القسم' }),
   });
 
   const createRestaurantMutation = useMutation({
@@ -792,6 +846,116 @@ export default function AdminRestaurants() {
         </Dialog>
       </div>
 
+      {/* حوار إدارة الأقسام */}
+      <Dialog open={isSectionsDialogOpen} onOpenChange={(open) => {
+        setIsSectionsDialogOpen(open);
+        if (!open) { setNewSectionName(''); setEditingSectionId(null); setEditingSectionName(''); }
+      }}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5" />
+              إدارة أقسام: {sectionsRestaurant?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                placeholder="اسم القسم الجديد (مثال: قسم البيتزا)"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newSectionName.trim() && sectionsRestaurant) {
+                    createSectionMutation.mutate({ restaurantId: sectionsRestaurant.id, name: newSectionName.trim() });
+                  }
+                }}
+              />
+              <Button
+                onClick={() => {
+                  if (newSectionName.trim() && sectionsRestaurant) {
+                    createSectionMutation.mutate({ restaurantId: sectionsRestaurant.id, name: newSectionName.trim() });
+                  }
+                }}
+                disabled={!newSectionName.trim() || createSectionMutation.isPending}
+                size="sm"
+                className="gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                إضافة
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              {restaurantSections.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">لا توجد أقسام بعد</p>
+                  <p className="text-xs">أضف أقساماً مثل: قسم البروست، قسم البيتزا...</p>
+                </div>
+              ) : (
+                restaurantSections.map((section: any) => (
+                  <div key={section.id} className="flex items-center gap-2 p-2 border rounded-lg">
+                    {editingSectionId === section.id ? (
+                      <>
+                        <Input
+                          value={editingSectionName}
+                          onChange={(e) => setEditingSectionName(e.target.value)}
+                          className="flex-1 h-8"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && editingSectionName.trim()) {
+                              updateSectionMutation.mutate({ id: section.id, name: editingSectionName.trim(), isActive: section.isActive });
+                            }
+                          }}
+                        />
+                        <Button size="sm" variant="ghost" onClick={() => updateSectionMutation.mutate({ id: section.id, name: editingSectionName.trim(), isActive: section.isActive })}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setEditingSectionId(null); setEditingSectionName(''); }}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1">
+                          <span className="text-sm font-medium">{section.name}</span>
+                          {!section.isActive && <Badge variant="outline" className="mr-2 text-xs">مخفي</Badge>}
+                        </div>
+                        <Switch
+                          checked={section.isActive}
+                          onCheckedChange={(checked) => updateSectionMutation.mutate({ id: section.id, name: section.name, isActive: checked })}
+                          className="scale-75"
+                        />
+                        <Button size="sm" variant="ghost" onClick={() => { setEditingSectionId(section.id); setEditingSectionName(section.name); }}>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" className="text-destructive">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent dir="rtl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>حذف القسم</AlertDialogTitle>
+                              <AlertDialogDescription>هل أنت متأكد من حذف قسم "{section.name}"؟</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteSectionMutation.mutate(section.id)} className="bg-destructive text-destructive-foreground">حذف</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* شريط البحث */}
       <Card>
         <CardContent className="p-4">
@@ -896,6 +1060,17 @@ export default function AdminRestaurants() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 col-span-2 bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200"
+                    onClick={() => { setSectionsRestaurant(restaurant); setIsSectionsDialogOpen(true); }}
+                    data-testid={`button-sections-${restaurant.id}`}
+                  >
+                    <Layers className="h-3 w-3" />
+                    إدارة الأقسام
+                  </Button>
+
                   {(restaurant.latitude && restaurant.longitude) || restaurant.address ? (
                     <Button
                       variant="outline"

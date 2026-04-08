@@ -85,8 +85,7 @@ export default function CustomerAuthPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 py-12" dir="rtl">
       <div className="mb-8 text-center">
         <div className="text-5xl md:text-6xl mb-4 flex justify-center font-black">
-          <span className="text-[#ec3714]">السريع</span>
-          <span className="text-[#d32f2f]"> ون</span>
+          <span className="text-[#ec3714]">السريع ون</span>
         </div>
         <p className="text-muted-foreground font-bold">لخدمات التوصيل</p>
       </div>

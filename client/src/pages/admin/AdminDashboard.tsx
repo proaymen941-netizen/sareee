@@ -28,7 +28,7 @@ import { RestaurantManagementPanel } from '@/components/admin/RestaurantManageme
 import AdvancedReports from '@/pages/admin/AdvancedReports';
 
 export default function AdminDashboard() {
-  const { user, token, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: dashboardData, isLoading } = useQuery({

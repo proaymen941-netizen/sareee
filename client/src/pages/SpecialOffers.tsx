@@ -196,10 +196,12 @@ export default function SpecialOffers() {
 
   const getOfferStatus = (offer: SpecialOffer) => {
     const now = new Date();
-    const validUntil = offer.validUntil ? new Date(offer.validUntil) : null;
+    const startDate = new Date(offer.startDate);
+    const endDate = new Date(offer.endDate);
     
     if (!offer.isActive) return { text: 'غير نشط', color: 'bg-gray-100 text-gray-800' };
-    if (validUntil && now > validUntil) return { text: 'منتهي', color: 'bg-red-100 text-red-800' };
+    if (now < startDate) return { text: 'لم يبدأ', color: 'bg-yellow-100 text-yellow-800' };
+    if (now > endDate) return { text: 'منتهي', color: 'bg-red-100 text-red-800' };
     return { text: 'نشط', color: 'bg-green-100 text-green-800' };
   };
 
@@ -499,7 +501,7 @@ export default function SpecialOffers() {
             <div>
               <h3 className="text-lg font-semibold text-gray-800">إجمالي الاستخدام</h3>
               <p className="text-2xl font-bold text-orange-600">
-                {offers.reduce((sum, offer) => sum + ((offer as any).usageCount || 0), 0)}
+                {offers.reduce((sum, offer) => sum + offer.usageCount, 0)}
               </p>
             </div>
           </div>
