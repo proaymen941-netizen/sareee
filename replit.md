@@ -3,12 +3,13 @@
 ## Overview
 منصة متكاملة لخدمة التوصيل في المملكة العربية السعودية. تحتوي على ثلاثة واجهات: تطبيق العميل، تطبيق السائق، ولوحة الإدارة.
 Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
-Primary Color: Red-Orange — hsl(13 95% 52%) / #ec3714
+Primary Color: Red-Orange — hsl(14 92% 52%) / ~#f04a17
 
 ## Branding
 - **App Name**: السريع ون (Al-Saree One)
-- **Primary Color**: Red-Orange `hsl(13 95% 52%)` replacing all green colors
-- **CSS Classes**: `.header-gradient`, `.orange-gradient`, `.red-gradient` (all red-orange)
+- **Primary Color**: Red-Orange `hsl(14 92% 52%)` — updated across all CSS variables (light + dark mode)
+- **theme-color** meta tag: `#d91643` in `client/index.html`
+- **CSS Classes**: `.header-gradient`, `.orange-gradient`, `.red-gradient` (all deep red)
 - **DB Settings**: Updated in `system_settings_table` via admin UI or direct DB query
 
 ## Flutter App Integration
@@ -28,6 +29,8 @@ Primary Color: Red-Orange — hsl(13 95% 52%) / #ec3714
 - **Database**: PostgreSQL via Replit built-in (DATABASE_URL env var)
 - **CSS Fix**: Root `tailwind.config.js` content paths fixed to point at `./client/src/**`. A `client/postcss.config.js` was added so Vite middleware mode picks up PostCSS/Tailwind correctly.
 - **HMR Warning**: WebSocket HMR connection shows a warning in the browser console due to Replit's proxy — this is normal and does not affect app functionality.
+- **PWA Files**: `client/public/manifest.json` and `client/public/sw.js` — service worker registration is in `client/index.html`
+- **Clean-up**: Removed root-level duplicate files (App.tsx, main.tsx, index.html, index.css, vite-env.d.ts)
 
 ## Architecture
 
@@ -164,6 +167,23 @@ The `drivers` table has these important fields:
 - **الأقسام**: Search bar (sticky) added
 - **العروض الخاصة**: No restaurant association required (global store offers)
 - **Currency**: SAR everywhere (ر.س) — locale: ar-SA
+
+## Recent Improvements (April 2026)
+
+### Performance & Clean-up
+- **Compression**: Added Express gzip middleware (`compression` package) to shrink API responses
+- **QueryClient**: `staleTime` set to 60s, `refetchOnWindowFocus` disabled — reduces unnecessary API calls
+- **Google Fonts**: Replaced 30+ font imports in `client/index.html` with only Inter + Noto Sans Arabic; removed duplicate `@import` from `index.css`
+- **Unused files removed**: `Home.tsx`, `Restaurant.tsx`, `OrderTracking.tsx`, `ProfilePage.tsx` — and their imports from `App.tsx`
+
+### Bug Fixes
+- **Menu API**: Server now returns `{ allItems: [...] }` instead of plain array; `RestaurantPage` reads `menuData.allItems`
+- **Sections route**: Re-enabled `GET /api/restaurants/:restaurantId/sections` (was accidentally disabled)
+- **Sections fallback**: When DB has no sections, tabs are built from menu item `category` field
+
+### UI Redesign
+- **RestaurantPage**: Fully redesigned with sticky red header, restaurant info card, scrollable category tabs, menu items with image/price/add-to-cart
+- **Theme**: Changed from orange-red `hsl(13 95% 52%)` to vibrant red `hsl(350 88% 50%)` across all CSS variables in both light and dark modes
 
 ## Recent Improvements (March 2026)
 
