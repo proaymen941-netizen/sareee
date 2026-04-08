@@ -233,7 +233,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <div className="text-xl font-black tracking-tighter">
-              <span className="text-[#388e3c]">طم</span><span className="text-[#d32f2f]">طوم</span>
+              <span className="text-[#ec3714]">طم</span><span className="text-[#d32f2f]">طوم</span>
             </div>
             <h2 className="text-lg font-bold"> - السلة</h2>
             {state.items.length > 0 && (

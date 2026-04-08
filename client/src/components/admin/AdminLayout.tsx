@@ -25,6 +25,12 @@ import {
   Star,
   Wallet,
   Ticket,
+  X,
+  Store,
+  FileBarChart,
+  Receipt,
+  TrendingUp,
+  UserCog,
 } from 'lucide-react';
 import type { UiSettings } from '@shared/schema';
 
@@ -66,7 +72,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   );
   const pendingOrdersCount = pendingOrders.length;
 
-  // حفظ واستعادة موضع تمرير الشريط الجانبي
   useEffect(() => {
     const savedScroll = sessionStorage.getItem('admin_sidebar_scroll');
     if (savedScroll && navRef.current) {
@@ -80,76 +85,73 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     }
   }, []);
 
-  const getLogoUrl = () => {
-    const logoSetting = uiSettings?.find(s => s.key === 'header_logo_url');
-    return logoSetting?.value || '';
-  };
-
-  const getSidebarImageUrl = () => {
-    const sidebarSetting = uiSettings?.find(s => s.key === 'sidebar_image_url');
-    return sidebarSetting?.value || '';
-  };
+  const getLogoUrl = () => uiSettings?.find(s => s.key === 'header_logo_url')?.value || '';
+  const getSidebarImageUrl = () => uiSettings?.find(s => s.key === 'sidebar_image_url')?.value || '';
+  const getAppName = () => uiSettings?.find(s => s.key === 'app_name')?.value || 'السريع ون';
 
   const menuGroups = [
     {
       key: 'main',
       label: 'الرئيسية',
-      permission: null,
       items: [
-        { icon: BarChart3, label: 'لوحة التحكم', path: '/admin', description: 'نظرة عامة على النظام', permission: null },
-        { icon: ShoppingBag, label: 'الطلبات', path: '/admin/orders', description: 'إدارة جميع الطلبات', badge: pendingOrdersCount, permission: 'manage_orders' },
+        { icon: BarChart3, label: 'لوحة التحكم', path: '/admin', permission: null },
+        { icon: ShoppingBag, label: 'الطلبات', path: '/admin/orders', badge: pendingOrdersCount, permission: 'manage_orders' },
+      ]
+    },
+    {
+      key: 'restaurants',
+      label: 'المتاجر والمطاعم',
+      items: [
+        { icon: Store, label: 'إدارة المتاجر', path: '/admin/restaurants', permission: 'manage_menu' },
+        { icon: Receipt, label: 'حسابات المتاجر', path: '/admin/restaurant-accounts', permission: 'manage_menu' },
+        { icon: FileBarChart, label: 'تقارير المتاجر', path: '/admin/restaurant-reports', permission: 'view_reports' },
       ]
     },
     {
       key: 'store',
-      label: 'المتجر',
-      permission: null,
+      label: 'المنتجات والعروض',
       items: [
-        { icon: Tag, label: 'التصنيفات', path: '/admin/categories', description: 'إدارة فئات المتاجر', permission: 'manage_categories' },
-        { icon: Package, label: 'المنتجات', path: '/admin/menu-items', description: 'إدارة المنتجات والأصناف', permission: 'manage_menu' },
-        { icon: Percent, label: 'العروض', path: '/admin/offers', description: 'إدارة العروض الخاصة', permission: 'manage_menu' },
-        { icon: Ticket, label: 'الكوبونات', path: '/admin/coupons', description: 'إدارة كوبونات الخصم', permission: 'manage_coupons' },
-        { icon: CreditCard, label: 'طرق الدفع', path: '/admin/payment-methods', description: 'إدارة طرق الدفع', permission: 'manage_settings' },
+        { icon: Tag, label: 'التصنيفات', path: '/admin/categories', permission: 'manage_categories' },
+        { icon: Package, label: 'المنتجات', path: '/admin/menu-items', permission: 'manage_menu' },
+        { icon: Percent, label: 'العروض', path: '/admin/offers', permission: 'manage_menu' },
+        { icon: Ticket, label: 'الكوبونات', path: '/admin/coupons', permission: 'manage_coupons' },
+        { icon: CreditCard, label: 'طرق الدفع', path: '/admin/payment-methods', permission: 'manage_settings' },
       ]
     },
     {
       key: 'drivers',
       label: 'السائقون',
-      permission: null,
       items: [
-        { icon: Truck, label: 'السائقين', path: '/admin/drivers', description: 'إدارة السائقين', permission: 'manage_drivers' },
-        { icon: DollarSign, label: 'رسوم التوصيل', path: '/admin/delivery-fees', description: 'مناطق التوصيل والرسوم', permission: 'manage_drivers' },
-        { icon: Wallet, label: 'محافظ السائقين', path: '/admin/wallet', description: 'محافظ ومدفوعات السائقين', permission: 'manage_drivers' },
+        { icon: Truck, label: 'إدارة السائقين', path: '/admin/drivers', permission: 'manage_drivers' },
+        { icon: DollarSign, label: 'رسوم التوصيل', path: '/admin/delivery-fees', permission: 'manage_drivers' },
+        { icon: Wallet, label: 'محافظ السائقين', path: '/admin/wallet', permission: 'manage_drivers' },
       ]
     },
     {
       key: 'reports',
-      label: 'التقارير',
-      permission: null,
+      label: 'التقارير والمالية',
       items: [
-        { icon: DollarSign, label: 'التقارير المالية', path: '/admin/financial-reports', description: 'الأرباح والإيرادات', permission: 'view_reports' },
-        { icon: BarChart3, label: 'التقارير التفصيلية', path: '/admin/detailed-reports', description: 'تحليلات المنتجات', permission: 'view_reports' },
-        { icon: Star, label: 'التقييمات', path: '/admin/ratings', description: 'تقييمات المستخدمين', permission: 'view_reports' },
+        { icon: TrendingUp, label: 'الإيرادات والتوزيع', path: '/admin/financial-reports', permission: 'view_reports' },
+        { icon: BarChart3, label: 'التقارير التفصيلية', path: '/admin/detailed-reports', permission: 'view_reports' },
+        { icon: Star, label: 'التقييمات', path: '/admin/ratings', permission: 'view_reports' },
       ]
     },
     {
       key: 'management',
-      label: 'الإدارة',
-      permission: null,
+      label: 'الإدارة والموارد',
       items: [
-        { icon: Users, label: 'إدارة الموارد البشرية', path: '/admin/hr-management', description: 'الموظفين والرواتب', permission: 'manage_customers' },
-        { icon: Users, label: 'المستخدمين', path: '/admin/users', description: 'إدارة المستخدمين', permission: 'manage_customers' },
-        { icon: Shield, label: 'الأمن والخصوصية', path: '/admin/security', description: 'سجلات الوصول', permission: 'manage_settings' },
+        { icon: UserCog, label: 'الموارد البشرية', path: '/admin/hr-management', permission: 'manage_customers' },
+        { icon: Users, label: 'العملاء', path: '/admin/users', permission: 'manage_customers' },
+        { icon: Shield, label: 'الأمن والخصوصية', path: '/admin/security', permission: 'manage_settings' },
       ]
     },
     {
       key: 'settings',
       label: 'الإعدادات',
-      permission: null,
       items: [
-        { icon: Smartphone, label: 'إدارة الواجهات', path: '/admin/ui-settings', description: 'تطبيق العميل والسائق', permission: 'manage_settings' },
-        { icon: Database, label: 'النسخ الاحتياطي', path: '/admin/backup', description: 'حفظ واستعادة البيانات', permission: 'manage_settings' },
-        { icon: User, label: 'الملف الشخصي', path: '/admin/profile', description: 'إدارة معلومات الحساب', permission: null },
+        { icon: Smartphone, label: 'إدارة الواجهات', path: '/admin/ui-settings', permission: 'manage_settings' },
+        { icon: Database, label: 'النسخ الاحتياطي', path: '/admin/backup', permission: 'manage_settings' },
+        { icon: User, label: 'الملف الشخصي', path: '/admin/profile', permission: null },
       ]
     },
   ];
@@ -157,13 +159,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const handleNavigation = useCallback((path: string) => {
     saveScrollPosition();
     setLocation(path);
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(false);
-    }
+    setIsSidebarOpen(false);
   }, [saveScrollPosition, setLocation]);
 
   const handleLogout = () => {
-    // تسجيل حدث الخروج
     try {
       const adminUser = localStorage.getItem('admin_user');
       const user = adminUser ? JSON.parse(adminUser) : null;
@@ -192,6 +191,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     return 'لوحة التحكم';
   };
 
+  const AdminAvatar = ({ size = 'md' }: { size?: 'sm' | 'md' }) => (
+    <div className={`${size === 'sm' ? 'w-7 h-7 text-xs' : 'w-9 h-9 text-sm'} bg-primary rounded-full flex items-center justify-center flex-shrink-0`}>
+      <span className="text-white font-bold">
+        {currentAdmin?.name ? currentAdmin.name.charAt(0) : 'م'}
+      </span>
+    </div>
+  );
+
   const NavItems = ({ navElRef }: { navElRef: React.RefObject<HTMLDivElement> }) => (
     <nav ref={navElRef} className="flex-1 p-3 overflow-y-auto">
       {menuGroups.map((group) => {
@@ -199,22 +206,24 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         if (visibleItems.length === 0) return null;
         return (
           <div key={group.key} className="mb-4">
-            <p className="text-xs font-bold text-gray-400 uppercase px-2 mb-1.5 tracking-wider">{group.label}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase px-2 mb-1.5 tracking-widest">
+              {group.label}
+            </p>
             <div className="space-y-0.5">
               {visibleItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location === item.path || 
+                const isActive = location === item.path ||
                   (item.path !== '/admin' && location.startsWith(item.path));
                 const badge = (item as any).badge;
-                
+
                 return (
                   <button
                     key={item.path}
                     onClick={() => handleNavigation(item.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-right transition-all duration-150 ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right transition-all duration-150 ${
                       isActive
-                        ? 'bg-green-600 text-white shadow-md shadow-green-200'
-                        : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
+                        ? 'bg-primary text-white shadow-md shadow-primary/30'
+                        : 'text-gray-700 hover:bg-primary/5 hover:text-primary'
                     }`}
                   >
                     <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400'}`} />
@@ -239,39 +248,31 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const SidebarHeader = () => (
     <>
       {getSidebarImageUrl() ? (
-        <div className="w-full h-40 border-b overflow-hidden relative flex-shrink-0">
-          <img 
-            src={getSidebarImageUrl()} 
-            alt="خلفية القائمة الجانبية" 
-            className="w-full h-full object-cover"
-          />
+        <div className="w-full h-36 border-b overflow-hidden relative flex-shrink-0">
+          <img src={getSidebarImageUrl()} alt="خلفية القائمة" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
             <div>
-              <h2 className="text-white font-bold text-base leading-tight">لوحة تحكم وادارة</h2>
-              <p className="text-green-100 text-sm font-medium">متجر طمطوم</p>
+              <h2 className="text-white font-bold text-sm leading-tight">لوحة تحكم وادارة</h2>
+              <p className="text-white/80 text-xs font-medium">{getAppName()}</p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="p-5 border-b flex-shrink-0" style={{ background: 'linear-gradient(135deg, #16a34a 0%, #dc2626 100%)' }}>
+        <div className="p-4 border-b flex-shrink-0 header-gradient">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <BarChart3 className="h-6 w-6 text-white" />
+            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <BarChart3 className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white leading-tight">لوحة تحكم وادارة</h2>
-              <p className="text-green-100 text-xs">متجر طمطوم</p>
+              <h2 className="text-sm font-bold text-white leading-tight">لوحة تحكم وادارة</h2>
+              <p className="text-white/80 text-xs">{getAppName()}</p>
             </div>
           </div>
         </div>
       )}
-      <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-sm font-bold">
-              {currentAdmin?.name ? currentAdmin.name.charAt(0) : 'م'}
-            </span>
-          </div>
+      <div className="px-3 py-2.5 border-b bg-gray-50 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <AdminAvatar size="sm" />
           <div className="min-w-0">
             <p className="font-semibold text-gray-900 text-sm truncate">
               {currentAdmin?.name || 'مدير النظام'}
@@ -299,27 +300,32 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     </div>
   );
 
-  const NotificationsPanel = () => (
-    <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50">
+  const NotificationsPanel = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <div className={`absolute ${isMobile ? 'left-0' : 'left-0'} top-full mt-2 ${isMobile ? 'w-72' : 'w-80'} bg-white rounded-xl shadow-2xl border border-gray-100 z-50`}>
       <div className="p-3 border-b flex items-center justify-between">
         <h3 className="font-bold text-sm">الإشعارات</h3>
-        {pendingOrdersCount > 0 && (
-          <Badge variant="destructive" className="text-xs">{pendingOrdersCount} طلب جديد</Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {pendingOrdersCount > 0 && (
+            <Badge variant="destructive" className="text-xs">{pendingOrdersCount} طلب جديد</Badge>
+          )}
+          <button onClick={() => setShowNotifications(false)} className="p-1 text-gray-400 hover:text-gray-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-      <div className="max-h-72 overflow-y-auto">
+      <div className="max-h-64 overflow-y-auto">
         {pendingOrders.length > 0 ? (
           pendingOrders.slice(0, 6).map((order: any) => (
             <div
               key={order.id}
-              className="p-3 border-b hover:bg-green-50 cursor-pointer transition-colors"
+              className="p-3 border-b hover:bg-primary/5 cursor-pointer transition-colors"
               onClick={() => { handleNavigation('/admin/orders'); setShowNotifications(false); }}
             >
               <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-green-600 rounded-full mt-1.5 flex-shrink-0"></div>
+                <div className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900">طلب جديد #{order.orderNumber || order.id?.slice(0, 8)}</p>
-                  <p className="text-xs text-gray-500 truncate">{order.customerName || 'عميل'} - {order.totalAmount} ر.س</p>
+                  <p className="text-xs text-gray-500 truncate">{order.customerName || 'عميل'} — {order.totalAmount} ريال</p>
                   <p className="text-xs text-red-500 mt-0.5">بانتظار تعيين سائق</p>
                 </div>
               </div>
@@ -334,10 +340,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       </div>
       {pendingOrders.length > 6 && (
         <div className="p-2 border-t">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full text-green-600 hover:bg-green-50 text-xs"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-primary hover:bg-primary/5 text-xs"
             onClick={() => { handleNavigation('/admin/orders'); setShowNotifications(false); }}
           >
             عرض جميع الطلبات ({pendingOrders.length})
@@ -347,139 +353,96 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     </div>
   );
 
+  const BellButton = () => (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="relative h-9 w-9"
+        onClick={() => setShowNotifications(!showNotifications)}
+      >
+        <Bell className="h-5 w-5" />
+        {pendingOrdersCount > 0 && (
+          <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
+            {pendingOrdersCount > 9 ? '9+' : pendingOrdersCount}
+          </span>
+        )}
+      </Button>
+      {showNotifications && <NotificationsPanel />}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row" dir="rtl">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white shadow-lg h-screen sticky top-0 flex-shrink-0">
+    <div className="h-screen bg-gray-50 flex overflow-hidden" dir="rtl">
+      {/* Desktop Sidebar - fixed height, no scrolling outside */}
+      <aside className="hidden lg:flex flex-col w-64 bg-white border-l shadow-lg flex-shrink-0 h-full">
         <SidebarHeader />
         <NavItems navElRef={navRef} />
         <SidebarFooter />
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
-        
-        {/* Desktop Sticky Header */}
-        <header className="hidden lg:flex bg-white border-b px-6 py-3 items-center justify-between sticky top-0 z-30 shadow-sm flex-shrink-0">
-          <div className="flex items-center gap-3">
-            {getLogoUrl() && (
-              <img src={getLogoUrl()} alt="شعار التطبيق" className="h-9 object-contain" />
-            )}
-            <div>
-              <h1 className="font-bold text-gray-900 text-base leading-tight">
-                لوحة تحكم وادارة متجر طمطوم
-              </h1>
-              <p className="text-xs text-gray-500">{getCurrentPageLabel()}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="relative h-9 w-9"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <Bell className="h-5 w-5" />
-                {pendingOrdersCount > 0 && (
-                  <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
-                    {pendingOrdersCount > 9 ? '9+' : pendingOrdersCount}
-                  </span>
-                )}
-              </Button>
-              {showNotifications && <NotificationsPanel />}
-            </div>
-            <button 
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-              onClick={() => handleNavigation('/admin/profile')}
-            >
-              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-bold">
-                  {currentAdmin?.name ? currentAdmin.name.charAt(0) : 'م'}
-                </span>
-              </div>
-              <span className="text-sm font-medium text-gray-700">
-                {currentAdmin?.name || 'مدير النظام'}
-              </span>
-            </button>
-          </div>
-        </header>
+      {/* Right Side: Header + Scrollable Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        {/* Mobile Sticky Header */}
-        <header className="lg:hidden bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm flex-shrink-0">
-          <div className="flex items-center gap-2">
-            {getLogoUrl() ? (
-              <img src={getLogoUrl()} alt="شعار" className="h-8 object-contain" />
-            ) : (
-              <div>
-                <p className="font-bold text-gray-900 text-sm leading-tight">لوحة تحكم وادارة</p>
-                <p className="text-xs text-green-600 font-medium">متجر طمطوم</p>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <div className="relative">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="relative h-9 w-9"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <Bell className="h-5 w-5" />
-                {pendingOrdersCount > 0 && (
-                  <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                    {pendingOrdersCount > 9 ? '9+' : pendingOrdersCount}
-                  </span>
-                )}
-              </Button>
-              {showNotifications && (
-                <div className="absolute left-0 top-full mt-1 w-72 bg-white rounded-xl shadow-2xl border z-50">
-                  <div className="p-3 border-b">
-                    <h3 className="font-bold text-sm">الإشعارات</h3>
-                  </div>
-                  <div className="max-h-60 overflow-y-auto">
-                    {pendingOrders.length > 0 ? (
-                      pendingOrders.slice(0, 5).map((order: any) => (
-                        <div
-                          key={order.id}
-                          className="p-3 border-b hover:bg-green-50 cursor-pointer"
-                          onClick={() => { handleNavigation('/admin/orders'); setShowNotifications(false); }}
-                        >
-                          <p className="text-sm font-semibold">طلب جديد #{order.orderNumber || order.id?.slice(0,8)}</p>
-                          <p className="text-xs text-gray-500">{order.customerName}</p>
-                          <p className="text-xs text-red-500">بانتظار تعيين سائق</p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-gray-400 text-sm">لا توجد إشعارات</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+        {/* Sticky Top Header - never scrolls */}
+        <header className="bg-white border-b flex items-center justify-between px-4 py-3 flex-shrink-0 shadow-sm z-30">
+          {/* Left: Logo / Page label */}
+          <div className="flex items-center gap-3">
+            {/* Mobile menu button */}
             <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-9 w-9">
+                <Button variant="ghost" size="sm" className="lg:hidden h-9 w-9">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-64 p-0 flex flex-col">
+              <SheetContent side="right" className="w-64 p-0 flex flex-col border-none">
                 <SidebarHeader />
                 <NavItems navElRef={mobileNavRef} />
                 <SidebarFooter />
               </SheetContent>
             </Sheet>
+
+            {getLogoUrl() ? (
+              <img src={getLogoUrl()} alt="شعار" className="h-8 object-contain" />
+            ) : (
+              <div>
+                <p className="font-bold text-gray-900 text-sm leading-tight hidden lg:block">
+                  لوحة تحكم وادارة — {getCurrentPageLabel()}
+                </p>
+                <p className="font-bold text-gray-900 text-sm leading-tight lg:hidden">
+                  {getCurrentPageLabel()}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Notifications + Profile */}
+          <div className="flex items-center gap-1">
+            <BellButton />
+            <button
+              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => handleNavigation('/admin/profile')}
+            >
+              <AdminAvatar />
+              <span className="text-sm font-medium text-gray-700">
+                {currentAdmin?.name || 'مدير النظام'}
+              </span>
+            </button>
+            <button
+              className="lg:hidden"
+              onClick={() => handleNavigation('/admin/profile')}
+            >
+              <AdminAvatar size="sm" />
+            </button>
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Scrollable Page Content */}
         <main className="flex-1 overflow-y-auto">
           {isSetupMode && (
             <div className="bg-amber-500 text-white px-4 py-2.5 text-sm flex items-center justify-between gap-3 flex-wrap" dir="rtl">
               <span className="font-medium">
-                ⚠️ أنت في وضع الإعداد الأولي — أنشئ حساب المدير الآن، وبعد تسجيل الخروج ستحتاج إلى كلمة مرور للدخول.
+                ⚠️ أنت في وضع الإعداد الأولي — أنشئ حساب المدير الآن.
               </span>
               <button
                 onClick={handleLogout}

@@ -12,17 +12,23 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const [show, setShow] = useState(true);
 
   if (settingsLoading) {
-    return null;
+    return (
+      <div className="fixed inset-0 bg-white z-[9999] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
-  const splashImageUrl = getSetting('splash_image_url', 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?q=80&w=800');
-  const logoUrl = getSetting('logo_url', '');
-  const splashTitle = getSetting('splash_title', 'مرحباً بك في طمطوم');
-  const splashSubtitle = getSetting('splash_subtitle', 'خضروات وفواكه طازجة تصلك لباب بيتك بأعلى جودة وأفضل سعر');
+  const splashImageUrl = getSetting('splash_image_url') || 'https://images.unsplash.com/photo-1565299507177-b0ac66763828?q=80&w=800';
+  const logoUrl = getSetting('logo_url') || '';
+  const splashTitle = getSetting('splash_title') || 'مرحباً بك في السريع ون';
+  const splashSubtitle = getSetting('splash_subtitle') || 'أفضل خدمة توصيل طلبات بسرعة وأمان';
+  const buttonText = getSetting('splash_button_text') || 'ابدأ الآن';
+  const appName = getSetting('app_name') || 'السريع ون';
 
   const handleStart = () => {
     setShow(false);
-    setTimeout(onFinish, 500); // Allow animation to finish
+    setTimeout(onFinish, 500);
   };
 
   if (!show) {
@@ -33,7 +39,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 
   return (
     <div className="fixed inset-0 bg-white z-[9999] flex flex-col transition-opacity duration-500 overflow-hidden">
-      {/* Top Image Section with Professional Resize */}
+      {/* Top Image Section */}
       <div className="h-[50vh] md:h-[55vh] relative overflow-hidden rounded-b-[3rem] md:rounded-b-[5rem] shadow-2xl">
         <img 
           src={splashImageUrl} 
@@ -42,14 +48,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
-        {/* Floating Logo on Image for better branding */}
         <div className="absolute bottom-8 left-0 right-0 flex justify-center">
           {logoUrl ? (
             <img src={logoUrl} alt="Logo" className="h-20 md:h-28 object-contain drop-shadow-2xl" />
           ) : (
             <div className="text-4xl md:text-6xl flex items-center font-black tracking-tighter select-none bg-white/10 backdrop-blur-md px-8 py-3 rounded-3xl border border-white/20 text-white">
-              <span className="text-white">طم</span>
-              <span className="text-white/80">طوم</span>
+              {appName}
             </div>
           )}
         </div>
@@ -67,13 +71,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
           </p>
         </div>
 
-        {/* Action Button */}
         <div className="w-full max-w-sm pb-10 md:pb-16">
           <Button 
             onClick={handleStart}
-            className="w-full h-16 md:h-20 rounded-[2rem] text-xl md:text-2xl font-black bg-primary hover:bg-primary/90 text-white shadow-[0_20px_50px_rgba(56,142,60,0.3)] flex items-center justify-center gap-4 active:scale-95 transition-all group border-b-4 border-primary-dark"
+            className="w-full h-16 md:h-20 rounded-[2rem] text-xl md:text-2xl font-black bg-primary hover:bg-primary/90 text-white shadow-[0_20px_50px_rgba(236,72,20,0.3)] flex items-center justify-center gap-4 active:scale-95 transition-all group"
           >
-            ابدأ الآن
+            {buttonText}
             <ChevronLeft className="h-7 w-7 group-hover:-translate-x-2 transition-transform" />
           </Button>
         </div>
