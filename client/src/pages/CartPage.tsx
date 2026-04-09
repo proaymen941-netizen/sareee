@@ -8,15 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { useCart } from '../context/CartContext';
 import { useUserLocation as useCoordinates } from '../context/LocationContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { InsertOrder, Restaurant } from '@shared/schema';
-import { calculateDistance, calculateDeliveryFee } from '../utils/location';
 import { getAppStatus, getRestaurantStatus } from '@/utils/restaurantHours';
-
 import { formatCurrency } from '@/lib/utils';
 
 export default function CartPage() {
@@ -43,10 +40,17 @@ export default function CartPage() {
     queryKey: ['/api/ui-settings'],
   });
 
+  const { data: paymentMethods = [] } = useQuery<any[]>({
+    queryKey: ['/api/payment-methods'],
+  });
+
+  const getSetting = (key: string, fallback = '') =>
+    (uiSettings as any[])?.find((s: any) => s.key === key)?.value ?? fallback;
+
   const appStatus = useMemo(() => {
-    const openingTime = (uiSettings as any[])?.find((s: any) => s.key === 'opening_time')?.value || '08:00';
-    const closingTime = (uiSettings as any[])?.find((s: any) => s.key === 'closing_time')?.value || '23:00';
-    const storeStatus = (uiSettings as any[])?.find((s: any) => s.key === 'store_status')?.value;
+    const openingTime = getSetting('opening_time', '08:00');
+    const closingTime = getSetting('closing_time', '23:00');
+    const storeStatus = getSetting('store_status');
     return getAppStatus(openingTime, closingTime, storeStatus);
   }, [uiSettings]);
 
@@ -57,7 +61,62 @@ export default function CartPage() {
 
   const canPlaceOrder = appStatus.isOpen && (restaurantStatus === null || restaurantStatus.isOpen);
 
-  // Calculate delivery fee whenever subtotal or location changes
+  // إعدادات السلة من لوحة التحكم
+  const showCouponBox = getSetting('show_coupon_box_always', 'true') !== 'false';
+  const showPaymentCards = getSetting('show_payment_cards', 'true') !== 'false';
+  const showCashPayment = getSetting('show_cash_payment', 'true') !== 'false';
+  const showBankTransfer = getSetting('show_bank_transfer', 'false') === 'true';
+  const checkoutButtonText = getSetting('cart_checkout_button_text', 'تأكيد الطلب');
+  const checkoutNote = getSetting('cart_checkout_note', '');
+  const appName = getSetting('app_name', 'السريع ون');
+
+  // بناء قائمة طرق الدفع بناءً على الإعدادات والـ API
+  const availablePaymentMethods = useMemo(() => {
+    const methods: { value: string; icon: string; label: string }[] = [];
+
+    if (showCashPayment) {
+      methods.push({ value: 'cash', icon: '💵', label: 'نقداً' });
+    }
+
+    if (showPaymentCards) {
+      // إذا كان هناك طرق دفع مُضافة من الأدمن، نستخدمها
+      if (paymentMethods.length > 0) {
+        paymentMethods
+          .filter((m: any) => m.isActive && m.type !== 'cash' && m.type !== 'bank_transfer')
+          .forEach((m: any) => {
+            const iconMap: Record<string, string> = {
+              mada: '🏦',
+              stc_pay: '📱',
+              apple_pay: '🍎',
+              visa: '💳',
+              mastercard: '💳',
+              tabby: '📊',
+              tamara: '📈',
+              wallet: '👛',
+              online: '🌐',
+            };
+            methods.push({
+              value: m.provider || m.type,
+              icon: iconMap[m.provider] || '💳',
+              label: m.name || m.provider,
+            });
+          });
+      } else {
+        // طرق افتراضية
+        methods.push({ value: 'card', icon: '💳', label: 'بطاقة دفع' });
+        methods.push({ value: 'wallet', icon: '👛', label: 'المحفظة' });
+        methods.push({ value: 'online', icon: '🌐', label: 'دفع إلكتروني' });
+      }
+    }
+
+    if (showBankTransfer) {
+      methods.push({ value: 'bank_transfer', icon: '🏛️', label: 'تحويل بنكي' });
+    }
+
+    return methods;
+  }, [paymentMethods, showCashPayment, showPaymentCards, showBankTransfer]);
+
+  // حساب رسوم التوصيل
   useEffect(() => {
     if (items.length === 0) {
       setDeliveryInfo(null);
@@ -75,7 +134,6 @@ export default function CartPage() {
             restaurantId: restaurantId,
             orderSubtotal: subtotal
           });
-          
           const result = await response.json();
           if (result.success) {
             setDeliveryFee(result.fee);
@@ -85,15 +143,12 @@ export default function CartPage() {
               isFreeDelivery: result.isFreeDelivery
             });
           }
-        } catch (error) {
-          console.error('Error calculating delivery fee:', error);
-          // Fallback to basic fee if API fails
+        } catch {
           setDeliveryFee(5);
         } finally {
           setCalculatingFee(false);
         }
       } else {
-        // Try to get location if not available
         getCurrentLocation();
         setDeliveryFee(0);
         setDeliveryInfo(null);
@@ -103,6 +158,7 @@ export default function CartPage() {
     calculateFee();
   }, [userLocation.position, subtotal, restaurantId]);
 
+  // الكوبون
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponData, setCouponData] = useState<any>(null);
@@ -152,8 +208,18 @@ export default function CartPage() {
     customerEmail: '',
     deliveryAddress: '',
     notes: '',
-    paymentMethod: 'cash',
+    paymentMethod: availablePaymentMethods[0]?.value || 'cash',
   });
+
+  // تحديث طريقة الدفع الافتراضية عند تغيّر القائمة المتاحة
+  useEffect(() => {
+    if (availablePaymentMethods.length > 0) {
+      const currentValid = availablePaymentMethods.find(m => m.value === orderForm.paymentMethod);
+      if (!currentValid) {
+        setOrderForm(prev => ({ ...prev, paymentMethod: availablePaymentMethods[0].value }));
+      }
+    }
+  }, [availablePaymentMethods]);
 
   const placeOrderMutation = useMutation({
     mutationFn: async (orderData: InsertOrder) => {
@@ -161,12 +227,8 @@ export default function CartPage() {
       return response.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "تم تأكيد طلبك بنجاح!",
-        description: "سيتم التواصل معك قريباً",
-      });
+      toast({ title: "تم تأكيد طلبك بنجاح!", description: "سيتم التواصل معك قريباً" });
       clearCart();
-      // توجيه العميل لصفحة تتبع الطلب
       if (data?.order?.id) {
         setLocation(`/order-tracking/${data.order.id}`);
       } else {
@@ -174,11 +236,7 @@ export default function CartPage() {
       }
     },
     onError: () => {
-      toast({
-        title: "خطأ في تأكيد الطلب",
-        description: "يرجى المحاولة مرة أخرى",
-        variant: "destructive",
-      });
+      toast({ title: "خطأ في تأكيد الطلب", description: "يرجى المحاولة مرة أخرى", variant: "destructive" });
     },
   });
 
@@ -193,20 +251,12 @@ export default function CartPage() {
     }
 
     if (!orderForm.customerName || !orderForm.customerPhone || !orderForm.deliveryAddress) {
-      toast({
-        title: "معلومات ناقصة",
-        description: "يرجى ملء جميع الحقول المطلوبة",
-        variant: "destructive",
-      });
+      toast({ title: "معلومات ناقصة", description: "يرجى ملء جميع الحقول المطلوبة", variant: "destructive" });
       return;
     }
 
     if (items.length === 0) {
-      toast({
-        title: "السلة فارغة",
-        description: "أضف بعض العناصر قبل تأكيد الطلب",
-        variant: "destructive",
-      });
+      toast({ title: "السلة فارغة", description: "أضف بعض العناصر قبل تأكيد الطلب", variant: "destructive" });
       return;
     }
 
@@ -232,7 +282,6 @@ export default function CartPage() {
     placeOrderMutation.mutate(orderData);
   };
 
-  // دالة لتحويل السعر من string إلى number للحسابات
   const parsePrice = (price: string | number): number => {
     if (typeof price === 'number') return price;
     const num = parseFloat(price);
@@ -240,24 +289,19 @@ export default function CartPage() {
   };
 
   return (
-    <div>
-      {/* Header */}
+    <div dir="rtl">
+      {/* الشريط العلوي */}
       <header className="bg-card border-b border-border p-4">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation('/')}
-            data-testid="button-cart-back"
-          >
+          <Button variant="ghost" size="icon" onClick={() => setLocation('/')} data-testid="button-cart-back">
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <h2 className="text-xl font-bold text-foreground">السريع ون - السلة</h2>
+          <h2 className="text-xl font-bold text-foreground">{appName} - السلة</h2>
         </div>
       </header>
 
       <section className="p-4">
-        {/* Cart Items */}
+        {/* عناصر السلة */}
         <div className="space-y-4 mb-6">
           {items.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
@@ -269,45 +313,17 @@ export default function CartPage() {
             items.map((item) => (
               <Card key={item.id} className="p-4 flex justify-between items-center">
                 <div className="flex-1">
-                  <h4 className="font-medium text-foreground" data-testid={`cart-item-name-${item.id}`}>
-                    {item.name}
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    {item.price} ريال × {item.quantity}
-                  </p>
+                  <h4 className="font-medium text-foreground" data-testid={`cart-item-name-${item.id}`}>{item.name}</h4>
+                  <p className="text-sm text-muted-foreground">{item.price} ريال × {item.quantity}</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      data-testid={`button-decrease-${item.id}`}
-                    >
-                      -
-                    </Button>
-                    <span className="px-3 py-1 bg-muted rounded" data-testid={`quantity-${item.id}`}>
-                      {item.quantity}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      data-testid={`button-increase-${item.id}`}
-                    >
-                      +
-                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, item.quantity - 1)} data-testid={`button-decrease-${item.id}`}>-</Button>
+                    <span className="px-3 py-1 bg-muted rounded" data-testid={`quantity-${item.id}`}>{item.quantity}</span>
+                    <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, item.quantity + 1)} data-testid={`button-increase-${item.id}`}>+</Button>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-bold text-primary" data-testid={`item-total-${item.id}`}>
-                    {parsePrice(item.price) * item.quantity} ريال
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeItem(item.id)}
-                    className="text-destructive hover:bg-destructive/10"
-                    data-testid={`button-remove-${item.id}`}
-                  >
+                  <span className="font-bold text-primary" data-testid={`item-total-${item.id}`}>{parsePrice(item.price) * item.quantity} ريال</span>
+                  <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)} className="text-destructive hover:bg-destructive/10" data-testid={`button-remove-${item.id}`}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -316,18 +332,15 @@ export default function CartPage() {
           )}
         </div>
 
-        {/* Order Summary and Form */}
+        {/* ملخص الطلب */}
         {items.length > 0 && (
           <Card className="p-4">
             <h3 className="font-bold text-foreground mb-4">ملخص الطلب</h3>
-            
-            {/* Order Summary */}
+
             <div className="space-y-2 text-sm mb-6">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">المجموع الفرعي</span>
-                <span className="text-foreground" data-testid="order-subtotal">
-                  {formatCurrency(subtotal)}
-                </span>
+                <span className="text-foreground" data-testid="order-subtotal">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">رسوم التوصيل</span>
@@ -363,14 +376,9 @@ export default function CartPage() {
                   {userLocation.error}
                 </div>
               )}
-              
+
               {!userLocation.position && !userLocation.isLoading && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full mt-2 text-xs h-9 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
-                  onClick={getCurrentLocation}
-                >
+                <Button variant="outline" size="sm" className="w-full mt-2 text-xs h-9 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary" onClick={getCurrentLocation}>
                   <MapPin className="h-3.5 w-3.5 ml-2" />
                   تحديد موقعي الآن لحساب التوصيل تلقائياً
                 </Button>
@@ -382,63 +390,64 @@ export default function CartPage() {
                 </div>
               )}
 
-              {/* Coupon Section */}
-              <div className="border-t border-border pt-3 mt-2">
-                {couponData ? (
-                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2.5 mb-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <div>
-                        <p className="text-sm font-semibold text-green-700">{couponData.nameAr || couponCode}</p>
-                        <p className="text-xs text-green-600">خصم {formatCurrency(couponDiscount)}</p>
+              {/* صندوق الكوبون - يُظهر أو يُخفى حسب الإعداد */}
+              {showCouponBox && (
+                <div className="border-t border-border pt-3 mt-2">
+                  {couponData ? (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2.5 mb-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <div>
+                          <p className="text-sm font-semibold text-green-700">{couponData.nameAr || couponCode}</p>
+                          <p className="text-xs text-green-600">خصم {formatCurrency(couponDiscount)}</p>
+                        </div>
                       </div>
+                      <button onClick={handleRemoveCoupon} className="text-red-400 hover:text-red-600">
+                        <XCircle className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button onClick={handleRemoveCoupon} className="text-red-400 hover:text-red-600">
-                      <XCircle className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5 mb-2">
-                    <div className="flex gap-2">
-                      <Input
-                        value={couponCode}
-                        onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
-                        placeholder="أدخل كود الخصم"
-                        className="font-mono text-sm h-9"
-                        onKeyDown={(e) => e.key === 'Enter' && handleValidateCoupon()}
-                        dir="ltr"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={handleValidateCoupon}
-                        disabled={couponLoading || !couponCode.trim()}
-                        className="h-9 gap-1.5 border-orange-300 text-orange-600 hover:bg-orange-50"
-                      >
-                        {couponLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tag className="h-3.5 w-3.5" />}
-                        تطبيق
-                      </Button>
+                  ) : (
+                    <div className="space-y-1.5 mb-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={couponCode}
+                          onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
+                          placeholder="أدخل كود الخصم"
+                          className="font-mono text-sm h-9"
+                          onKeyDown={(e) => e.key === 'Enter' && handleValidateCoupon()}
+                          dir="ltr"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={handleValidateCoupon}
+                          disabled={couponLoading || !couponCode.trim()}
+                          className="h-9 gap-1.5 border-orange-300 text-orange-600 hover:bg-orange-50"
+                        >
+                          {couponLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tag className="h-3.5 w-3.5" />}
+                          تطبيق
+                        </Button>
+                      </div>
+                      {couponError && <p className="text-xs text-red-500 flex items-center gap-1"><XCircle className="h-3 w-3" />{couponError}</p>}
                     </div>
-                    {couponError && <p className="text-xs text-red-500 flex items-center gap-1"><XCircle className="h-3 w-3" />{couponError}</p>}
-                  </div>
-                )}
-                {couponDiscount > 0 && (
-                  <div className="flex justify-between text-sm text-green-600 mb-1">
-                    <span>خصم الكوبون</span>
-                    <span>- {formatCurrency(couponDiscount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold border-t pt-2">
-                  <span className="text-foreground">الإجمالي</span>
-                  <span className="text-orange-500 text-lg" data-testid="order-total">
-                    {formatCurrency(finalTotal)}
-                  </span>
+                  )}
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600 mb-1">
+                      <span>خصم الكوبون</span>
+                      <span>- {formatCurrency(couponDiscount)}</span>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              <div className="flex justify-between font-bold border-t pt-2 mt-2">
+                <span className="text-foreground">الإجمالي</span>
+                <span className="text-orange-500 text-lg" data-testid="order-total">{formatCurrency(finalTotal)}</span>
               </div>
             </div>
 
-            {/* Order Form */}
+            {/* نموذج الطلب */}
             <div className="space-y-4">
               <div>
                 <Label htmlFor="customerName" className="text-foreground">الاسم *</Label>
@@ -497,43 +506,34 @@ export default function CartPage() {
                 />
               </div>
 
-              <div>
-                <Label className="text-foreground">طريقة الدفع</Label>
-                <RadioGroup
-                  value={orderForm.paymentMethod}
-                  onValueChange={(value) => setOrderForm(prev => ({ ...prev, paymentMethod: value }))}
-                  className="grid grid-cols-2 gap-2 mt-2"
-                >
-                  <div className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all ${orderForm.paymentMethod === 'cash' ? 'border-primary bg-primary/5 text-primary' : 'border-border'}`}>
-                    <RadioGroupItem value="cash" id="cash" className="sr-only" />
-                    <Label htmlFor="cash" className="flex flex-col items-center gap-2 cursor-pointer w-full h-full">
-                      <span className="text-2xl">💵</span>
-                      <span className="text-[10px] font-black">نقداً</span>
-                    </Label>
-                  </div>
-                  <div className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all ${orderForm.paymentMethod === 'card' ? 'border-primary bg-primary/5 text-primary' : 'border-border'}`}>
-                    <RadioGroupItem value="card" id="card" className="sr-only" />
-                    <Label htmlFor="card" className="flex flex-col items-center gap-2 cursor-pointer w-full h-full">
-                      <span className="text-2xl">💳</span>
-                      <span className="text-[10px] font-black">بطاقة دفع</span>
-                    </Label>
-                  </div>
-                  <div className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all ${orderForm.paymentMethod === 'wallet' ? 'border-primary bg-primary/5 text-primary' : 'border-border'}`}>
-                    <RadioGroupItem value="wallet" id="wallet" className="sr-only" />
-                    <Label htmlFor="wallet" className="flex flex-col items-center gap-2 cursor-pointer w-full h-full">
-                      <span className="text-2xl">👛</span>
-                      <span className="text-[10px] font-black">المحفظة</span>
-                    </Label>
-                  </div>
-                  <div className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all ${orderForm.paymentMethod === 'online' ? 'border-primary bg-primary/5 text-primary' : 'border-border'}`}>
-                    <RadioGroupItem value="online" id="online" className="sr-only" />
-                    <Label htmlFor="online" className="flex flex-col items-center gap-2 cursor-pointer w-full h-full">
-                      <span className="text-2xl">🌐</span>
-                      <span className="text-[10px] font-black">دفع إلكتروني</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
+              {/* طرق الدفع - ديناميكية حسب الإعدادات */}
+              {availablePaymentMethods.length > 0 && (
+                <div>
+                  <Label className="text-foreground">طريقة الدفع</Label>
+                  <RadioGroup
+                    value={orderForm.paymentMethod}
+                    onValueChange={(value) => setOrderForm(prev => ({ ...prev, paymentMethod: value }))}
+                    className="grid grid-cols-2 gap-2 mt-2"
+                  >
+                    {availablePaymentMethods.map((method) => (
+                      <div
+                        key={method.value}
+                        className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all ${
+                          orderForm.paymentMethod === method.value
+                            ? 'border-primary bg-primary/5 text-primary'
+                            : 'border-border'
+                        }`}
+                      >
+                        <RadioGroupItem value={method.value} id={method.value} className="sr-only" />
+                        <Label htmlFor={method.value} className="flex flex-col items-center gap-2 cursor-pointer w-full h-full">
+                          <span className="text-2xl">{method.icon}</span>
+                          <span className="text-[10px] font-black text-center">{method.label}</span>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              )}
             </div>
 
             {/* رسالة الإغلاق */}
@@ -573,9 +573,13 @@ export default function CartPage() {
               ) : !userLocation.position ? (
                 'يرجى تحديد الموقع لإكمال الطلب'
               ) : (
-                'تأكيد الطلب'
+                checkoutButtonText
               )}
             </Button>
+
+            {checkoutNote && (
+              <p className="text-center text-xs text-muted-foreground mt-2">{checkoutNote}</p>
+            )}
           </Card>
         )}
       </section>
