@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation as useWouterLocation } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowRight, Trash2, MapPin, Calendar, Clock, DollarSign, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { ArrowRight, Trash2, MapPin, Calendar, Clock, DollarSign, Plus, Minus, ShoppingCart, AlertCircle } from 'lucide-react';
 import { LocationPicker, LocationData } from '@/components/LocationPicker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { formatCurrency } from '@/lib/utils';
 import { useUserLocation } from '@/context/LocationContext';
 import type { InsertOrder, Restaurant } from '@shared/schema';
+import { getAppStatus, getRestaurantStatus } from '@/utils/restaurantHours';
 
 export default function Cart() {
   const [, setLocation] = useWouterLocation();
@@ -56,6 +57,20 @@ export default function Cart() {
   const { data: settings } = useQuery<any[]>({
     queryKey: ['/api/ui-settings'],
   });
+
+  const appStatus = useMemo(() => {
+    const openingTime = (settings as any[])?.find((s: any) => s.key === 'opening_time')?.value || '08:00';
+    const closingTime = (settings as any[])?.find((s: any) => s.key === 'closing_time')?.value || '23:00';
+    const storeStatus = (settings as any[])?.find((s: any) => s.key === 'store_status')?.value;
+    return getAppStatus(openingTime, closingTime, storeStatus);
+  }, [settings]);
+
+  const restaurantStatus = useMemo(() => {
+    if (!restaurant) return null;
+    return getRestaurantStatus(restaurant);
+  }, [restaurant]);
+
+  const canPlaceOrder = appStatus.isOpen && (restaurantStatus === null || restaurantStatus.isOpen);
 
   const handleLocationSelect = async (location: LocationData) => {
     setOrderForm(prev => ({
@@ -124,6 +139,15 @@ export default function Cart() {
   });
 
   const handlePlaceOrder = () => {
+    if (!canPlaceOrder) {
+      toast({
+        title: "لا يمكن إتمام الطلب",
+        description: !appStatus.isOpen ? appStatus.message : (restaurantStatus?.message || 'المتجر مغلق حالياً'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!orderForm.customerName || !orderForm.customerPhone || !orderForm.deliveryAddress) {
       toast({
         title: "معلومات ناقصة",
@@ -477,17 +501,45 @@ export default function Cart() {
               </CardContent>
             </Card>
 
+            {/* رسالة إغلاق التطبيق أو المتجر */}
+            {items.length > 0 && !canPlaceOrder && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-red-700 mb-1">
+                        {!appStatus.isOpen ? 'التطبيق مغلق حالياً' : 'المتجر مغلق حالياً'}
+                      </p>
+                      <p className="text-sm text-red-600">
+                        {!appStatus.isOpen ? appStatus.message : restaurantStatus?.message}
+                      </p>
+                      <p className="text-xs text-red-500 mt-1">
+                        أوقات العمل: {appStatus.openingTime} - {appStatus.closingTime}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* زر تأكيد الطلب */}
             {items.length > 0 && (
               <Card>
                 <CardContent className="p-4">
                   <Button 
-                    className="w-full bg-black hover:bg-red-600 text-white font-semibold py-3 text-lg"
+                    className={`w-full font-semibold py-3 text-lg ${canPlaceOrder ? 'bg-black hover:bg-red-600 text-white' : 'bg-gray-400 text-white cursor-not-allowed'}`}
                     onClick={handlePlaceOrder}
-                    disabled={placeOrderMutation.isPending || !orderForm.locationData}
+                    disabled={placeOrderMutation.isPending || !orderForm.locationData || !canPlaceOrder}
                     data-testid="button-place-order"
                   >
-                    {placeOrderMutation.isPending ? 'جاري تأكيد الطلب...' : !orderForm.locationData ? 'يرجى تحديد الموقع للمتابعة' : `تأكيد الطلب - ${formatCurrency(total)}`}
+                    {placeOrderMutation.isPending 
+                      ? 'جاري تأكيد الطلب...' 
+                      : !canPlaceOrder 
+                        ? (!appStatus.isOpen ? '🔒 التطبيق مغلق حالياً' : '🔒 المتجر مغلق حالياً')
+                        : !orderForm.locationData 
+                          ? 'يرجى تحديد الموقع للمتابعة' 
+                          : `تأكيد الطلب - ${formatCurrency(total)}`}
                   </Button>
                 </CardContent>
               </Card>

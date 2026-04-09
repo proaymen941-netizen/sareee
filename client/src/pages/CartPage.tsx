@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowRight, Trash2, MapPin, Tag, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, Trash2, MapPin, Tag, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { InsertOrder, Restaurant } from '@shared/schema';
 import { calculateDistance, calculateDeliveryFee } from '../utils/location';
+import { getAppStatus, getRestaurantStatus } from '@/utils/restaurantHours';
 
 import { formatCurrency } from '@/lib/utils';
 
@@ -37,6 +38,24 @@ export default function CartPage() {
     queryKey: ['/api/restaurants', restaurantId],
     enabled: !!restaurantId,
   });
+
+  const { data: uiSettings } = useQuery<any[]>({
+    queryKey: ['/api/ui-settings'],
+  });
+
+  const appStatus = useMemo(() => {
+    const openingTime = (uiSettings as any[])?.find((s: any) => s.key === 'opening_time')?.value || '08:00';
+    const closingTime = (uiSettings as any[])?.find((s: any) => s.key === 'closing_time')?.value || '23:00';
+    const storeStatus = (uiSettings as any[])?.find((s: any) => s.key === 'store_status')?.value;
+    return getAppStatus(openingTime, closingTime, storeStatus);
+  }, [uiSettings]);
+
+  const restaurantStatus = useMemo(() => {
+    if (!restaurant) return null;
+    return getRestaurantStatus(restaurant);
+  }, [restaurant]);
+
+  const canPlaceOrder = appStatus.isOpen && (restaurantStatus === null || restaurantStatus.isOpen);
 
   // Calculate delivery fee whenever subtotal or location changes
   useEffect(() => {
@@ -164,6 +183,15 @@ export default function CartPage() {
   });
 
   const handlePlaceOrder = () => {
+    if (!canPlaceOrder) {
+      toast({
+        title: "لا يمكن إتمام الطلب",
+        description: !appStatus.isOpen ? appStatus.message : (restaurantStatus?.message || 'المتجر مغلق حالياً'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!orderForm.customerName || !orderForm.customerPhone || !orderForm.deliveryAddress) {
       toast({
         title: "معلومات ناقصة",
@@ -508,15 +536,37 @@ export default function CartPage() {
               </div>
             </div>
 
+            {/* رسالة الإغلاق */}
+            {!canPlaceOrder && (
+              <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-red-700 text-sm">
+                    {!appStatus.isOpen ? 'التطبيق مغلق حالياً' : 'المتجر مغلق حالياً'}
+                  </p>
+                  <p className="text-xs text-red-600 mt-0.5">
+                    {!appStatus.isOpen ? appStatus.message : restaurantStatus?.message}
+                  </p>
+                  <p className="text-xs text-red-500 mt-1">
+                    أوقات العمل: {appStatus.openingTime} - {appStatus.closingTime}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <Button
               onClick={handlePlaceOrder}
-              disabled={placeOrderMutation.isPending || calculatingFee || !userLocation.position}
-              className="w-full mt-6 py-4 text-lg font-bold"
+              disabled={placeOrderMutation.isPending || calculatingFee || !userLocation.position || !canPlaceOrder}
+              className={`w-full mt-6 py-4 text-lg font-bold ${!canPlaceOrder ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : ''}`}
               data-testid="button-place-order"
             >
               {placeOrderMutation.isPending ? (
                 <span className="flex items-center gap-2">
                   <i className="fas fa-spinner fa-spin"></i> جاري تأكيد الطلب...
+                </span>
+              ) : !canPlaceOrder ? (
+                <span className="flex items-center gap-2">
+                  🔒 {!appStatus.isOpen ? 'التطبيق مغلق حالياً' : 'المتجر مغلق حالياً'}
                 </span>
               ) : calculatingFee ? (
                 'جاري حساب رسوم التوصيل...'
