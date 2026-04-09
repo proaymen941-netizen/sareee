@@ -109,8 +109,17 @@ npm start         # Run production server
 - **AllowedHosts**: `true` (bypasses host header check for Replit proxy)
 
 ## Environment Variables
-- `DATABASE_URL` - PostgreSQL connection string (auto-set by Replit)
+- `DATABASE_URL` - PostgreSQL connection string
 - `NODE_ENV` - development/production
+- `JWT_SECRET` - JWT signing secret
+- `SESSION_SECRET` - Session signing secret
+
+## Image Uploads
+- **Storage**: Local disk (no external service required)
+- **Upload API**: `POST /api/images/upload` and `POST /api/images/upload-multiple`
+- **Static Serving**: `/uploads/*` serves uploaded files
+- **Upload Dir**: `./uploads/` (git-ignored)
+- **Supabase removed**: Fully replaced with local disk storage (multer)
 
 ## User Types
 1. **Customers** - Browse restaurants, place orders, track delivery
