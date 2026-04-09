@@ -37,6 +37,39 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // التحقق من ساعات عمل التطبيق العالمية
+    try {
+      const allSettings = await storage.getUiSettings();
+      const settingsMap = new Map(allSettings.map((s: any) => [s.key, s.value]));
+      const storeStatus = settingsMap.get('store_status');
+      const openingTime = settingsMap.get('opening_time') || '08:00';
+      const closingTime = settingsMap.get('closing_time') || '23:00';
+
+      if (storeStatus === 'closed') {
+        return res.status(400).json({ 
+          error: "التطبيق مغلق حالياً من قِبل الإدارة"
+        });
+      }
+
+      const now = new Date();
+      const currentTime = now.toTimeString().slice(0, 5);
+      const timeToMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+      const current = timeToMinutes(currentTime);
+      const open = timeToMinutes(openingTime);
+      const close = timeToMinutes(closingTime);
+      let appIsOpen = close > open ? (current >= open && current < close) : (current >= open || current < close);
+
+      if (!appIsOpen) {
+        const isBeforeOpen = current < open;
+        const whenOpen = isBeforeOpen ? `يفتح اليوم الساعة ${openingTime}` : `يفتح غداً الساعة ${openingTime}`;
+        return res.status(400).json({ 
+          error: `التطبيق مغلق حالياً. ${whenOpen}`
+        });
+      }
+    } catch (_) {
+      // إذا فشل التحقق من الإعدادات، نسمح بالطلب
+    }
+
     // التحقق من وجود المطعم (اختياري الآن)
     let restaurant = null;
     if (restaurantId) {
@@ -374,6 +407,40 @@ router.put("/:id/assign-driver", async (req, res) => {
     res.json({ success: true, order: updatedOrder });
   } catch (error) {
     console.error('خطأ في تعيين السائق:', error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// تعديل أسعار الطلب (من قبل المدير)
+router.put("/:id/prices", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items, deliveryFee, subtotal, totalAmount, priceAdjustmentNote } = req.body;
+
+    const order = await storage.getOrder(id);
+    if (!order) {
+      return res.status(404).json({ error: "الطلب غير موجود" });
+    }
+
+    const updatedOrder = await storage.updateOrder(id, {
+      items: typeof items === 'string' ? items : JSON.stringify(items),
+      deliveryFee: deliveryFee?.toString(),
+      subtotal: subtotal?.toString(),
+      totalAmount: totalAmount?.toString(),
+      notes: priceAdjustmentNote
+        ? `${order.notes ? order.notes + '\n' : ''}[تعديل مدير: ${priceAdjustmentNote}]`
+        : order.notes,
+      updatedAt: new Date()
+    });
+
+    const ws = req.app.get('ws');
+    if (ws) {
+      ws.broadcast('order_update', { orderId: id, priceUpdated: true });
+    }
+
+    res.json({ success: true, order: updatedOrder });
+  } catch (error) {
+    console.error('خطأ في تعديل أسعار الطلب:', error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });

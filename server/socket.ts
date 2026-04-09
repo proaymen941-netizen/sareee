@@ -253,57 +253,5 @@ async function handleMessage(
         });
       }
       break;
-
-
-      if (orderId && senderId && receiverId && content) {
-        try {
-          // Save message to DB
-          const newMessage = await storage.createMessage({
-            orderId,
-            senderId,
-            senderType,
-            receiverId,
-            receiverType,
-            content,
-            isRead: false
-          });
-
-          const chatMsg = JSON.stringify({
-            type: "new_chat_message",
-            payload: newMessage
-          });
-
-          // Send to receiver
-          const receiverKey = receiverType === 'driver' ? `driver_${receiverId}` : receiverId;
-          const receiverConnections = userConnections.get(receiverKey) || [];
-          receiverConnections.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(chatMsg);
-            }
-          });
-          
-          // Also send back to sender (to acknowledge/sync across multiple tabs)
-          const senderKey = senderType === 'driver' ? `driver_${senderId}` : senderId;
-          const senderConnections = userConnections.get(senderKey) || [];
-          senderConnections.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN && client !== ws) {
-              client.send(chatMsg);
-            }
-          });
-          
-          // Send acknowledgment to current sender tab
-          ws.send(JSON.stringify({
-            type: "chat_message_sent",
-            payload: { tempId: message.payload.tempId, messageId: newMessage.id }
-          }));
-        } catch (err) {
-          log(`Failed to process chat message: ${err}`);
-          ws.send(JSON.stringify({
-            type: "chat_message_error",
-            payload: { tempId: message.payload.tempId, error: "Failed to send message" }
-          }));
-        }
-      }
-      break;
   }
 }
