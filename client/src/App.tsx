@@ -16,7 +16,7 @@ import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
 import DriverAppPage from "./pages/driver/DriverApp";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import HomePage from "./pages/HomePage";
 import RestaurantPage from "./pages/RestaurantPage";
 import Cart from "./pages/Cart";
@@ -33,17 +33,6 @@ import NotFound from "@/pages/not-found";
 
 import SplashScreen from "./components/SplashScreen";
 
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-        <p className="text-gray-500 text-sm">جاري التحميل...</p>
-      </div>
-    </div>
-  );
-}
-
 function MainApp() {
   const { location: userLocation } = useUserLocation();
   const [currentLocation, setLocation] = useWouterLocation();
@@ -55,7 +44,7 @@ function MainApp() {
     return localStorage.getItem('is_guest') === 'true';
   });
 
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Handle splash finish
   const handleSplashFinish = () => {
@@ -71,25 +60,13 @@ function MainApp() {
   const isAdminRoute = currentLocation.startsWith('/admin');
   const isDriverRoute = currentLocation.startsWith('/driver');
 
-  // Redirect to /auth if not authenticated and not guest (must be in useEffect to avoid render-time state updates)
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated && !isGuest && !isAuthPage && !currentLocation.startsWith('/admin') && !currentLocation.startsWith('/driver')) {
-      setLocation('/auth');
-    }
-  }, [authLoading, isAuthenticated, isGuest, isAuthPage, currentLocation]);
-
-  // Wait for auth to finish loading before making any routing decisions
-  if (authLoading) {
-    return <LoadingScreen />;
-  }
-
-  // While waiting for redirect to complete
-  if (!isAuthenticated && !isGuest && !isAuthPage && !currentLocation.startsWith('/admin') && !currentLocation.startsWith('/driver')) {
-    return <LoadingScreen />;
-  }
-
   if (showSplash && !isAdminRoute && !isDriverRoute && !isAuthPage) {
     return <SplashScreen onFinish={handleSplashFinish} />;
+  }
+
+  if (!isAuthenticated && !isGuest && !isAuthPage && !currentLocation.startsWith('/admin') && !currentLocation.startsWith('/driver')) {
+    setLocation('/auth');
+    return null;
   }
 
   // Handle login pages first (without layout)
