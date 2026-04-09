@@ -1,5 +1,8 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { dbStorage } from "./db";
 import { log } from "./viteServer";
@@ -11,6 +14,10 @@ import deliveryFeeRoutes from "./routes/delivery-fees";
 import { adminRoutes } from "./routes/admin";
 import { registerAdvancedRoutes } from "./routes/advanced";
 import { publicRoutes } from "./routes/public";
+import imageUploadRouter from "./imageUpload";
+import { ensureUploadsDir, UPLOADS_DIR } from "./localStorage";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { 
   insertRestaurantSchema, 
   insertMenuItemSchema, 
@@ -36,6 +43,15 @@ import { eq, and, gte, lte, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+  // Ensure uploads directory exists
+  ensureUploadsDir();
+
+  // Serve uploaded images as static files
+  app.use('/uploads', express.static(UPLOADS_DIR));
+
+  // Image upload routes (local disk storage)
+  app.use('/api/images', imageUploadRouter);
 
   // Auth Routes
   app.use("/api/auth", authRoutes);

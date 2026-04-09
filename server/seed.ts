@@ -72,8 +72,11 @@ const defaultUiSettings = [
   { key: "privacy_policy_text", value: "", category: "privacy", description: "نص سياسة الخصوصية" },
   // إعدادات السلة والدفع
   { key: "show_payment_cards", value: "true", category: "cart", description: "إظهار بطاقات الدفع في السلة" },
-  { key: "show_coupon_box_always", value: "false", category: "cart", description: "إظهار صندوق الكوبون دائمًا" },
+  { key: "show_coupon_box_always", value: "true", category: "cart", description: "إظهار صندوق الكوبون دائمًا" },
+  { key: "show_cash_payment", value: "true", category: "cart", description: "إظهار خيار الدفع نقداً" },
+  { key: "show_bank_transfer", value: "false", category: "cart", description: "إظهار خيار التحويل البنكي" },
   { key: "cart_checkout_button_text", value: "تأكيد الطلب", category: "cart", description: "نص زر الدفع" },
+  { key: "cart_checkout_note", value: "", category: "cart", description: "رسالة تحت زر التأكيد" },
   // إعدادات تطبيق السائق - إظهار/إخفاء الصفحات
   { key: "driver_show_wallet", value: "true", category: "driver", description: "إظهار صفحة المحفظة للسائق" },
   { key: "driver_show_stats", value: "true", category: "driver", description: "إظهار صفحة الإحصائيات للسائق" },
