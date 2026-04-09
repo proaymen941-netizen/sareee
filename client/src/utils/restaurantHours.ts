@@ -152,3 +152,55 @@ export function canOrderFromRestaurant(restaurant: any): { canOrder: boolean; me
   
   return { canOrder: true };
 }
+
+export interface AppStatus {
+  isOpen: boolean;
+  message: string;
+  openingTime: string;
+  closingTime: string;
+}
+
+export function getAppStatus(openingTime: string, closingTime: string, storeStatus?: string): AppStatus {
+  if (storeStatus === 'closed') {
+    return {
+      isOpen: false,
+      message: 'التطبيق مغلق حالياً من قِبل الإدارة',
+      openingTime,
+      closingTime,
+    };
+  }
+
+  const now = new Date();
+  const currentTime = now.toTimeString().slice(0, 5);
+  const currentMinutes = timeToMinutes(currentTime);
+  const openMinutes = timeToMinutes(openingTime);
+  const closeMinutes = timeToMinutes(closingTime);
+
+  let isOpen = false;
+  if (closeMinutes > openMinutes) {
+    isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  } else {
+    isOpen = currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+  }
+
+  if (isOpen) {
+    return {
+      isOpen: true,
+      message: `مفتوح حتى ${closingTime}`,
+      openingTime,
+      closingTime,
+    };
+  }
+
+  const isBeforeOpen = currentMinutes < openMinutes;
+  const openMsg = isBeforeOpen
+    ? `يفتح اليوم الساعة ${openingTime}`
+    : `يفتح غداً الساعة ${openingTime}`;
+
+  return {
+    isOpen: false,
+    message: `التطبيق مغلق حالياً. ${openMsg}`,
+    openingTime,
+    closingTime,
+  };
+}
