@@ -32,6 +32,12 @@ Primary Color: Red-Orange — hsl(14 92% 52%) / ~#f04a17
 - **PWA Files**: `client/public/manifest.json` and `client/public/sw.js` — service worker registration is in `client/index.html`
 - **Clean-up**: Removed root-level duplicate files (App.tsx, main.tsx, index.html, index.css, vite-env.d.ts)
 
+## Delivery Fee Architecture
+- **Global settings only**: Delivery fee settings (baseFee, perKmFee, minFee, maxFee, freeDeliveryThreshold, type) live in the global `deliveryFeeSettings` table — no per-restaurant overrides.
+- **Restaurant location**: Each restaurant has its own `latitude`/`longitude` fields set via map picker in AdminRestaurants. These are used directly by `calculateDeliveryFee()` to compute delivery distance.
+- **No storeLat/storeLng in settings**: The `storeLat`/`storeLng` columns in `deliveryFeeSettings` are no longer used or populated.
+- **Real-time sync**: When admin saves delivery fee settings or modifies a restaurant, `broadcastSettingsChanged()` is called via WebSocket, causing connected clients to invalidate relevant React Query caches automatically.
+
 ## Architecture
 
 ### Frontend
