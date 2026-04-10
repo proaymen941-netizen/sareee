@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation as useWouterLocation } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowRight, Trash2, MapPin, Calendar, Clock, DollarSign, Plus, Minus, ShoppingCart, AlertCircle } from 'lucide-react';
+import { ArrowRight, Trash2, MapPin, Calendar, Clock, DollarSign, Plus, Minus, ShoppingCart, AlertCircle, WifiOff } from 'lucide-react';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { LocationPicker, LocationData } from '@/components/LocationPicker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +24,7 @@ export default function Cart() {
   const { items, subtotal, total, deliveryFee, restaurantId } = state;
   const { toast } = useToast();
   const { location: userLocation } = useUserLocation();
+  const { isOnline } = useNetworkStatus();
 
   const [orderForm, setOrderForm] = useState({
     customerName: localStorage.getItem('customer_name') || '',
@@ -110,7 +112,10 @@ export default function Cart() {
   };
 
   const placeOrderMutation = useMutation({
-    mutationFn: async (orderData: InsertOrder) => {
+    mutationFn: async (orderData: any) => {
+      if (!isOnline) {
+        throw new Error('لا يوجد اتصال بالإنترنت. يرجى التحقق من الاتصال والمحاولة مرة أخرى.');
+      }
       const response = await apiRequest('POST', '/api/orders', orderData);
       return response.json();
     },
@@ -127,18 +132,44 @@ export default function Cart() {
       }
       
       clearCart();
-      setLocation('/orders');
+      if (data?.order?.id) {
+        setLocation(`/order-tracking/${data.order.id}`);
+      } else {
+        setLocation('/orders');
+      }
     },
-    onError: () => {
+    onError: (error: any) => {
+      const raw = error?.message || '';
+      let displayMsg = 'يرجى المحاولة مرة أخرى';
+      if (raw.includes('لا يوجد اتصال')) {
+        displayMsg = raw;
+      } else if (raw.includes(':')) {
+        const serverPart = raw.split(':').slice(1).join(':').trim();
+        try {
+          const parsed = JSON.parse(serverPart);
+          displayMsg = parsed.error || parsed.message || serverPart || displayMsg;
+        } catch {
+          if (serverPart) displayMsg = serverPart;
+        }
+      }
       toast({
         title: "خطأ في تأكيد الطلب",
-        description: "يرجى المحاولة مرة أخرى",
+        description: displayMsg,
         variant: "destructive",
       });
     },
   });
 
   const handlePlaceOrder = () => {
+    if (!isOnline) {
+      toast({
+        title: "لا يوجد اتصال بالإنترنت",
+        description: "يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!canPlaceOrder) {
       toast({
         title: "لا يمكن إتمام الطلب",
@@ -166,8 +197,13 @@ export default function Cart() {
       return;
     }
 
-    const orderData: InsertOrder = {
-      ...orderForm,
+    const orderData = {
+      customerName: orderForm.customerName,
+      customerPhone: orderForm.customerPhone,
+      customerEmail: orderForm.customerEmail || undefined,
+      deliveryAddress: orderForm.deliveryAddress,
+      notes: orderForm.notes || undefined,
+      paymentMethod: orderForm.paymentMethod,
       items: JSON.stringify(items),
       subtotal: subtotal.toString(),
       deliveryFee: deliveryFee.toString(),
@@ -176,8 +212,8 @@ export default function Cart() {
       restaurantId: restaurantId || null,
       status: 'pending',
       orderNumber: `ORD${Date.now()}`,
-      customerLocationLat: orderForm.locationData?.lat.toString(),
-      customerLocationLng: orderForm.locationData?.lng.toString(),
+      customerLocationLat: orderForm.locationData?.lat?.toString(),
+      customerLocationLng: orderForm.locationData?.lng?.toString(),
       deliveryPreference: orderForm.deliveryTime,
       scheduledDate: orderForm.deliveryTime === 'later' ? orderForm.deliveryDate : undefined,
       scheduledTimeSlot: orderForm.deliveryTime === 'later' ? orderForm.deliveryTimeSlot : undefined,
@@ -188,6 +224,12 @@ export default function Cart() {
 
   return (
     <div className="min-h-screen bg-white">
+      {!isOnline && (
+        <div className="bg-red-600 text-white text-center py-2 px-4 flex items-center justify-center gap-2 text-sm font-bold">
+          <WifiOff className="h-4 w-4" />
+          لا يوجد اتصال بالإنترنت - يرجى التحقق من الاتصال
+        </div>
+      )}
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8 border-b pb-4">
           <div className="flex items-center gap-3">
