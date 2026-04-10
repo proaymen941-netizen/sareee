@@ -114,7 +114,7 @@ const translations = {
     'settings': 'Settings',
     'privacy_policy': 'Privacy Policy',
     'contact_us': 'Contact Us',
-    'about_tamtom': 'About Tamtom',
+    'about_tamtom': 'About Al-Sarie One',
     'orders': 'My Orders',
     'logout': 'Logout',
     'login': 'Login',

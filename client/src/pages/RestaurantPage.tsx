@@ -17,6 +17,7 @@ import { getRestaurantStatus, canOrderFromRestaurant, getAppStatus } from '../ut
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUiSettings } from '@/context/UiSettingsContext';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 const MEAL_FAV_KEY = 'meal_favorites';
 function loadMealFavorites(): Set<string> {
@@ -153,6 +154,7 @@ export default function RestaurantPage() {
   const { addItem, removeItem, getItemQuantity } = useCart();
   const { toast } = useToast();
   const { getSetting } = useUiSettings();
+  const { requireNetwork } = useNetworkStatus();
 
   const appStatus = useMemo(() => {
     const openingTime = getSetting('opening_time') || '08:00';
@@ -251,7 +253,9 @@ export default function RestaurantPage() {
       });
       return;
     }
-    addItem(item, item.restaurantId, restaurant.name);
+    requireNetwork(() => {
+      addItem(item, item.restaurantId, restaurant.name);
+    });
   };
 
   const rating = Number(restaurant.rating) || 4;

@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import TimingBanner from '@/components/TimingBanner';
+import AppClosedOverlay from '@/components/AppClosedOverlay';
 import { Badge } from '@/components/ui/badge';
 import { useUiSettings } from '@/context/UiSettingsContext';
 import { useUserLocation } from '@/context/LocationContext';
