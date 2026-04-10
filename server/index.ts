@@ -3,6 +3,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupWebSockets } from "./socket";
+import { registerBroadcast } from "./broadcast";
 import { setupVite, serveStatic, log } from "./viteServer";
 import { seedDefaultData, ensureDefaultSettings } from "./seed";
 import { storage } from "./storage";
@@ -61,6 +62,7 @@ app.use((req, res, next) => {
     // Setup WebSockets
     const ws = setupWebSockets(server);
     app.set('ws', ws);
+    registerBroadcast(ws.broadcast);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;

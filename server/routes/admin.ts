@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import { storage } from "../storage";
+import { broadcastSettingsChanged } from "../broadcast";
 import { z } from "zod";
 import { eq, and, desc, sql, or, like, asc, inArray } from "drizzle-orm";
 import {
@@ -355,6 +356,7 @@ router.post("/restaurants", async (req, res) => {
     const validatedData = insertRestaurantSchema.parse(restaurantData);
     
     const newRestaurant = await storage.createRestaurant(validatedData);
+    broadcastSettingsChanged('restaurants');
     res.status(201).json(newRestaurant);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -388,6 +390,7 @@ router.put("/restaurants/:id", async (req, res) => {
       return res.status(404).json({ error: "المطعم غير موجود" });
     }
     
+    broadcastSettingsChanged('restaurants');
     res.json(updatedRestaurant);
   } catch (error) {
     if (error instanceof z.ZodError) {
