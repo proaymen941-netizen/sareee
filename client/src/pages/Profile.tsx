@@ -137,7 +137,7 @@ export default function Profile() {
     { 
       icon: Clock, 
       label: 'عضو منذ', 
-      value: user?.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-SA', { month: 'short', year: 'numeric' }) : 'جديد', 
+      value: user?.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-YE', { month: 'short', year: 'numeric' }) : 'جديد', 
       color: 'text-green-500' 
     },
   ];

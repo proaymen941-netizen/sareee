@@ -192,7 +192,7 @@ export default function AdminDashboard() {
                           <p className="font-medium">طلب #{order.orderNumber || `${1000 + index}`}</p>
                           <p className="text-sm text-gray-600">{order.customerName || 'عميل'}</p>
                           <p className="text-xs text-gray-500">
-                            {order.createdAt ? new Date(order.createdAt).toLocaleString('ar-SA') : 'الآن'}
+                            {order.createdAt ? new Date(order.createdAt).toLocaleString('ar-YE') : 'الآن'}
                           </p>
                         </div>
                         <div className="text-left">
@@ -286,7 +286,7 @@ export default function AdminDashboard() {
                           <div>
                             <p className="text-sm text-gray-600">الهاتف: {order.customerPhone || 'غير محدد'}</p>
                             <p className="text-xs text-gray-500">
-                              {order.createdAt ? new Date(order.createdAt).toLocaleString('ar-SA') : 'الآن'}
+                              {order.createdAt ? new Date(order.createdAt).toLocaleString('ar-YE') : 'الآن'}
                             </p>
                           </div>
                         </div>

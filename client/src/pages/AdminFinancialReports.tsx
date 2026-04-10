@@ -427,7 +427,7 @@ export default function AdminFinancialReports() {
                       </TableCell>
                       <TableCell>{formatCurrency(request.amount)}</TableCell>
                       <TableCell>{request.method}</TableCell>
-                      <TableCell>{new Date(request.requestedAt).toLocaleDateString('ar-SA')}</TableCell>
+                      <TableCell>{new Date(request.requestedAt).toLocaleDateString('ar-YE')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button size="sm" onClick={() => handleApproveWithdrawal(request.id)}>موافقة</Button>

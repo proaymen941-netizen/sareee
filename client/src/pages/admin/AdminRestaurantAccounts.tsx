@@ -121,7 +121,7 @@ export default function AdminRestaurantAccounts() {
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return `${num.toLocaleString('ar-SA')} ريال`;
+    return `${num.toLocaleString('ar-YE')} ريال`;
   };
 
   const getStatusBadge = (status: string) => {
@@ -173,7 +173,7 @@ export default function AdminRestaurantAccounts() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">إجمالي الطلبات</p>
-                <p className="text-xl font-bold">{totalStats.totalOrders.toLocaleString('ar-SA')}</p>
+                <p className="text-xl font-bold">{totalStats.totalOrders.toLocaleString('ar-YE')}</p>
               </div>
             </div>
           </CardContent>
@@ -345,7 +345,7 @@ export default function AdminRestaurantAccounts() {
                         </TableCell>
                         <TableCell>{withdrawal.paymentMethod}</TableCell>
                         <TableCell>
-                          {new Date(withdrawal.createdAt).toLocaleDateString('ar-SA')}
+                          {new Date(withdrawal.createdAt).toLocaleDateString('ar-YE')}
                         </TableCell>
                         <TableCell>{getStatusBadge(withdrawal.status)}</TableCell>
                         <TableCell>
@@ -466,7 +466,7 @@ function RestaurantAccountDetails({ restaurantId, onClose }: { restaurantId: str
                   <div>
                     <p className="font-medium">{tx.description || tx.type}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(tx.createdAt).toLocaleString('ar-SA')}
+                      {new Date(tx.createdAt).toLocaleString('ar-YE')}
                     </p>
                   </div>
                   <span className={`font-bold ${parseFloat(tx.amount) >= 0 ? 'text-green-600' : 'text-red-600'}`}>

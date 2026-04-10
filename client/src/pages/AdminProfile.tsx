@@ -331,7 +331,7 @@ export default function AdminProfile() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-medium text-muted-foreground">تاريخ الإنشاء:</span>
-                <span>{new Date(adminProfile.createdAt).toLocaleDateString('ar-SA')}</span>
+                <span>{new Date(adminProfile.createdAt).toLocaleDateString('ar-YE')}</span>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t">

@@ -232,7 +232,7 @@ export default function StatsPage({ driverId }: StatsPageProps) {
                         ))}
                       </div>
                       <span className="text-xs text-gray-500">
-                        {new Date(review.createdAt).toLocaleDateString('ar-SA')}
+                        {new Date(review.createdAt).toLocaleDateString('ar-YE')}
                       </span>
                     </div>
                     {review.comment && (

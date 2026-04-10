@@ -653,7 +653,7 @@ function OrderCard({ order, isLoading, onAccept, onStatusUpdate, actionType, isS
             </div>
             <p className="text-xs text-gray-500 font-bold flex items-center gap-1">
               <Clock size={12} />
-              {new Date(order.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(order.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
           <div className="text-right">

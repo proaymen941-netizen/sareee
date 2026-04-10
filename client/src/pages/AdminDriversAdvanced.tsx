@@ -461,7 +461,7 @@ export default function AdminDriversAdvanced() {
                             <Badge className="bg-yellow-100 text-yellow-800">معلق</Badge>
                           </TableCell>
                           <TableCell>
-                            {new Date(request.createdAt).toLocaleDateString('ar-SA')}
+                            {new Date(request.createdAt).toLocaleDateString('ar-YE')}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
@@ -553,7 +553,7 @@ export default function AdminDriversAdvanced() {
                 <div>
                   <Label>تاريخ الانضمام</Label>
                   <p className="font-medium">
-                    {new Date(selectedDriver.joinDate).toLocaleDateString('ar-SA')}
+                    {new Date(selectedDriver.joinDate).toLocaleDateString('ar-YE')}
                   </p>
                 </div>
               </div>
@@ -608,7 +608,7 @@ export default function AdminDriversAdvanced() {
                               <div>
                                 <p className="font-medium">{request.amount.toFixed(2)} ريال</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {new Date(request.createdAt).toLocaleDateString('ar-SA')}
+                                  {new Date(request.createdAt).toLocaleDateString('ar-YE')}
                                 </p>
                               </div>
                               <Badge className={
