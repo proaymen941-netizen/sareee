@@ -48,7 +48,7 @@ export default function MenuItemCard({
       if (item.isBannerOffer) return;
       if (!isAuthenticated) {
         setLocation('/auth');
-        return;
+        throw new Error('not_authenticated');
       }
 
       if (favoriteStatus?.isFavorite) {
@@ -68,6 +68,14 @@ export default function MenuItemCard({
       toast({
         title: favoriteStatus?.isFavorite ? "تمت الإزالة من المفضلة" : "تمت الإضافة للمفضلة",
         description: favoriteStatus?.isFavorite ? `تمت إزالة ${item.name} من قائمة مفضلاتك` : `تم إضافة ${item.name} إلى قائمة مفضلاتك`,
+      });
+    },
+    onError: (error: any) => {
+      if (error?.message === 'not_authenticated') return;
+      toast({
+        title: "خطأ في المفضلة",
+        description: "حدث خطأ أثناء تحديث المفضلة، يرجى المحاولة مرة أخرى",
+        variant: "destructive",
       });
     },
   });
