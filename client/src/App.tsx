@@ -16,7 +16,7 @@ import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
 import DriverAppPage from "./pages/driver/DriverApp";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useSettingsSync } from "./hooks/useSettingsSync";
 import HomePage from "./pages/HomePage";
 import RestaurantPage from "./pages/RestaurantPage";
@@ -33,11 +33,15 @@ import SearchPage from "./pages/SearchPage";
 import NotFound from "@/pages/not-found";
 
 import SplashScreen from "./components/SplashScreen";
+import OfflineBanner from "./components/OfflineBanner";
+import AppClosedOverlay from "./components/AppClosedOverlay";
+import { getAppStatus } from "./utils/restaurantHours";
 
 function MainApp() {
   useSettingsSync();
   const { location: userLocation } = useUserLocation();
   const [currentLocation, setLocation] = useWouterLocation();
+  const { getSetting } = useUiSettings();
   const [showLocationModal, setShowLocationModal] = useState(true);
   const [showSplash, setShowSplash] = useState(() => {
     return !sessionStorage.getItem('splash_seen');
@@ -90,9 +94,26 @@ function MainApp() {
     return <DriverAppPage />;
   }
 
+  const appStatus = useMemo(() => {
+    const openingTime = getSetting('opening_time') || '08:00';
+    const closingTime = getSetting('closing_time') || '23:00';
+    const storeStatus = getSetting('store_status') || 'open';
+    return getAppStatus(openingTime, closingTime, storeStatus);
+  }, [getSetting]);
+
+  const isAdminExplicitlyClosed = getSetting('store_status') === 'closed';
+
   // Default customer app
   return (
     <>
+      <OfflineBanner />
+      {isAdminExplicitlyClosed && (
+        <AppClosedOverlay
+          openingTime={appStatus.openingTime}
+          closingTime={appStatus.closingTime}
+          message={appStatus.message}
+        />
+      )}
       <Layout>
         <Router />
       </Layout>

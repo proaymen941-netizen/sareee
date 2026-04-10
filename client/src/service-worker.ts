@@ -1,4 +1,4 @@
-// Service Worker for Tamtom Delivery App
+// Service Worker for Al-Sarie One Delivery App
 // This file provides runtime caching configuration for vite-plugin-pwa
 
 export function register() {
@@ -30,7 +30,7 @@ export function unregister() {
 
 // Runtime caching configuration for API calls
 export const apiCacheConfig = {
-  cacheName: 'tamtom-api-cache',
+  cacheName: 'alsarie-api-cache',
   expiration: {
     maxEntries: 100,
     maxAgeSeconds: 60 * 60 * 24, // 24 hours
@@ -42,7 +42,7 @@ export const apiCacheConfig = {
 
 // Runtime caching for static assets
 export const staticCacheConfig = {
-  cacheName: 'tamtom-static-cache',
+  cacheName: 'alsarie-static-cache',
   expiration: {
     maxEntries: 50,
     maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
