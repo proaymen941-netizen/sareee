@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ArrowRight, Trash2, MapPin, Tag, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { useCart } from '../context/CartContext';
 import { useUserLocation as useCoordinates } from '../context/LocationContext';
 import { useToast } from '@/hooks/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { apiRequest } from '@/lib/queryClient';
 import type { InsertOrder, Restaurant } from '@shared/schema';
 import { getAppStatus, getRestaurantStatus } from '@/utils/restaurantHours';
@@ -23,7 +21,6 @@ export default function CartPage() {
   const { state, removeItem, updateQuantity, clearCart, setDeliveryFee } = useCart();
   const { items, subtotal, total, deliveryFee } = state;
   const { toast } = useToast();
-  const { requireNetwork } = useNetworkStatus();
   const { location: userLocation, getCurrentLocation } = useCoordinates();
   const [calculatingFee, setCalculatingFee] = useState(false);
   const [deliveryInfo, setDeliveryInfo] = useState<{
@@ -64,58 +61,60 @@ export default function CartPage() {
 
   const canPlaceOrder = appStatus.isOpen && (restaurantStatus === null || restaurantStatus.isOpen);
 
-  // جلب الكوبونات النشطة المطابقة لقيمة السلة الحالية
-  const { data: activeCoupons = [] } = useQuery<any[]>({
-    queryKey: ['/api/coupons/active', Math.floor(subtotal)],
-    queryFn: async () => {
-      const res = await fetch(`/api/coupons/active?orderValue=${subtotal}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: items.length > 0 && subtotal > 0,
-    staleTime: 30000,
-  });
-
   // إعدادات السلة من لوحة التحكم
-  const alwaysShowCoupon = getSetting('show_coupon_box_always', 'true') !== 'false';
-  const showCouponBox = alwaysShowCoupon || activeCoupons.length > 0;
-  const showCashPayment   = getSetting('show_cash_payment', 'true') !== 'false';
-  const showBankTransfer  = getSetting('show_bank_transfer', 'false') === 'true';
-  const showMada          = getSetting('show_mada', 'true') !== 'false';
-  const showStcPay        = getSetting('show_stc_pay', 'true') !== 'false';
-  const showApplePay      = getSetting('show_apple_pay', 'false') === 'true';
-  const showVisa          = getSetting('show_visa', 'true') !== 'false';
-  const showMastercard    = getSetting('show_mastercard', 'true') !== 'false';
-  const showTabby         = getSetting('show_tabby', 'false') === 'true';
-  const showTamara        = getSetting('show_tamara', 'false') === 'true';
-  const showWalletPayment = getSetting('show_wallet_payment', 'false') === 'true';
-  const showOnlinePayment = getSetting('show_online_payment', 'false') === 'true';
+  const showCouponBox = getSetting('show_coupon_box_always', 'true') !== 'false';
+  const showPaymentCards = getSetting('show_payment_cards', 'true') !== 'false';
+  const showCashPayment = getSetting('show_cash_payment', 'true') !== 'false';
+  const showBankTransfer = getSetting('show_bank_transfer', 'false') === 'true';
   const checkoutButtonText = getSetting('cart_checkout_button_text', 'تأكيد الطلب');
   const checkoutNote = getSetting('cart_checkout_note', '');
   const appName = getSetting('app_name', 'السريع ون');
 
-  // بناء قائمة طرق الدفع بناءً على الإعدادات الفردية لكل طريقة
+  // بناء قائمة طرق الدفع بناءً على الإعدادات والـ API
   const availablePaymentMethods = useMemo(() => {
     const methods: { value: string; icon: string; label: string }[] = [];
 
-    if (showCashPayment)   methods.push({ value: 'cash',         icon: '💵', label: 'نقداً عند الاستلام' });
-    if (showMada)          methods.push({ value: 'mada',         icon: '🏦', label: 'مدى' });
-    if (showVisa)          methods.push({ value: 'visa',         icon: '💳', label: 'فيزا' });
-    if (showMastercard)    methods.push({ value: 'mastercard',   icon: '💳', label: 'ماستركارد' });
-    if (showStcPay)        methods.push({ value: 'stc_pay',      icon: '📱', label: 'STC Pay' });
-    if (showApplePay)      methods.push({ value: 'apple_pay',    icon: '🍎', label: 'Apple Pay' });
-    if (showTabby)         methods.push({ value: 'tabby',        icon: '📊', label: 'تابي (تقسيط)' });
-    if (showTamara)        methods.push({ value: 'tamara',       icon: '📈', label: 'تمارا (تقسيط)' });
-    if (showWalletPayment) methods.push({ value: 'wallet',       icon: '👛', label: 'المحفظة' });
-    if (showOnlinePayment) methods.push({ value: 'online',       icon: '🌐', label: 'دفع إلكتروني' });
-    if (showBankTransfer)  methods.push({ value: 'bank_transfer',icon: '🏛️', label: 'تحويل بنكي' });
+    if (showCashPayment) {
+      methods.push({ value: 'cash', icon: '💵', label: 'نقداً' });
+    }
 
-    // إذا لم تُضَف أي طريقة من الإعدادات، نضيف الكاش كطريقة افتراضية
-    if (methods.length === 0) methods.push({ value: 'cash', icon: '💵', label: 'نقداً عند الاستلام' });
+    if (showPaymentCards) {
+      // إذا كان هناك طرق دفع مُضافة من الأدمن، نستخدمها
+      if (paymentMethods.length > 0) {
+        paymentMethods
+          .filter((m: any) => m.isActive && m.type !== 'cash' && m.type !== 'bank_transfer')
+          .forEach((m: any) => {
+            const iconMap: Record<string, string> = {
+              mada: '🏦',
+              stc_pay: '📱',
+              apple_pay: '🍎',
+              visa: '💳',
+              mastercard: '💳',
+              tabby: '📊',
+              tamara: '📈',
+              wallet: '👛',
+              online: '🌐',
+            };
+            methods.push({
+              value: m.provider || m.type,
+              icon: iconMap[m.provider] || '💳',
+              label: m.name || m.provider,
+            });
+          });
+      } else {
+        // طرق افتراضية
+        methods.push({ value: 'card', icon: '💳', label: 'بطاقة دفع' });
+        methods.push({ value: 'wallet', icon: '👛', label: 'المحفظة' });
+        methods.push({ value: 'online', icon: '🌐', label: 'دفع إلكتروني' });
+      }
+    }
+
+    if (showBankTransfer) {
+      methods.push({ value: 'bank_transfer', icon: '🏛️', label: 'تحويل بنكي' });
+    }
 
     return methods;
-  }, [showCashPayment, showMada, showStcPay, showApplePay, showVisa, showMastercard,
-      showTabby, showTamara, showWalletPayment, showOnlinePayment, showBankTransfer]);
+  }, [paymentMethods, showCashPayment, showPaymentCards, showBankTransfer]);
 
   // حساب رسوم التوصيل
   useEffect(() => {
@@ -168,7 +167,6 @@ export default function CartPage() {
 
   const handleValidateCoupon = async () => {
     if (!couponCode.trim()) return;
-    if (!requireNetwork(() => {})) return;
     setCouponLoading(true);
     setCouponError('');
     setCouponDiscount(0);
@@ -223,68 +221,35 @@ export default function CartPage() {
     }
   }, [availablePaymentMethods]);
 
-  // حالة نافذة تأكيد إعادة الطلب
-  const [lastOrderId, setLastOrderId] = useState<string | null>(() => {
-    try { return sessionStorage.getItem('last_placed_order_id'); } catch { return null; }
-  });
-  const [showReorderDialog, setShowReorderDialog] = useState(false);
-  const [pendingOrderData, setPendingOrderData] = useState<InsertOrder | null>(null);
-
-  const submitOrder = useCallback((orderData: InsertOrder) => {
-    placeOrderMutation.mutate(orderData);
-  }, []);
-
   const placeOrderMutation = useMutation({
     mutationFn: async (orderData: InsertOrder) => {
       const response = await apiRequest('POST', '/api/orders', orderData);
-      if (!response.ok) {
-        const errText = await response.text();
-        let errMsg = 'خطأ في إرسال الطلب';
-        try { errMsg = JSON.parse(errText)?.error || errMsg; } catch { errMsg = errText || errMsg; }
-        throw new Error(errMsg);
-      }
       return response.json();
     },
     onSuccess: (data) => {
-      const orderId = data?.order?.id || null;
-      if (orderId) {
-        try { sessionStorage.setItem('last_placed_order_id', orderId); } catch {}
-        setLastOrderId(orderId);
-      }
       toast({ title: "تم تأكيد طلبك بنجاح!", description: "سيتم التواصل معك قريباً" });
       clearCart();
-      if (orderId) {
-        setLocation(`/order-tracking/${orderId}`);
+      if (data?.order?.id) {
+        setLocation(`/order-tracking/${data.order.id}`);
       } else {
         setLocation('/');
       }
     },
     onError: (error: any) => {
-      const msg = error?.message || 'يرجى المحاولة مرة أخرى';
-      toast({ title: "خطأ في تأكيد الطلب", description: msg, variant: "destructive" });
+      const raw = error?.message || '';
+      const serverMsg = raw.includes(':') ? raw.split(':').slice(1).join(':').trim() : raw;
+      let displayMsg = "يرجى المحاولة مرة أخرى";
+      try {
+        const parsed = JSON.parse(serverMsg);
+        displayMsg = parsed.error || parsed.message || displayMsg;
+      } catch {
+        if (serverMsg) displayMsg = serverMsg;
+      }
+      toast({ title: "خطأ في تأكيد الطلب", description: displayMsg, variant: "destructive" });
     },
   });
 
-  const buildOrderData = (): InsertOrder => ({
-    customerName: orderForm.customerName,
-    customerPhone: orderForm.customerPhone,
-    customerEmail: orderForm.customerEmail || undefined,
-    deliveryAddress: orderForm.deliveryAddress,
-    notes: orderForm.notes || undefined,
-    paymentMethod: orderForm.paymentMethod,
-    items: JSON.stringify(items),
-    subtotal: subtotal.toString(),
-    deliveryFee: deliveryFee.toString(),
-    total: finalTotal.toString(),
-    totalAmount: finalTotal.toString(),
-    restaurantId: items[0]?.restaurantId || undefined,
-    customerLocationLat: userLocation.position?.coords.latitude.toString(),
-    customerLocationLng: userLocation.position?.coords.longitude.toString(),
-    status: 'pending',
-  });
-
   const handlePlaceOrder = () => {
-    if (!requireNetwork(() => {})) return;
     if (!canPlaceOrder) {
       toast({
         title: "لا يمكن إتمام الطلب",
@@ -304,16 +269,26 @@ export default function CartPage() {
       return;
     }
 
-    const orderData = buildOrderData();
+    const orderData: InsertOrder = {
+      orderNumber: `ORD${Date.now()}`,
+      customerName: orderForm.customerName,
+      customerPhone: orderForm.customerPhone,
+      customerEmail: orderForm.customerEmail || undefined,
+      deliveryAddress: orderForm.deliveryAddress,
+      notes: orderForm.notes || undefined,
+      paymentMethod: orderForm.paymentMethod,
+      items: JSON.stringify(items),
+      subtotal: subtotal.toString(),
+      deliveryFee: deliveryFee.toString(),
+      total: finalTotal.toString(),
+      totalAmount: finalTotal.toString(),
+      restaurantId: items[0]?.restaurantId || undefined,
+      customerLocationLat: userLocation.position?.coords.latitude.toString(),
+      customerLocationLng: userLocation.position?.coords.longitude.toString(),
+      status: 'pending',
+    };
 
-    // إذا كان هناك طلب سابق في هذه الجلسة، اعرض تأكيداً
-    if (lastOrderId) {
-      setPendingOrderData(orderData);
-      setShowReorderDialog(true);
-      return;
-    }
-
-    submitOrder(orderData);
+    placeOrderMutation.mutate(orderData);
   };
 
   const parsePrice = (price: string | number): number => {
@@ -424,18 +399,9 @@ export default function CartPage() {
                 </div>
               )}
 
-              {/* صندوق الكوبون - يُظهر حسب الإعداد أو وجود كوبونات مطابقة */}
+              {/* صندوق الكوبون - يُظهر أو يُخفى حسب الإعداد */}
               {showCouponBox && (
                 <div className="border-t border-border pt-3 mt-2">
-                  {/* تلميح الكوبونات المتاحة */}
-                  {!couponData && !alwaysShowCoupon && activeCoupons.length > 0 && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-2 flex items-center gap-2">
-                      <Tag className="h-4 w-4 text-orange-500 shrink-0" />
-                      <p className="text-xs text-orange-700 font-bold">
-                        لديك {activeCoupons.length} كوبون خصم متاح لهذا الطلب! أدخل الكود للاستفادة
-                      </p>
-                    </div>
-                  )}
                   {couponData ? (
                     <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2.5 mb-2">
                       <div className="flex items-center gap-2">
