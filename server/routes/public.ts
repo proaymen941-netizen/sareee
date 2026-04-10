@@ -266,37 +266,6 @@ router.get("/search", async (req, res) => {
   }
 });
 
-// جلب الكوبونات النشطة المطابقة لقيمة الطلب
-router.get("/coupons/active", async (req, res) => {
-  try {
-    const orderValue = parseFloat(String(req.query.orderValue || '0'));
-    const allCoupons = await storage.getCoupons();
-    const now = new Date();
-
-    const active = allCoupons.filter((c: any) => {
-      if (!c.isActive) return false;
-      if (c.startDate && new Date(c.startDate) > now) return false;
-      if (c.endDate && new Date(c.endDate) < now) return false;
-      if (c.usageLimit && c.usageCount >= c.usageLimit) return false;
-      if (c.minOrderValue && orderValue < parseFloat(String(c.minOrderValue))) return false;
-      return true;
-    });
-
-    res.json(active.map((c: any) => ({
-      id: c.id,
-      code: c.code,
-      nameAr: c.nameAr,
-      type: c.type,
-      value: c.value,
-      minOrderValue: c.minOrderValue,
-      maxDiscount: c.maxDiscount,
-    })));
-  } catch (error) {
-    console.error("خطأ في جلب الكوبونات النشطة:", error);
-    res.json([]);
-  }
-});
-
 // التحقق من صحة الكوبون - للعملاء
 router.post("/coupons/validate", async (req, res) => {
   try {

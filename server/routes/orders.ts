@@ -51,13 +51,8 @@ router.post("/", async (req, res) => {
         });
       }
 
-      // استخدام المنطقة الزمنية للمتجر لمقارنة الوقت بشكل صحيح
-      const storeTimezone = settingsMap.get('store_timezone') || 'Asia/Riyadh';
       const now = new Date();
-      const nowLocal = new Date(now.toLocaleString('en-US', { timeZone: storeTimezone }));
-      const currentHours = String(nowLocal.getHours()).padStart(2, '0');
-      const currentMinutes = String(nowLocal.getMinutes()).padStart(2, '0');
-      const currentTime = `${currentHours}:${currentMinutes}`;
+      const currentTime = now.toTimeString().slice(0, 5);
       const timeToMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
       const current = timeToMinutes(currentTime);
       const open = timeToMinutes(openingTime);
