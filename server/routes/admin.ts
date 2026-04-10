@@ -1995,9 +1995,12 @@ router.post("/coupons", async (req, res) => {
   try {
     const coupon = await storage.createCoupon(req.body);
     res.status(201).json(coupon);
-  } catch (error) {
+  } catch (error: any) {
     console.error("خطأ في إضافة الكوبون:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
+    if (error?.code === '23505') {
+      return res.status(400).json({ error: "كود الكوبون مستخدم بالفعل، يرجى اختيار كود آخر" });
+    }
+    res.status(500).json({ error: "خطأ في الخادم: " + (error?.message || '') });
   }
 });
 
@@ -2248,6 +2251,9 @@ router.get("/profile", async (req: any, res) => {
 router.put("/profile", async (req: any, res) => {
   try {
     const { name, email, username, phone } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ error: "الاسم والبريد الإلكتروني مطلوبان" });
+    }
     let adminId: string;
     if (req.admin) {
       adminId = req.admin.id;
@@ -2256,12 +2262,22 @@ router.put("/profile", async (req: any, res) => {
       if (!found) return res.status(404).json({ error: "لم يتم العثور على ملف المدير" });
       adminId = found.id;
     }
-    const [updated] = await db.update(adminUsers).set({ name, email, username, phone }).where(eq(adminUsers.id, adminId)).returning();
+    const updatePayload: any = {
+      name,
+      email,
+      username: username && username.trim() ? username.trim() : null,
+      phone: phone && phone.trim() ? phone.trim() : null,
+    };
+    const [updated] = await db.update(adminUsers).set(updatePayload).where(eq(adminUsers.id, adminId)).returning();
     if (!updated) return res.status(404).json({ error: "لم يتم العثور على ملف المدير" });
     const { password: _, ...safeAdmin } = updated as any;
     res.json(safeAdmin);
-  } catch (error) {
-    res.status(500).json({ error: "خطأ في الخادم" });
+  } catch (error: any) {
+    console.error('❌ خطأ في تحديث ملف المدير:', error);
+    if (error?.code === '23505') {
+      return res.status(400).json({ error: "البريد الإلكتروني أو اسم المستخدم مستخدم بالفعل" });
+    }
+    res.status(500).json({ error: "خطأ في الخادم: " + (error?.message || '') });
   }
 });
 
