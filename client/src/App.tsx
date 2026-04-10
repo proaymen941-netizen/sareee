@@ -17,6 +17,7 @@ import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
 import DriverAppPage from "./pages/driver/DriverApp";
 import { useState } from "react";
+import { useSettingsSync } from "./hooks/useSettingsSync";
 import HomePage from "./pages/HomePage";
 import RestaurantPage from "./pages/RestaurantPage";
 import Cart from "./pages/Cart";
@@ -34,6 +35,7 @@ import NotFound from "@/pages/not-found";
 import SplashScreen from "./components/SplashScreen";
 
 function MainApp() {
+  useSettingsSync();
   const { location: userLocation } = useUserLocation();
   const [currentLocation, setLocation] = useWouterLocation();
   const [showLocationModal, setShowLocationModal] = useState(true);
