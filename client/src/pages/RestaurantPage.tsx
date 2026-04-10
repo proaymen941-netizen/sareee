@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -13,9 +13,10 @@ import {
   X,
 } from 'lucide-react';
 import type { Restaurant, MenuItem, RestaurantSection } from '@shared/schema';
-import { getRestaurantStatus, canOrderFromRestaurant } from '../utils/restaurantHours';
+import { getRestaurantStatus, canOrderFromRestaurant, getAppStatus } from '../utils/restaurantHours';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import { useUiSettings } from '@/context/UiSettingsContext';
 
 const MEAL_FAV_KEY = 'meal_favorites';
 function loadMealFavorites(): Set<string> {
@@ -151,6 +152,14 @@ export default function RestaurantPage() {
 
   const { addItem, removeItem, getItemQuantity } = useCart();
   const { toast } = useToast();
+  const { getSetting } = useUiSettings();
+
+  const appStatus = useMemo(() => {
+    const openingTime = getSetting('opening_time') || '08:00';
+    const closingTime = getSetting('closing_time') || '23:00';
+    const storeStatus = getSetting('store_status') || 'open';
+    return getAppStatus(openingTime, closingTime, storeStatus);
+  }, [getSetting]);
 
   const { data: restaurant, isLoading: restaurantLoading } = useQuery<Restaurant>({
     queryKey: ['/api/restaurants', id],
@@ -228,8 +237,8 @@ export default function RestaurantPage() {
     );
   }
 
-  const status = getRestaurantStatus(restaurant);
-  const orderStatus = canOrderFromRestaurant(restaurant);
+  const status = getRestaurantStatus(restaurant, appStatus.isOpen);
+  const orderStatus = canOrderFromRestaurant(restaurant, appStatus.isOpen);
   const isRestFav = id ? restFavs.has(id) : false;
 
   const handleAddItem = (item: MenuItem) => {

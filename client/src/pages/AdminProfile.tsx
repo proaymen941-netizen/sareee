@@ -61,7 +61,16 @@ export default function AdminProfile() {
       toast({ title: "تم تحديث الملف الشخصي", description: "تم تحديث معلوماتك الشخصية بنجاح" });
     },
     onError: (error: any) => {
-      toast({ title: "خطأ في التحديث", description: error.message || "حدث خطأ أثناء تحديث الملف الشخصي", variant: "destructive" });
+      const raw = error?.message || '';
+      const serverMsg = raw.includes(':') ? raw.split(':').slice(1).join(':').trim() : raw;
+      let displayMsg = "حدث خطأ أثناء تحديث الملف الشخصي";
+      try {
+        const parsed = JSON.parse(serverMsg);
+        displayMsg = parsed.error || parsed.message || displayMsg;
+      } catch {
+        if (serverMsg) displayMsg = serverMsg;
+      }
+      toast({ title: "خطأ في التحديث", description: displayMsg, variant: "destructive" });
     }
   });
 

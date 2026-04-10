@@ -6,7 +6,16 @@ export interface RestaurantStatus {
   statusColor: 'green' | 'red' | 'yellow';
 }
 
-export function getRestaurantStatus(restaurant: any): RestaurantStatus {
+export function getRestaurantStatus(restaurant: any, appIsOpen?: boolean): RestaurantStatus {
+  // If the global app is closed, force all restaurants to show as closed
+  if (appIsOpen === false) {
+    return {
+      isOpen: false,
+      message: 'التطبيق مغلق حالياً',
+      statusColor: 'red',
+    };
+  }
+
   const now = new Date();
   const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
   const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
@@ -137,7 +146,14 @@ function getDayName(day: number): string {
   return days[day] || '';
 }
 
-export function canOrderFromRestaurant(restaurant: any): { canOrder: boolean; message?: string } {
+export function canOrderFromRestaurant(restaurant: any, appIsOpen?: boolean): { canOrder: boolean; message?: string } {
+  if (appIsOpen === false) {
+    return {
+      canOrder: false,
+      message: 'التطبيق مغلق حالياً، يرجى المحاولة لاحقاً'
+    };
+  }
+
   const status = getRestaurantStatus(restaurant);
   
   if (!status.isOpen) {

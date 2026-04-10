@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { 
@@ -12,13 +12,14 @@ import {
   ChevronRight,
   MapPin,
   Navigation,
+  AlertCircle,
 } from 'lucide-react';
 import TimingBanner from '@/components/TimingBanner';
 import { Badge } from '@/components/ui/badge';
 import { useUiSettings } from '@/context/UiSettingsContext';
 import { useUserLocation } from '@/context/LocationContext';
 import type { Category, Restaurant, SpecialOffer } from '@shared/schema';
-import { getRestaurantStatus } from '@/utils/restaurantHours';
+import { getRestaurantStatus, getAppStatus } from '@/utils/restaurantHours';
 
 // ─── Haversine distance (km) ─────────────────────────────────────────────────
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -69,6 +70,13 @@ export default function HomePage() {
 
   const getS = (key: string, defaultValue: string) => getSetting(key) || defaultValue;
   const showSection = (key: string) => getSetting(key) !== 'false';
+
+  const appStatus = useMemo(() => {
+    const openingTime = getSetting('opening_time') || '08:00';
+    const closingTime = getSetting('closing_time') || '23:00';
+    const storeStatus = getSetting('store_status') || 'open';
+    return getAppStatus(openingTime, closingTime, storeStatus);
+  }, [getSetting]);
 
   const { data: restaurants } = useQuery<Restaurant[]>({ queryKey: ['/api/restaurants'] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ['/api/categories'] });
@@ -358,10 +366,18 @@ export default function HomePage() {
           ))}
         </div>
 
+        {/* Global app closed banner */}
+        {!appStatus.isOpen && (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 text-right">
+            <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
+            <p className="text-sm text-red-700 font-bold">{appStatus.message || 'التطبيق مغلق حالياً، نعود قريباً'}</p>
+          </div>
+        )}
+
         {/* Cards */}
         <div className="space-y-3">
           {filteredRestaurants.map(restaurant => {
-            const status = getRestaurantStatus(restaurant);
+            const status = getRestaurantStatus(restaurant, appStatus.isOpen);
             const isFav = favorites.has(restaurant.id);
             const dist =
               userLat && userLng && restaurant.latitude && restaurant.longitude

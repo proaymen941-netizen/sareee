@@ -49,8 +49,16 @@ export default function AdminCoupons() {
       toast({ title: editingCoupon ? "تم تحديث الكوبون" : "تمت إضافة الكوبون بنجاح" });
     },
     onError: (error: any) => {
-      const msg = error?.message?.includes(':') ? error.message.split(':').slice(1).join(':').trim() : error?.message;
-      toast({ title: "حدث خطأ في العملية", description: msg || "تعذّر حفظ الكوبون، تحقق من البيانات", variant: "destructive" });
+      const raw = error?.message || '';
+      const serverMsg = raw.includes(':') ? raw.split(':').slice(1).join(':').trim() : raw;
+      let displayMsg = "تعذّر حفظ الكوبون، تحقق من البيانات";
+      try {
+        const parsed = JSON.parse(serverMsg);
+        displayMsg = parsed.error || parsed.message || displayMsg;
+      } catch {
+        if (serverMsg) displayMsg = serverMsg;
+      }
+      toast({ title: "حدث خطأ في العملية", description: displayMsg, variant: "destructive" });
     },
   });
 
@@ -118,11 +126,18 @@ export default function AdminCoupons() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const parsedValue = parseFloat(formData.value);
+    const parsedMinOrder = parseFloat(formData.minOrderValue || '0');
+    const parsedMaxDiscount = formData.maxDiscount ? parseFloat(formData.maxDiscount) : null;
+    if (isNaN(parsedValue) || parsedValue <= 0) {
+      toast({ title: "خطأ في البيانات", description: "يرجى إدخال قيمة خصم صحيحة", variant: "destructive" });
+      return;
+    }
     const submitData: any = {
       ...formData,
-      value: parseFloat(formData.value),
-      minOrderValue: parseFloat(formData.minOrderValue || '0'),
-      maxDiscount: formData.maxDiscount ? parseFloat(formData.maxDiscount) : null,
+      value: String(parsedValue),
+      minOrderValue: String(isNaN(parsedMinOrder) ? 0 : parsedMinOrder),
+      maxDiscount: parsedMaxDiscount !== null ? String(parsedMaxDiscount) : null,
       usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
       perUserLimit: formData.perUserLimit ? parseInt(formData.perUserLimit) : 1,
       startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,

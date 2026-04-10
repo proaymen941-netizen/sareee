@@ -235,8 +235,17 @@ export default function CartPage() {
         setLocation('/');
       }
     },
-    onError: () => {
-      toast({ title: "خطأ في تأكيد الطلب", description: "يرجى المحاولة مرة أخرى", variant: "destructive" });
+    onError: (error: any) => {
+      const raw = error?.message || '';
+      const serverMsg = raw.includes(':') ? raw.split(':').slice(1).join(':').trim() : raw;
+      let displayMsg = "يرجى المحاولة مرة أخرى";
+      try {
+        const parsed = JSON.parse(serverMsg);
+        displayMsg = parsed.error || parsed.message || displayMsg;
+      } catch {
+        if (serverMsg) displayMsg = serverMsg;
+      }
+      toast({ title: "خطأ في تأكيد الطلب", description: displayMsg, variant: "destructive" });
     },
   });
 
