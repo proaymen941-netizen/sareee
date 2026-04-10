@@ -31,7 +31,33 @@ export default defineConfig(async () => {
     build: {
       outDir: path.resolve(__dirname, "dist/public"),
       emptyOutDir: true,
-      // تعطيل manualChunks تماماً - هذا هو الحل الأضمن
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router') || id.includes('wouter')) {
+                return 'react-vendor';
+              }
+              if (id.includes('@tanstack') || id.includes('react-query')) {
+                return 'query-vendor';
+              }
+              if (id.includes('lucide')) {
+                return 'icons-vendor';
+              }
+              if (id.includes('@radix-ui')) {
+                return 'ui-vendor';
+              }
+              if (id.includes('leaflet') || id.includes('@googlemaps')) {
+                return 'maps-vendor';
+              }
+              if (id.includes('drizzle') || id.includes('postgres')) {
+                return 'db-vendor';
+              }
+              return 'vendor';
+            }
+          }
+        },
+      },
       chunkSizeWarningLimit: 1500,
     },
     server: {
