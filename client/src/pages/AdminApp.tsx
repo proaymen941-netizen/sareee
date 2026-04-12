@@ -9,9 +9,9 @@ import AdminCategories from "./AdminCategories";
 import AdminUsers from "./AdminUsers";
 import AdminProfile from "./AdminProfile";
 import AdminUiSettings from "./admin/AdminUiSettings";
-import AdminFinancialReports from "./AdminFinancialReports"; 
-import AdminHRManagement from "./AdminHRManagement"; 
-import AdminSecurity from "./AdminSecurity"; 
+import AdminFinancialReports from "./AdminFinancialReports";
+import AdminHRManagement from "./AdminHRManagement";
+import AdminSecurity from "./AdminSecurity";
 import AdminDriversAdvanced from "./AdminDriversAdvanced";
 import AdminRestaurantsAdvanced from "./AdminRestaurantsAdvanced";
 import AdminDashboard from "./admin/AdminDashboard";
@@ -23,6 +23,12 @@ import AdvancedReports from "./admin/AdvancedReports";
 import AdminDetailedReports from "./admin/AdminDetailedReports";
 import RestaurantReports from "./admin/RestaurantReports";
 import AdminRestaurantAccounts from "./admin/AdminRestaurantAccounts";
+import AdminFlutterNotifications from "./admin/AdminFlutterNotifications";
+import AdminDashboardAdvanced from "./AdminDashboardAdvanced";
+import AdminBusinessHours from "./AdminBusinessHours";
+import AdminSpecialOffers from "./AdminSpecialOffers";
+import AdminSettings from "./AdminSettings";
+import RestaurantSections from "./RestaurantSections";
 import RatingsManagement from "./RatingsManagement";
 import WalletManagement from "./WalletManagement";
 import NotFound from "./not-found";
@@ -38,6 +44,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
       <Switch>
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
+        <Route path="/admin/dashboard-advanced" component={AdminDashboardAdvanced} />
         <Route path="/admin/orders" component={AdminOrders} />
         <Route path="/admin/restaurants" component={AdminRestaurants} />
         <Route path="/admin/menu-items" component={AdminMenuItems} />
@@ -45,6 +52,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/drivers-advanced" component={AdminDriversAdvanced} />
         <Route path="/admin/delivery-fees" component={AdminDeliveryFees} />
         <Route path="/admin/offers" component={AdminOffers} />
+        <Route path="/admin/special-offers" component={AdminSpecialOffers} />
         <Route path="/admin/users" component={AdminUsers} />
         <Route path="/admin/categories" component={AdminCategories} />
         <Route path="/admin/profile" component={AdminProfile} />
@@ -52,6 +60,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/hr-management" component={AdminHRManagement} />
         <Route path="/admin/security" component={AdminSecurity} />
         <Route path="/admin/ui-settings" component={AdminUiSettings} />
+        <Route path="/admin/settings" component={AdminSettings} />
         <Route path="/admin/ratings" component={RatingsManagement} />
         <Route path="/admin/wallet" component={WalletManagement} />
         <Route path="/admin/backup" component={AdminBackup} />
@@ -62,6 +71,9 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/restaurant-reports" component={RestaurantReports} />
         <Route path="/admin/restaurants-advanced" component={AdminRestaurantsAdvanced} />
         <Route path="/admin/restaurant-accounts" component={AdminRestaurantAccounts} />
+        <Route path="/admin/restaurant-sections" component={RestaurantSections} />
+        <Route path="/admin/business-hours" component={AdminBusinessHours} />
+        <Route path="/admin/notifications" component={AdminFlutterNotifications} />
         <Route component={NotFound} />
       </Switch>
     </AdminLayout>
