@@ -31,6 +31,10 @@ import {
   Receipt,
   TrendingUp,
   UserCog,
+  Clock,
+  Layers,
+  Zap,
+  Activity,
 } from 'lucide-react';
 import type { UiSettings } from '@shared/schema';
 
@@ -95,6 +99,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'الرئيسية',
       items: [
         { icon: BarChart3, label: 'لوحة التحكم', path: '/admin', permission: null },
+        { icon: Activity, label: 'لوحة تحكم متقدمة', path: '/admin/dashboard-advanced', permission: 'view_reports' },
         { icon: ShoppingBag, label: 'الطلبات', path: '/admin/orders', badge: pendingOrdersCount, permission: 'manage_orders' },
       ]
     },
@@ -103,6 +108,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'المتاجر والمطاعم',
       items: [
         { icon: Store, label: 'إدارة المتاجر', path: '/admin/restaurants', permission: 'manage_menu' },
+        { icon: Layers, label: 'أقسام المتجر', path: '/admin/restaurant-sections', permission: 'manage_menu' },
+        { icon: Clock, label: 'ساعات العمل', path: '/admin/business-hours', permission: 'manage_menu' },
         { icon: Receipt, label: 'حسابات المتاجر', path: '/admin/restaurant-accounts', permission: 'manage_menu' },
         { icon: FileBarChart, label: 'تقارير المتاجر', path: '/admin/restaurant-reports', permission: 'view_reports' },
       ]
@@ -113,7 +120,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       items: [
         { icon: Tag, label: 'التصنيفات', path: '/admin/categories', permission: 'manage_categories' },
         { icon: Package, label: 'المنتجات', path: '/admin/menu-items', permission: 'manage_menu' },
-        { icon: Percent, label: 'العروض', path: '/admin/offers', permission: 'manage_menu' },
+        { icon: Percent, label: 'العروض الخاصة', path: '/admin/special-offers', permission: 'manage_menu' },
+        { icon: Zap, label: 'العروض المميزة', path: '/admin/offers', permission: 'manage_menu' },
         { icon: Ticket, label: 'الكوبونات', path: '/admin/coupons', permission: 'manage_coupons' },
         { icon: CreditCard, label: 'طرق الدفع', path: '/admin/payment-methods', permission: 'manage_settings' },
       ]
@@ -133,6 +141,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       items: [
         { icon: TrendingUp, label: 'الإيرادات والتوزيع', path: '/admin/financial-reports', permission: 'view_reports' },
         { icon: BarChart3, label: 'التقارير التفصيلية', path: '/admin/detailed-reports', permission: 'view_reports' },
+        { icon: FileBarChart, label: 'التقارير المتقدمة', path: '/admin/advanced-reports', permission: 'view_reports' },
         { icon: Star, label: 'التقييمات', path: '/admin/ratings', permission: 'view_reports' },
       ]
     },
@@ -143,6 +152,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: UserCog, label: 'الموارد البشرية', path: '/admin/hr-management', permission: 'manage_customers' },
         { icon: Users, label: 'العملاء', path: '/admin/users', permission: 'manage_customers' },
         { icon: Shield, label: 'الأمن والخصوصية', path: '/admin/security', permission: 'manage_settings' },
+        { icon: Bell, label: 'الإشعارات', path: '/admin/notifications', permission: 'manage_settings' },
       ]
     },
     {
@@ -150,6 +160,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'الإعدادات',
       items: [
         { icon: Smartphone, label: 'إدارة الواجهات', path: '/admin/ui-settings', permission: 'manage_settings' },
+        { icon: Settings, label: 'إعدادات النظام', path: '/admin/settings', permission: 'manage_settings' },
         { icon: Database, label: 'النسخ الاحتياطي', path: '/admin/backup', permission: 'manage_settings' },
         { icon: User, label: 'الملف الشخصي', path: '/admin/profile', permission: null },
       ]
