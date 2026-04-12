@@ -118,6 +118,7 @@ import CategoryPage from "./pages/CategoryPage";
 import ProductDetails from "./pages/ProductDetails";
 import CustomerAuthPage from "./pages/CustomerAuthPage";
 import Favorites from "./pages/Favorites";
+import CustomerAddresses from "./pages/CustomerAddresses";
 
 function Router() {
   // Check UiSettings for page visibility
@@ -140,6 +141,7 @@ function Router() {
       <Route path="/orders" component={OrdersPage} />
       <Route path="/orders/:orderId" component={OrderTrackingPage} />
       {showTrackOrdersPage && <Route path="/track-orders" component={TrackOrdersPage} />}
+      <Route path="/my-addresses" component={CustomerAddresses} />
       <Route path="/settings" component={Settings} />
       <Route path="/privacy" component={Privacy} />
       
