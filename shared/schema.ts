@@ -493,6 +493,95 @@ export const leaveRequests = pgTable("leave_requests", {
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
 });
 
+// ======= نظام نقاط الولاء =======
+export const loyaltyPoints = pgTable("loyalty_points", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  totalPoints: integer("total_points").default(0).notNull(),
+  redeemedPoints: integer("redeemed_points").default(0).notNull(),
+  availablePoints: integer("available_points").default(0).notNull(),
+  tier: varchar("tier", { length: 20 }).default("bronze").notNull(), // bronze, silver, gold, platinum
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const loyaltyTransactions = pgTable("loyalty_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  orderId: uuid("order_id").references(() => orders.id),
+  type: varchar("type", { length: 30 }).notNull(), // earned, redeemed, expired, bonus
+  points: integer("points").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ======= نظام التذاكر والدعم الفني =======
+export const supportTickets = pgTable("support_tickets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id),
+  customerName: varchar("customer_name", { length: 100 }).notNull(),
+  customerPhone: varchar("customer_phone", { length: 20 }).notNull(),
+  orderId: uuid("order_id").references(() => orders.id),
+  category: varchar("category", { length: 50 }).notNull(), // delivery, quality, payment, driver, other
+  subject: varchar("subject", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  status: varchar("status", { length: 30 }).default("open").notNull(), // open, in_progress, resolved, closed
+  priority: varchar("priority", { length: 20 }).default("normal").notNull(), // low, normal, high, urgent
+  assignedTo: uuid("assigned_to").references(() => adminUsers.id),
+  adminResponse: text("admin_response"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ======= نظام الإحالة والدعوة =======
+export const referralCodes = pgTable("referral_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  code: varchar("code", { length: 20 }).notNull().unique(),
+  totalReferrals: integer("total_referrals").default(0).notNull(),
+  totalEarned: decimal("total_earned", { precision: 10, scale: 2 }).default("0").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const referralUsages = pgTable("referral_usages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  referralCodeId: uuid("referral_code_id").references(() => referralCodes.id).notNull(),
+  referrerId: uuid("referrer_id").references(() => users.id).notNull(),
+  referredUserId: uuid("referred_user_id").references(() => users.id).notNull(),
+  pointsAwarded: integer("points_awarded").default(0),
+  discountAwarded: decimal("discount_awarded", { precision: 10, scale: 2 }).default("0"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ======= رموز الأجهزة للإشعارات =======
+export const deviceTokens = pgTable("device_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id),
+  driverId: uuid("driver_id").references(() => drivers.id),
+  token: text("token").notNull().unique(),
+  platform: varchar("platform", { length: 20 }).notNull(), // android, ios, web
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ======= بوابة المطعم الشريك =======
+export const restaurantUsers = pgTable("restaurant_users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  restaurantId: uuid("restaurant_id").references(() => restaurants.id).notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 100 }).notNull().unique(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  password: text("password").notNull(),
+  role: varchar("role", { length: 30 }).default("owner").notNull(), // owner, manager, staff
+  isActive: boolean("is_active").default(true).notNull(),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).partial({
   id: true,
