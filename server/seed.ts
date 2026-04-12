@@ -82,6 +82,10 @@ const defaultUiSettings = [
   { key: "driver_show_stats", value: "true", category: "driver", description: "إظهار صفحة الإحصائيات للسائق" },
   { key: "driver_show_profile", value: "true", category: "driver", description: "إظهار صفحة الملف الشخصي للسائق" },
   { key: "driver_show_history", value: "true", category: "driver", description: "إظهار سجل التوصيل للسائق" },
+  // إعدادات ساعات عمل الموصلين والطلبات المؤجلة
+  { key: "driver_start_time", value: "09:00", category: "driver", description: "وقت بدء دوام الموصلين (مثال: 09:00)" },
+  { key: "driver_end_time", value: "21:00", category: "driver", description: "وقت انتهاء دوام الموصلين (مثال: 21:00)" },
+  { key: "enable_scheduled_orders", value: "true", category: "driver", description: "السماح للعملاء بجدولة الطلبات خارج ساعات الموصلين" },
 ];
 
 // ضمان وجود الإعدادات الافتراضية في قاعدة البيانات (لكل تشغيل)

@@ -38,6 +38,9 @@ router.post("/", async (req, res) => {
     }
 
     // التحقق من ساعات عمل التطبيق العالمية
+    // الطلبات المؤجلة (scheduled) تتجاوز فحص ساعات الموصلين لكن لا تتجاوز إغلاق المتجر الإداري
+    const isScheduledOrder = deliveryPreference === 'scheduled';
+
     try {
       const allSettings = await storage.getUiSettings();
       const settingsMap = new Map(allSettings.map((s: any) => [s.key, s.value]));
@@ -51,20 +54,23 @@ router.post("/", async (req, res) => {
         });
       }
 
-      const now = new Date();
-      const currentTime = now.toTimeString().slice(0, 5);
-      const timeToMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-      const current = timeToMinutes(currentTime);
-      const open = timeToMinutes(openingTime);
-      const close = timeToMinutes(closingTime);
-      let appIsOpen = close > open ? (current >= open && current < close) : (current >= open || current < close);
+      // الطلبات المؤجلة لا تحتاج فحص ساعات العمل الحالية
+      if (!isScheduledOrder) {
+        const now = new Date();
+        const currentTime = now.toTimeString().slice(0, 5);
+        const timeToMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+        const current = timeToMinutes(currentTime);
+        const open = timeToMinutes(openingTime);
+        const close = timeToMinutes(closingTime);
+        let appIsOpen = close > open ? (current >= open && current < close) : (current >= open || current < close);
 
-      if (!appIsOpen) {
-        const isBeforeOpen = current < open;
-        const whenOpen = isBeforeOpen ? `يفتح اليوم الساعة ${openingTime}` : `يفتح غداً الساعة ${openingTime}`;
-        return res.status(400).json({ 
-          error: `التطبيق مغلق حالياً. ${whenOpen}`
-        });
+        if (!appIsOpen) {
+          const isBeforeOpen = current < open;
+          const whenOpen = isBeforeOpen ? `يفتح اليوم الساعة ${openingTime}` : `يفتح غداً الساعة ${openingTime}`;
+          return res.status(400).json({ 
+            error: `التطبيق مغلق حالياً. ${whenOpen}`
+          });
+        }
       }
     } catch (_) {
       // إذا فشل التحقق من الإعدادات، نسمح بالطلب
@@ -141,6 +147,7 @@ router.post("/", async (req, res) => {
     const companyEarnings = restaurantCommissionAmount + (deliveryFeeNum - driverEarnings);
 
     // إنشاء الطلب
+    const orderStatus = isScheduledOrder ? 'scheduled' : 'pending';
     const orderData = {
       orderNumber,
       customerName: customerName.trim(),
@@ -152,7 +159,7 @@ router.post("/", async (req, res) => {
       customerLocationLng: customerLocationLng ? String(customerLocationLng) : null,
       notes: notes ? notes.trim() : null,
       paymentMethod: paymentMethod || 'cash',
-      status: 'pending',
+      status: orderStatus,
       items: itemsString,
       subtotal: String(subtotalNum),
       deliveryFee: String(deliveryFeeNum),
@@ -188,10 +195,14 @@ router.post("/", async (req, res) => {
       }
       
       // إشعار للإدارة فقط - السائقون سيتلقون إشعار عند تعيينهم للطلب
+      const adminNotifTitle = isScheduledOrder ? 'طلب مجدول جديد' : 'طلب جديد في انتظار التعيين';
+      const adminNotifMsg = isScheduledOrder
+        ? `طلب مجدول رقم ${orderNumber} من ${customerName}. موعد التوصيل: ${req.body.scheduledDate} ${req.body.scheduledTimeSlot}`
+        : `طلب جديد رقم ${orderNumber} من ${customerName} في انتظار تعيين سائق. الموقع: ${deliveryAddress}`;
       await storage.createNotification({
-        type: 'new_order_pending_assignment',
-        title: 'طلب جديد في انتظار التعيين',
-        message: `طلب جديد رقم ${orderNumber} من ${customerName} في انتظار تعيين سائق. الموقع: ${deliveryAddress}`,
+        type: isScheduledOrder ? 'new_scheduled_order' : 'new_order_pending_assignment',
+        title: adminNotifTitle,
+        message: adminNotifMsg,
         recipientType: 'admin',
         recipientId: null,
         orderId: order.id,
@@ -201,8 +212,10 @@ router.post("/", async (req, res) => {
       // تتبع الطلب
       await storage.createOrderTracking({
         orderId: order.id,
-        status: 'pending',
-        message: 'تم استلام الطلب وجاري المراجعة',
+        status: orderStatus,
+        message: isScheduledOrder
+          ? `تم جدولة الطلب للتوصيل في ${req.body.scheduledDate} ${req.body.scheduledTimeSlot}`
+          : 'تم استلام الطلب وجاري المراجعة',
         createdBy: 'system',
         createdByType: 'system'
       });
