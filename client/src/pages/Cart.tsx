@@ -17,6 +17,17 @@ import { formatCurrency } from '@/lib/utils';
 import { useUserLocation } from '@/context/LocationContext';
 import type { InsertOrder, Restaurant } from '@shared/schema';
 import { getAppStatus, getRestaurantStatus } from '@/utils/restaurantHours';
+import ScheduledOrderDialog from '@/components/ScheduledOrderDialog';
+
+function isDriverAvailable(driverStart: string, driverEnd: string): boolean {
+  const now = new Date();
+  const currentTime = now.toTimeString().slice(0, 5);
+  const toMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const cur = toMins(currentTime);
+  const start = toMins(driverStart);
+  const end = toMins(driverEnd);
+  return end > start ? (cur >= start && cur < end) : (cur >= start || cur < end);
+}
 
 export default function Cart() {
   const [, setLocation] = useWouterLocation();
@@ -25,6 +36,9 @@ export default function Cart() {
   const { toast } = useToast();
   const { location: userLocation } = useUserLocation();
   const { isOnline } = useNetworkStatus();
+
+  const [showScheduledDialog, setShowScheduledDialog] = useState(false);
+  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
   const [orderForm, setOrderForm] = useState({
     customerName: localStorage.getItem('customer_name') || '',
@@ -65,6 +79,13 @@ export default function Cart() {
     const closingTime = (settings as any[])?.find((s: any) => s.key === 'closing_time')?.value || '23:00';
     const storeStatus = (settings as any[])?.find((s: any) => s.key === 'store_status')?.value;
     return getAppStatus(openingTime, closingTime, storeStatus);
+  }, [settings]);
+
+  const driverHours = useMemo(() => {
+    const start = (settings as any[])?.find((s: any) => s.key === 'driver_start_time')?.value || '09:00';
+    const end = (settings as any[])?.find((s: any) => s.key === 'driver_end_time')?.value || '21:00';
+    const enabled = (settings as any[])?.find((s: any) => s.key === 'enable_scheduled_orders')?.value !== 'false';
+    return { start, end, scheduledOrdersEnabled: enabled };
   }, [settings]);
 
   const restaurantStatus = useMemo(() => {
@@ -120,9 +141,12 @@ export default function Cart() {
       return response.json();
     },
     onSuccess: (data) => {
+      const isScheduled = data?.order?.status === 'scheduled';
       toast({
-        title: "تم تأكيد طلبك بنجاح!",
-        description: "سيتم التواصل معك قريباً",
+        title: isScheduled ? "✅ تم جدولة طلبك بنجاح!" : "✅ تم تأكيد طلبك بنجاح!",
+        description: isScheduled
+          ? `سيصلك طلبك في الموعد المحدد`
+          : "سيتم التواصل معك قريباً",
       });
       
       localStorage.setItem('customer_phone', orderForm.customerPhone);
@@ -159,6 +183,39 @@ export default function Cart() {
       });
     },
   });
+
+  const buildOrderData = (overrides?: { scheduledDate?: string; scheduledTimeSlot?: string; status?: string; deliveryPreference?: string }) => ({
+    customerName: orderForm.customerName,
+    customerPhone: orderForm.customerPhone,
+    customerEmail: orderForm.customerEmail || undefined,
+    deliveryAddress: orderForm.deliveryAddress,
+    notes: orderForm.notes || undefined,
+    paymentMethod: orderForm.paymentMethod,
+    items: JSON.stringify(items),
+    subtotal: subtotal.toString(),
+    deliveryFee: deliveryFee.toString(),
+    total: (subtotal + deliveryFee).toString(),
+    totalAmount: (subtotal + deliveryFee).toString(),
+    restaurantId: restaurantId || null,
+    status: overrides?.status || 'pending',
+    orderNumber: `ORD${Date.now()}`,
+    customerLocationLat: orderForm.locationData?.lat?.toString(),
+    customerLocationLng: orderForm.locationData?.lng?.toString(),
+    deliveryPreference: overrides?.deliveryPreference || orderForm.deliveryTime,
+    scheduledDate: overrides?.scheduledDate || (orderForm.deliveryTime === 'later' ? orderForm.deliveryDate : undefined),
+    scheduledTimeSlot: overrides?.scheduledTimeSlot || (orderForm.deliveryTime === 'later' ? orderForm.deliveryTimeSlot : undefined),
+  });
+
+  const handleScheduledConfirm = (scheduledDate: string, scheduledTimeSlot: string) => {
+    setShowScheduledDialog(false);
+    const orderData = buildOrderData({
+      scheduledDate,
+      scheduledTimeSlot,
+      status: 'scheduled',
+      deliveryPreference: 'scheduled',
+    });
+    placeOrderMutation.mutate(orderData);
+  };
 
   const handlePlaceOrder = () => {
     if (!isOnline) {
@@ -197,33 +254,26 @@ export default function Cart() {
       return;
     }
 
-    const orderData = {
-      customerName: orderForm.customerName,
-      customerPhone: orderForm.customerPhone,
-      customerEmail: orderForm.customerEmail || undefined,
-      deliveryAddress: orderForm.deliveryAddress,
-      notes: orderForm.notes || undefined,
-      paymentMethod: orderForm.paymentMethod,
-      items: JSON.stringify(items),
-      subtotal: subtotal.toString(),
-      deliveryFee: deliveryFee.toString(),
-      total: (subtotal + deliveryFee).toString(),
-      totalAmount: (subtotal + deliveryFee).toString(),
-      restaurantId: restaurantId || null,
-      status: 'pending',
-      orderNumber: `ORD${Date.now()}`,
-      customerLocationLat: orderForm.locationData?.lat?.toString(),
-      customerLocationLng: orderForm.locationData?.lng?.toString(),
-      deliveryPreference: orderForm.deliveryTime,
-      scheduledDate: orderForm.deliveryTime === 'later' ? orderForm.deliveryDate : undefined,
-      scheduledTimeSlot: orderForm.deliveryTime === 'later' ? orderForm.deliveryTimeSlot : undefined,
-    };
+    // فحص ساعات عمل الموصلين - إذا كانوا غير متاحين اعرض حوار الجدولة
+    if (driverHours.scheduledOrdersEnabled && orderForm.deliveryTime === 'now') {
+      const driversAvailable = isDriverAvailable(driverHours.start, driverHours.end);
+      if (!driversAvailable) {
+        setShowScheduledDialog(true);
+        return;
+      }
+    }
 
-    placeOrderMutation.mutate(orderData);
+    placeOrderMutation.mutate(buildOrderData());
   };
 
   return (
     <div className="min-h-screen bg-white">
+      <ScheduledOrderDialog
+        open={showScheduledDialog}
+        onClose={() => setShowScheduledDialog(false)}
+        onConfirm={handleScheduledConfirm}
+        driverStartTime={driverHours.start}
+      />
       {!isOnline && (
         <div className="bg-red-600 text-white text-center py-2 px-4 flex items-center justify-center gap-2 text-sm font-bold">
           <WifiOff className="h-4 w-4" />

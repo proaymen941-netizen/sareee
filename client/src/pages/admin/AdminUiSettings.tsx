@@ -674,6 +674,24 @@ export default function AdminUiSettings() {
               </CardContent>
             </Card>
 
+            {/* إعدادات ساعات الموصلين والطلبات المؤجلة */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-orange-500" />
+                  ساعات دوام الموصلين والطلبات المؤجلة
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="divide-y divide-gray-100">
+                <div className="py-3 bg-orange-50 rounded-lg px-3 mb-2 text-sm text-orange-700">
+                  💡 عندما يحاول العميل الطلب خارج ساعات الموصلين، يظهر له خيار جدولة الطلب لوقت متاح.
+                </div>
+                <SettingRow label="بداية دوام الموصلين" {...rowProps('driver_start_time')} placeholder="09:00" description="الوقت الذي يبدأ فيه الموصلون العمل (مثال: 09:00)" />
+                <SettingRow label="نهاية دوام الموصلين" {...rowProps('driver_end_time')} placeholder="21:00" description="الوقت الذي ينتهي فيه دوام الموصلين (مثال: 21:00)" />
+                <SettingRow label="تفعيل الطلبات المؤجلة" {...rowProps('enable_scheduled_orders')} type="boolean" description="السماح للعملاء بجدولة طلباتهم خارج ساعات الموصلين" />
+              </CardContent>
+            </Card>
+
             {/* الإشعارات */}
             <Card>
               <CardHeader>
