@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.onrender.sareeone_serverwep_6d8v.twa",
+    "sha256_cert_fingerprints": ["6B:E7:EA:08:6F:70:78:E0:1D:B0:70:94:39:96:FD:CF:04:22:62:C0:51:1F:94:04:AF:DA:B9:16:2A:9D:BC:E8"]
+  }
+}]

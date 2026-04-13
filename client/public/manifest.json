@@ -3,6 +3,7 @@
   "short_name": "السريع ون",
   "description": "أفضل الخضار والفواكه الطازجة توصل لبابك",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
@@ -30,6 +31,23 @@
       "name": "الطلبات",
       "url": "/orders",
       "description": "عرض طلباتي"
+    },
+    {
+      "name": "واتساب",
+      "url": "/whatsapp",
+      "description": "التواصل عبر واتساب"
+    },
+    {
+      "name": "اتصال",
+      "url": "/call",
+      "description": "اتصال مباشر"
     }
-  ]
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.onrender.sareeone_serverwep_6d8v.twa"
+    }
+  ],
+  "prefer_related_applications": false
 }
