@@ -804,6 +804,73 @@ router.get("/reports/users", async (req, res) => {
   }
 });
 
+// ملخص السائقين للتقارير المتقدمة
+router.get("/drivers-summary", async (req, res) => {
+  try {
+    const driversList = await storage.getDrivers();
+    const allOrders = await storage.getOrders();
+
+    const summary = await Promise.all(
+      driversList.map(async (driver) => {
+        const driverOrders = allOrders.filter(o => o.driverId === driver.id && o.status === 'delivered');
+        const totalEarnings = driverOrders.reduce((sum, o) => sum + parseFloat(o.deliveryFee || "0"), 0);
+        const balance = await storage.getDriverBalance(driver.id).catch(() => null);
+        return {
+          id: driver.id,
+          name: driver.name,
+          phone: driver.phone,
+          isAvailable: driver.isAvailable,
+          stats: {
+            totalOrders: driverOrders.length,
+            totalEarnings: balance ? parseFloat(balance.totalBalance || "0") : totalEarnings,
+            averageRating: parseFloat(driver.rating || "0"),
+            availableBalance: balance ? parseFloat(balance.availableBalance || "0") : 0
+          }
+        };
+      })
+    );
+
+    res.json(summary);
+  } catch (error) {
+    console.error("خطأ في ملخص السائقين:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// ملخص المطاعم للتقارير المتقدمة
+router.get("/restaurants-summary", async (req, res) => {
+  try {
+    const allRestaurants = await storage.getRestaurants({});
+    const allOrders = await storage.getOrders();
+
+    const summary = allRestaurants.map(restaurant => {
+      const restaurantOrders = allOrders.filter(o => o.restaurantId === restaurant.id && o.status === 'delivered');
+      const totalRevenue = restaurantOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount || o.total || "0"), 0);
+      const commissionRate = 0.15;
+      const totalCommission = totalRevenue * commissionRate;
+
+      return {
+        id: restaurant.id,
+        name: restaurant.name,
+        phone: restaurant.phone,
+        isOpen: restaurant.isOpen,
+        stats: {
+          totalOrders: restaurantOrders.length,
+          totalRevenue,
+          totalCommission,
+          netEarnings: totalRevenue - totalCommission,
+          avgOrderValue: restaurantOrders.length > 0 ? totalRevenue / restaurantOrders.length : 0
+        }
+      };
+    });
+
+    res.json(summary);
+  } catch (error) {
+    console.error("خطأ في ملخص المطاعم:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
 router.get("/reports/restaurants/:id", async (req, res) => {
   try {
     const { id } = req.params;

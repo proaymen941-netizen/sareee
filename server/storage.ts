@@ -145,6 +145,7 @@ export interface IStorage {
 
   // Enhanced notification methods
   getNotifications(recipientType?: string, recipientId?: string, unread?: boolean): Promise<Notification[]>;
+  markNotificationAsRead(id: string): Promise<Notification | undefined>;
 
   // Search methods
   searchRestaurants(query: string, category?: string): Promise<Restaurant[]>;
@@ -1452,6 +1453,14 @@ export class MemStorage implements IStorage {
     };
     this.notifications.set(id, newNotification);
     return newNotification;
+  }
+
+  async markNotificationAsRead(id: string): Promise<Notification | undefined> {
+    const notification = this.notifications.get(id);
+    if (!notification) return undefined;
+    const updated = { ...notification, isRead: true };
+    this.notifications.set(id, updated);
+    return updated;
   }
 
   // Search methods

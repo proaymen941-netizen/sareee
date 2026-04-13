@@ -77,8 +77,11 @@ router.post("/", async (req, res) => {
         });
       }
 
-      // الطلبات المؤجلة لا تحتاج فحص ساعات العمل الحالية
-      if (!isScheduledOrder) {
+      // إذا كان المتجر مفتوحاً يدوياً، نتجاوز فحص الوقت تماماً
+      if (storeStatus === 'open') {
+        // المتجر مفتوح يدوياً - لا فحص للوقت
+      } else if (!isScheduledOrder) {
+        // الطلبات المؤجلة لا تحتاج فحص ساعات العمل الحالية
         const now = new Date();
         const currentTime = now.toTimeString().slice(0, 5);
         const timeToMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };

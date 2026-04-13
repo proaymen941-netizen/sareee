@@ -592,21 +592,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Ratings functionality temporarily disabled - would require additional database methods
 
   // ================= NOTIFICATIONS API =================
-/*
-app.get("/api/notifications", async (req, res) => {
-  try {
-    const { recipientType, recipientId, unread } = req.query;
-    const notifications = await storage.getNotifications(
-      recipientType as string, 
-      recipientId as string, 
-      unread === 'true'
-    );
-    res.json(notifications);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch notifications" });
-  }
-});
-*/
+  app.get("/api/notifications", async (req, res) => {
+    try {
+      const { recipientType, recipientId, unread } = req.query;
+      const notifications = await storage.getNotifications(
+        recipientType as string, 
+        recipientId as string, 
+        unread === 'true'
+      );
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
 
   app.post("/api/notifications", async (req, res) => {
     try {
@@ -618,8 +616,6 @@ app.get("/api/notifications", async (req, res) => {
     }
   });
 
-  // Mark notification as read endpoint temporarily disabled - requires additional database method
-  /*
   app.put("/api/notifications/:id/read", async (req, res) => {
     try {
       const { id } = req.params;
@@ -632,7 +628,6 @@ app.get("/api/notifications", async (req, res) => {
       res.status(400).json({ message: "Failed to update notification" });
     }
   });
-  */
 
   // ================= WALLET & PAYMENTS API - DISABLED =================
   // Wallet functionality temporarily disabled - would require additional database methods
