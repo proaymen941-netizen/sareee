@@ -38,9 +38,9 @@ export default function AdvancedReports() {
   });
 
   const { data: withdrawals = [], isLoading: withdrawalLoading } = useQuery({
-    queryKey: ['/api/admin/withdrawal-requests/pending'],
+    queryKey: ['/api/admin/withdrawals/pending'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/withdrawal-requests/pending');
+      const response = await fetch('/api/admin/withdrawals/pending');
       if (!response.ok) return [];
       return response.json();
     }

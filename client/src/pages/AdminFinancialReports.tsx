@@ -132,18 +132,18 @@ export default function AdminFinancialReports() {
 
   // جلب طلبات السحب المعلقة
   const { data: withdrawalRequestsData } = useQuery<WithdrawalRequest[]>({
-    queryKey: ['/api/admin/withdrawal-requests/pending'],
+    queryKey: ['/api/admin/withdrawals/pending'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/withdrawal-requests/pending');
+      const response = await apiRequest('GET', '/api/admin/withdrawals/pending');
       return response.json();
     }
   });
 
   const handleApproveWithdrawal = async (id: string) => {
     try {
-      await apiRequest('POST', `/api/admin/withdrawal-requests/${id}/approve`, {});
+      await apiRequest('POST', `/api/admin/withdrawals/${id}/approve`, {});
       toast({ title: 'تمت الموافقة على طلب السحب بنجاح' });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawal-requests/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawals/pending'] });
     } catch (error) {
       toast({ title: 'فشل في الموافقة على طلب السحب', variant: 'destructive' });
     }
@@ -151,9 +151,9 @@ export default function AdminFinancialReports() {
 
   const handleRejectWithdrawal = async (id: string) => {
     try {
-      await apiRequest('POST', `/api/admin/withdrawal-requests/${id}/reject`, { reason: 'تم الرفض من قبل المسؤول' });
+      await apiRequest('POST', `/api/admin/withdrawals/${id}/reject`, { reason: 'تم الرفض من قبل المسؤول' });
       toast({ title: 'تم رفض طلب السحب' });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawal-requests/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawals/pending'] });
     } catch (error) {
       toast({ title: 'فشل في رفض طلب السحب', variant: 'destructive' });
     }

@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDrivers from "./AdminDrivers";
 import AdminOrders from "./AdminOrders";
@@ -60,7 +60,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/hr-management" component={AdminHRManagement} />
         <Route path="/admin/security" component={AdminSecurity} />
         <Route path="/admin/ui-settings" component={AdminUiSettings} />
-        <Route path="/admin/settings" component={AdminSettings} />
+        <Route path="/admin/settings" component={() => { const [, setLocation] = useLocation(); React.useEffect(() => { setLocation('/admin/ui-settings'); }, []); return null; }} />
         <Route path="/admin/ratings" component={RatingsManagement} />
         <Route path="/admin/wallet" component={WalletManagement} />
         <Route path="/admin/backup" component={AdminBackup} />
