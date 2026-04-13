@@ -41,15 +41,19 @@ router.post("/", async (req, res) => {
     try {
       const recentOrders = await storage.getOrdersByCustomer(customerPhone);
       const sixtySecondsAgo = new Date(Date.now() - 60 * 1000);
-      const isDuplicate = recentOrders.some(order => 
-        new Date(order.createdAt) > sixtySecondsAgo && 
-        order.totalAmount === String(totalAmount) &&
-        order.status !== 'cancelled'
-      );
+      const incomingTotal = parseFloat(String(totalAmount));
+      
+      const isDuplicate = recentOrders.some(order => {
+        const orderTime = new Date(order.createdAt);
+        const orderTotal = parseFloat(order.totalAmount);
+        return orderTime > sixtySecondsAgo && 
+               Math.abs(orderTotal - incomingTotal) < 0.01 &&
+               order.status !== 'cancelled';
+      });
 
       if (isDuplicate) {
         return res.status(400).json({ 
-          error: "لقد قمت بإرسال طلب مماثل مؤخراً، يرجى الانتظار قليلاً أو التحقق من قائمة طلباتك"
+          error: "لقد قمت بإرسال طلب مماثل مؤخراً، يرجى الانتظار دقيقة واحدة أو التحقق من قائمة طلباتك للتأكد من وصول الطلب"
         });
       }
     } catch (err) {
