@@ -18,7 +18,9 @@ import {
   Layout as LayoutIcon,
   Shield,
   Truck,
-  ShoppingCart
+  ShoppingCart,
+  Clock,
+  Store
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -115,6 +117,112 @@ export function UiControlPanel() {
               />
               <Button onClick={() => handleSaveSetting('sidebar_image_url')}>حفظ</Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* إعدادات حالة المتجر وأوقات العمل */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Store className="h-5 w-5" />
+            حالة المتجر وأوقات العمل (Global)
+          </CardTitle>
+          <CardDescription>
+            التحكم في فتح وإغلاق التطبيق برمجياً وتحديد ساعات العمل الرسمية
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
+            <div className="space-y-0.5">
+              <Label htmlFor="store_status" className="text-base font-bold">حالة المتجر الحالية</Label>
+              <p className="text-sm text-muted-foreground">
+                {isFeatureEnabled('store_status') ? "المتجر مفتوح ويستقبل الطلبات" : "المتجر مغلق حالياً ولن يتمكن العملاء من الطلب"}
+              </p>
+            </div>
+            <Switch
+              id="store_status"
+              checked={isFeatureEnabled('store_status')}
+              onCheckedChange={(checked) => handleToggle('store_status', checked)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>وقت الفتح (مثال: 08:00)</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={localSettings['opening_time'] || ''} 
+                  onChange={(e) => handleInputChange('opening_time', e.target.value)}
+                  placeholder="08:00"
+                />
+                <Button onClick={() => handleSaveSetting('opening_time')}>حفظ</Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>وقت الإغلاق (مثال: 23:00)</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={localSettings['closing_time'] || ''} 
+                  onChange={(e) => handleInputChange('closing_time', e.target.value)}
+                  placeholder="23:00"
+                />
+                <Button onClick={() => handleSaveSetting('closing_time')}>حفظ</Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* إعدادات تتبع الطلبات والتوصيل */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            إعدادات تتبع الطلبات والتوصيل
+          </CardTitle>
+          <CardDescription>
+            تحديد ساعات عمل السائقين والتحكم في ميزة الطلبات المجدولة
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>وقت بدء عمل السائقين</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={localSettings['driver_start_time'] || ''} 
+                  onChange={(e) => handleInputChange('driver_start_time', e.target.value)}
+                  placeholder="09:00"
+                />
+                <Button onClick={() => handleSaveSetting('driver_start_time')}>حفظ</Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>وقت نهاية عمل السائقين</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={localSettings['driver_end_time'] || ''} 
+                  onChange={(e) => handleInputChange('driver_end_time', e.target.value)}
+                  placeholder="22:00"
+                />
+                <Button onClick={() => handleSaveSetting('driver_end_time')}>حفظ</Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
+            <div className="space-y-0.5">
+              <Label htmlFor="enable_scheduled_orders" className="text-base font-bold">تفعيل الطلبات المجدولة</Label>
+              <p className="text-sm text-muted-foreground">
+                السماح للعملاء بجدولة طلباتهم في أوقات لاحقة عند عدم توفر سائقين
+              </p>
+            </div>
+            <Switch
+              id="enable_scheduled_orders"
+              checked={isFeatureEnabled('enable_scheduled_orders')}
+              onCheckedChange={(checked) => handleToggle('enable_scheduled_orders', checked)}
+            />
           </div>
         </CardContent>
       </Card>
