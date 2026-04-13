@@ -186,6 +186,16 @@ export function getAppStatus(openingTime: string, closingTime: string, storeStat
     };
   }
 
+  // إذا كان المتجر مفتوحاً يدوياً، نتجاوز فحص الوقت تماماً
+  if (storeStatus === 'open') {
+    return {
+      isOpen: true,
+      message: 'مفتوح',
+      openingTime,
+      closingTime,
+    };
+  }
+
   const now = new Date();
   const currentTime = now.toTimeString().slice(0, 5);
   const currentMinutes = timeToMinutes(currentTime);
