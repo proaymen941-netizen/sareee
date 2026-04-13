@@ -23,6 +23,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
   const [deliveryFee, setDeliveryFee] = useState(0); 
   const [deliveryDetails, setDeliveryDetails] = useState<any>(null);
   const [isCalculatingFee, setIsCalculatingFee] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -159,6 +160,8 @@ export function Cart({ isOpen, onClose }: CartProps) {
   };
 
   const handleCheckout = async () => {
+    if (isSubmitting) return;
+
     if (!selectedLocation) {
       toast({
         title: "موقع التوصيل مطلوب",
@@ -177,6 +180,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const orderData = {
         customerName: customerInfo.name,
@@ -201,28 +205,30 @@ export function Cart({ isOpen, onClose }: CartProps) {
         body: JSON.stringify(orderData),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const order = await response.json();
-        
         // Save customer info to profile after successful order
         await saveCustomerInfoToProfile();
         
         toast({
           title: "تم تأكيد طلبك بنجاح! 🎉",
-          description: `رقم الطلب: ${order.order?.orderNumber || order.orderNumber}`,
+          description: `رقم الطلب: ${data.order?.orderNumber || data.orderNumber}`,
         });
         clearCart();
         onClose();
       } else {
-        throw new Error('فشل في إرسال الطلب');
+        throw new Error(data.error || data.message || 'فشل في إرسال الطلب');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Order error:', error);
       toast({
         title: "خطأ في إرسال الطلب",
-        description: "يرجى المحاولة مرة أخرى",
+        description: error.message || "يرجى المحاولة مرة أخرى",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -495,13 +501,22 @@ export function Cart({ isOpen, onClose }: CartProps) {
                   <div className="flex flex-col gap-3 pt-4 border-t mt-4">
                     <Button
                       onClick={handleCheckout}
+                      disabled={isSubmitting}
                       className="w-full bg-red-600 text-white py-7 rounded-2xl font-black text-lg hover:bg-red-700 transition-all shadow-xl flex items-center justify-center gap-2"
                     >
-                      تأكيد الطلب بنجاح
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="animate-spin" size={24} />
+                          جاري إرسال الطلب...
+                        </>
+                      ) : (
+                        'تأكيد الطلب بنجاح'
+                      )}
                     </Button>
                     <button
                       onClick={() => setShowCheckout(false)}
-                      className="w-full py-3 text-gray-500 font-bold hover:text-gray-700 transition-colors text-sm"
+                      disabled={isSubmitting}
+                      className="w-full py-3 text-gray-500 font-bold hover:text-gray-700 transition-colors text-sm disabled:opacity-50"
                     >
                       رجوع لتعديل السلة
                     </button>
