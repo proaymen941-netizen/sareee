@@ -1,53 +1,67 @@
 {
+  "packageId": "com.onrender.sareeone_serverwep_6d8v.twa",
+  "host": "sareeone-serverwep-6d8v.onrender.com",
   "name": "السريع ون - توصيل سريع",
-  "short_name": "السريع ون",
-  "description": "أفضل الخضار والفواكه الطازجة توصل لبابك",
-  "start_url": "/",
-  "scope": "/",
+  "launcherName": "السريع ون",
   "display": "standalone",
+  "themeColor": "#F97316",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://sareeone-serverwep-6d8v.onrender.com/icon-512.png",
+  "maskableIconUrl": "https://sareeone-serverwep-6d8v.onrender.com/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "C:\\Users\\DZ\\Downloads\\sareee\\my-release-key.keystore",
+    "alias": "aymykey"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://sareeone-serverwep-6d8v.onrender.com/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": {
+      "enabled": true
+    },
+    "locationDelegation": {
+      "enabled": true
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://sareeone-serverwep-6d8v.onrender.com/",
+  "minSdkVersion": 21,
   "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#f97316",
-  "lang": "ar",
-  "dir": "rtl",
-  "categories": ["food", "shopping"],
-  "icons": [
+  "fingerprints": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "sha256Fingerprint": "6B:E7:EA:08:6F:70:78:E0:1D:B0:70:94:39:96:FD:CF:04:22:62:C0:51:1F:94:04:AF:DA:B9:16:2A:9D:BC:E8"
     }
   ],
-  "screenshots": [],
-  "shortcuts": [
+  "protocolHandlers": [
     {
-      "name": "الطلبات",
-      "url": "/orders",
-      "description": "عرض طلباتي"
+      "protocol": "tel",
+      "url": "/call?number=%s"
     },
     {
-      "name": "واتساب",
-      "url": "/whatsapp",
-      "description": "التواصل عبر واتساب"
-    },
-    {
-      "name": "اتصال",
-      "url": "/call",
-      "description": "اتصال مباشر"
+      "protocol": "whatsapp",
+      "url": "/whatsapp?number=%s"
     }
   ],
-  "related_applications": [
-    {
-      "platform": "play",
-      "url": "https://play.google.com/store/apps/details?id=com.onrender.sareeone_serverwep_6d8v.twa"
-    }
-  ],
-  "prefer_related_applications": false
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "1"
 }
