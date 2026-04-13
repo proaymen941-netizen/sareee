@@ -37,6 +37,25 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // منع تكرار الطلب (خلال آخر 60 ثانية)
+    try {
+      const recentOrders = await storage.getOrdersByCustomer(customerPhone);
+      const sixtySecondsAgo = new Date(Date.now() - 60 * 1000);
+      const isDuplicate = recentOrders.some(order => 
+        new Date(order.createdAt) > sixtySecondsAgo && 
+        order.totalAmount === String(totalAmount) &&
+        order.status !== 'cancelled'
+      );
+
+      if (isDuplicate) {
+        return res.status(400).json({ 
+          error: "لقد قمت بإرسال طلب مماثل مؤخراً، يرجى الانتظار قليلاً أو التحقق من قائمة طلباتك"
+        });
+      }
+    } catch (err) {
+      console.error("خطأ في التحقق من الطلبات المتكررة:", err);
+    }
+
     // التحقق من ساعات عمل التطبيق العالمية
     // الطلبات المؤجلة (scheduled) تتجاوز فحص ساعات الموصلين لكن لا تتجاوز إغلاق المتجر الإداري
     const isScheduledOrder = deliveryPreference === 'scheduled';
@@ -205,6 +224,19 @@ router.post("/", async (req, res) => {
         message: adminNotifMsg,
         recipientType: 'admin',
         recipientId: null,
+        orderId: order.id,
+        isRead: false
+      });
+
+      // إشعار للعميل بتأكيد استلام الطلب
+      await storage.createNotification({
+        type: 'order_status_update',
+        title: isScheduledOrder ? 'تم جدولة طلبك' : 'تم استلام طلبك',
+        message: isScheduledOrder 
+          ? `تم جدولة طلبك رقم ${orderNumber} للتوصيل في ${req.body.scheduledDate} ${req.body.scheduledTimeSlot}`
+          : `تم استلام طلبك رقم ${orderNumber} وهو قيد المراجعة حالياً`,
+        recipientType: 'customer',
+        recipientId: customerId || customerPhone,
         orderId: order.id,
         isRead: false
       });

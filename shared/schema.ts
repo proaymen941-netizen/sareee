@@ -257,7 +257,7 @@ export const orderTracking = pgTable("order_tracking", {
   orderId: uuid("order_id").references(() => orders.id).notNull(),
   status: varchar("status", { length: 50 }).notNull(),
   message: text("message").notNull(),
-  createdBy: uuid("created_by").notNull(),
+  createdBy: text("created_by").notNull(),
   createdByType: varchar("created_by_type", { length: 50 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
