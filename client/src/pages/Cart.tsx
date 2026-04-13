@@ -10,8 +10,19 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useCart } from '../context/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/queryClient';
 import { formatCurrency } from '@/lib/utils';
 import { useUserLocation } from '@/context/LocationContext';
@@ -34,17 +45,19 @@ export default function Cart() {
   const { state, removeItem, updateQuantity, clearCart, setDeliveryFee } = useCart();
   const { items, subtotal, total, deliveryFee, restaurantId } = state;
   const { toast } = useToast();
+  const { user } = useAuth();
   const { location: userLocation } = useUserLocation();
   const { isOnline } = useNetworkStatus();
 
   const [showScheduledDialog, setShowScheduledDialog] = useState(false);
+  const [showConfirmOrder, setShowConfirmOrder] = useState(false);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
   const [orderForm, setOrderForm] = useState({
-    customerName: localStorage.getItem('customer_name') || '',
-    customerPhone: localStorage.getItem('customer_phone') || '',
-    customerEmail: localStorage.getItem('customer_email') || '',
-    deliveryAddress: '',
+    customerName: user?.name || localStorage.getItem('customer_name') || '',
+    customerPhone: user?.phone || localStorage.getItem('customer_phone') || '',
+    customerEmail: user?.email || localStorage.getItem('customer_email') || '',
+    deliveryAddress: user?.address || '',
     notes: '',
     paymentMethod: 'cash',
     deliveryTime: 'now',
@@ -188,6 +201,7 @@ export default function Cart() {
     customerName: orderForm.customerName,
     customerPhone: orderForm.customerPhone,
     customerEmail: orderForm.customerEmail || undefined,
+    customerId: user?.id || undefined,
     deliveryAddress: orderForm.deliveryAddress,
     notes: orderForm.notes || undefined,
     paymentMethod: orderForm.paymentMethod,
@@ -263,6 +277,11 @@ export default function Cart() {
       }
     }
 
+    setShowConfirmOrder(true);
+  };
+
+  const confirmAndPlaceOrder = () => {
+    setShowConfirmOrder(false);
     placeOrderMutation.mutate(buildOrderData());
   };
 
@@ -274,6 +293,27 @@ export default function Cart() {
         onConfirm={handleScheduledConfirm}
         driverStartTime={driverHours.start}
       />
+
+      <AlertDialog open={showConfirmOrder} onOpenChange={setShowConfirmOrder}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right">تأكيد الطلب</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              هل أنت متأكد من رغبتك في إرسال هذا الطلب بإجمالي {formatCurrency(subtotal + deliveryFee)}؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row gap-2 justify-end">
+            <AlertDialogCancel className="mt-0">إلغاء</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmAndPlaceOrder}
+              className="bg-black hover:bg-red-600 text-white"
+            >
+              تأكيد وإرسال
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {!isOnline && (
         <div className="bg-red-600 text-white text-center py-2 px-4 flex items-center justify-center gap-2 text-sm font-bold">
           <WifiOff className="h-4 w-4" />
