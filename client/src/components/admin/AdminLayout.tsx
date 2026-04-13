@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -42,24 +42,240 @@ interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
+interface MenuGroup {
+  key: string;
+  label: string;
+  items: {
+    icon: React.ElementType;
+    label: string;
+    path: string;
+    permission: string | null;
+    badge?: number;
+  }[];
+}
+
+interface NavItemsProps {
+  menuGroups: MenuGroup[];
+  location: string;
+  onNavigate: (path: string) => void;
+  navRef: React.RefObject<HTMLDivElement>;
+  onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
+}
+
+const NavItems = React.memo(({ menuGroups, location, onNavigate, navRef, onScroll }: NavItemsProps) => (
+  <nav ref={navRef} className="flex-1 p-3 overflow-y-auto" onScroll={onScroll}>
+    {menuGroups.map((group) => (
+      <div key={group.key} className="mb-4">
+        <p className="text-[10px] font-bold text-gray-400 uppercase px-2 mb-1.5 tracking-widest">
+          {group.label}
+        </p>
+        <div className="space-y-0.5">
+          {group.items.map((item) => {
+            const Icon = item.icon;
+            const isActive = location === item.path ||
+              (item.path !== '/admin' && location.startsWith(item.path));
+            const badge = item.badge;
+
+            return (
+              <button
+                key={item.path}
+                onClick={() => onNavigate(item.path)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right transition-all duration-150 ${
+                  isActive
+                    ? 'bg-primary text-white shadow-md shadow-primary/30'
+                    : 'text-gray-700 hover:bg-primary/5 hover:text-primary'
+                }`}
+              >
+                <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400'}`} />
+                <span className={`flex-1 font-medium text-sm text-right ${isActive ? 'text-white' : 'text-gray-800'}`}>
+                  {item.label}
+                </span>
+                {badge && badge > 0 && (
+                  <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center font-bold">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    ))}
+  </nav>
+));
+NavItems.displayName = 'NavItems';
+
+interface SidebarHeaderProps {
+  sidebarImageUrl: string;
+  appName: string;
+}
+
+const SidebarHeader = React.memo(({ sidebarImageUrl, appName }: SidebarHeaderProps) => (
+  <>
+    {sidebarImageUrl ? (
+      <div className="w-full h-36 border-b overflow-hidden relative flex-shrink-0">
+        <img src={sidebarImageUrl} alt="خلفية القائمة" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+          <div>
+            <h2 className="text-white font-bold text-sm leading-tight">لوحة تحكم وادارة</h2>
+            <p className="text-white/80 text-xs font-medium">{appName}</p>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div className="p-4 border-b flex-shrink-0 header-gradient">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <BarChart3 className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-white leading-tight">لوحة تحكم وادارة</h2>
+            <p className="text-white/80 text-xs">{appName}</p>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
+));
+SidebarHeader.displayName = 'SidebarHeader';
+
+interface AdminAvatarProps {
+  name: string | null;
+  size?: 'sm' | 'md';
+}
+
+const AdminAvatar = React.memo(({ name, size = 'md' }: AdminAvatarProps) => (
+  <div className={`${size === 'sm' ? 'w-7 h-7 text-xs' : 'w-9 h-9 text-sm'} bg-primary rounded-full flex items-center justify-center flex-shrink-0`}>
+    <span className="text-white font-bold">
+      {name ? name.charAt(0) : 'م'}
+    </span>
+  </div>
+));
+AdminAvatar.displayName = 'AdminAvatar';
+
+interface SidebarAdminInfoProps {
+  name: string;
+  isSubAdmin: boolean;
+}
+
+const SidebarAdminInfo = React.memo(({ name, isSubAdmin }: SidebarAdminInfoProps) => (
+  <div className="px-3 py-2.5 border-b bg-gray-50 flex-shrink-0">
+    <div className="flex items-center gap-2">
+      <AdminAvatar name={name} size="sm" />
+      <div className="min-w-0">
+        <p className="font-semibold text-gray-900 text-sm truncate">
+          {name || 'مدير النظام'}
+        </p>
+        <p className="text-xs text-gray-500">
+          {isSubAdmin ? 'مشرف' : 'صلاحيات كاملة'}
+        </p>
+      </div>
+    </div>
+  </div>
+));
+SidebarAdminInfo.displayName = 'SidebarAdminInfo';
+
+interface SidebarFooterProps {
+  onLogout: () => void;
+}
+
+const SidebarFooter = React.memo(({ onLogout }: SidebarFooterProps) => (
+  <div className="p-3 border-t flex-shrink-0">
+    <Button
+      variant="outline"
+      onClick={onLogout}
+      className="w-full flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
+      size="sm"
+    >
+      <LogOut className="h-4 w-4" />
+      تسجيل الخروج
+    </Button>
+  </div>
+));
+SidebarFooter.displayName = 'SidebarFooter';
+
+interface NotificationsPanelProps {
+  pendingOrders: any[];
+  pendingOrdersCount: number;
+  onClose: () => void;
+  onNavigate: (path: string) => void;
+}
+
+const NotificationsPanel = React.memo(({ pendingOrders, pendingOrdersCount, onClose, onNavigate }: NotificationsPanelProps) => (
+  <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50">
+    <div className="p-3 border-b flex items-center justify-between">
+      <h3 className="font-bold text-sm">الإشعارات</h3>
+      <div className="flex items-center gap-2">
+        {pendingOrdersCount > 0 && (
+          <Badge variant="destructive" className="text-xs">{pendingOrdersCount} طلب جديد</Badge>
+        )}
+        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+    <div className="max-h-64 overflow-y-auto">
+      {pendingOrders.length > 0 ? (
+        pendingOrders.slice(0, 6).map((order: any) => (
+          <div
+            key={order.id}
+            className="p-3 border-b hover:bg-primary/5 cursor-pointer transition-colors"
+            onClick={() => { onNavigate('/admin/orders'); onClose(); }}
+          >
+            <div className="flex items-start gap-2">
+              <div className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0"></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">طلب جديد #{order.orderNumber || order.id?.slice(0, 8)}</p>
+                <p className="text-xs text-gray-500 truncate">{order.customerName || 'عميل'} — {order.totalAmount} ريال</p>
+                <p className="text-xs text-red-500 mt-0.5">بانتظار تعيين سائق</p>
+              </div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="p-8 text-center text-gray-400">
+          <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">لا توجد إشعارات جديدة</p>
+        </div>
+      )}
+    </div>
+    {pendingOrders.length > 6 && (
+      <div className="p-2 border-t">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-primary hover:bg-primary/5 text-xs"
+          onClick={() => { onNavigate('/admin/orders'); onClose(); }}
+        >
+          عرض جميع الطلبات ({pendingOrders.length})
+        </Button>
+      </div>
+    )}
+  </div>
+));
+NotificationsPanel.displayName = 'NotificationsPanel';
+
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [location, setLocation] = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
   const mobileNavRef = useRef<HTMLDivElement>(null);
+  const navScrollRef = useRef(0);
+  const mobileNavScrollRef = useRef(0);
 
-  const currentAdmin = (() => {
+  const currentAdmin = useMemo(() => {
     try {
       const stored = localStorage.getItem('admin_user');
       return stored ? JSON.parse(stored) : null;
     } catch { return null; }
-  })();
+  }, []);
+
   const isSubAdmin = currentAdmin?.userType === 'sub_admin';
   const adminPermissions: string[] = currentAdmin?.permissions || [];
   const isSetupMode = currentAdmin?.isSetupMode === true || localStorage.getItem('admin_token') === 'SETUP_MODE';
 
-  const hasPermission = (perm: string | null) => perm === null || !isSubAdmin || adminPermissions.includes(perm);
+  const hasPermission = useCallback((perm: string | null) => perm === null || !isSubAdmin || adminPermissions.includes(perm), [isSubAdmin, adminPermissions]);
 
   const { data: uiSettings } = useQuery<UiSettings[]>({
     queryKey: ['/api/admin/ui-settings'],
@@ -76,24 +292,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   );
   const pendingOrdersCount = pendingOrders.length;
 
-  useEffect(() => {
-    const savedScroll = sessionStorage.getItem('admin_sidebar_scroll');
-    if (savedScroll && navRef.current) {
-      navRef.current.scrollTop = parseInt(savedScroll, 10);
-    }
-  }, []);
+  const getLogoUrl = useCallback(() => uiSettings?.find(s => s.key === 'header_logo_url')?.value || '', [uiSettings]);
+  const getSidebarImageUrl = useCallback(() => uiSettings?.find(s => s.key === 'sidebar_image_url')?.value || '', [uiSettings]);
+  const getAppName = useCallback(() => uiSettings?.find(s => s.key === 'app_name')?.value || 'السريع ون', [uiSettings]);
 
-  const saveScrollPosition = useCallback(() => {
-    if (navRef.current) {
-      sessionStorage.setItem('admin_sidebar_scroll', String(navRef.current.scrollTop));
-    }
-  }, []);
-
-  const getLogoUrl = () => uiSettings?.find(s => s.key === 'header_logo_url')?.value || '';
-  const getSidebarImageUrl = () => uiSettings?.find(s => s.key === 'sidebar_image_url')?.value || '';
-  const getAppName = () => uiSettings?.find(s => s.key === 'app_name')?.value || 'السريع ون';
-
-  const menuGroups = [
+  const menuGroups = useMemo((): MenuGroup[] => [
     {
       key: 'main',
       label: 'الرئيسية',
@@ -101,7 +304,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: BarChart3, label: 'لوحة التحكم', path: '/admin', permission: null },
         { icon: Activity, label: 'لوحة تحكم متقدمة', path: '/admin/dashboard-advanced', permission: 'view_reports' },
         { icon: ShoppingBag, label: 'الطلبات', path: '/admin/orders', badge: pendingOrdersCount, permission: 'manage_orders' },
-      ]
+      ].filter(item => hasPermission(item.permission))
     },
     {
       key: 'restaurants',
@@ -112,7 +315,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: Clock, label: 'ساعات العمل', path: '/admin/business-hours', permission: 'manage_menu' },
         { icon: Receipt, label: 'حسابات المتاجر', path: '/admin/restaurant-accounts', permission: 'manage_menu' },
         { icon: FileBarChart, label: 'تقارير المتاجر', path: '/admin/restaurant-reports', permission: 'view_reports' },
-      ]
+      ].filter(item => hasPermission(item.permission))
     },
     {
       key: 'store',
@@ -124,7 +327,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: Zap, label: 'العروض المميزة', path: '/admin/offers', permission: 'manage_menu' },
         { icon: Ticket, label: 'الكوبونات', path: '/admin/coupons', permission: 'manage_coupons' },
         { icon: CreditCard, label: 'طرق الدفع', path: '/admin/payment-methods', permission: 'manage_settings' },
-      ]
+      ].filter(item => hasPermission(item.permission))
     },
     {
       key: 'drivers',
@@ -133,7 +336,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: Truck, label: 'إدارة السائقين', path: '/admin/drivers', permission: 'manage_drivers' },
         { icon: DollarSign, label: 'رسوم التوصيل', path: '/admin/delivery-fees', permission: 'manage_drivers' },
         { icon: Wallet, label: 'محافظ السائقين', path: '/admin/wallet', permission: 'manage_drivers' },
-      ]
+      ].filter(item => hasPermission(item.permission))
     },
     {
       key: 'reports',
@@ -143,7 +346,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: BarChart3, label: 'التقارير التفصيلية', path: '/admin/detailed-reports', permission: 'view_reports' },
         { icon: FileBarChart, label: 'التقارير المتقدمة', path: '/admin/advanced-reports', permission: 'view_reports' },
         { icon: Star, label: 'التقييمات', path: '/admin/ratings', permission: 'view_reports' },
-      ]
+      ].filter(item => hasPermission(item.permission))
     },
     {
       key: 'management',
@@ -153,27 +356,42 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: Users, label: 'العملاء', path: '/admin/users', permission: 'manage_customers' },
         { icon: Shield, label: 'الأمن والخصوصية', path: '/admin/security', permission: 'manage_settings' },
         { icon: Bell, label: 'الإشعارات', path: '/admin/notifications', permission: 'manage_settings' },
-      ]
+      ].filter(item => hasPermission(item.permission))
     },
     {
       key: 'settings',
       label: 'الإعدادات',
       items: [
-        { icon: Smartphone, label: 'إدارة الواجهات', path: '/admin/ui-settings', permission: 'manage_settings' },
-        { icon: Settings, label: 'إعدادات النظام', path: '/admin/settings', permission: 'manage_settings' },
+        { icon: Smartphone, label: 'إدارة الواجهات والإعدادات', path: '/admin/ui-settings', permission: 'manage_settings' },
         { icon: Database, label: 'النسخ الاحتياطي', path: '/admin/backup', permission: 'manage_settings' },
         { icon: User, label: 'الملف الشخصي', path: '/admin/profile', permission: null },
-      ]
+      ].filter(item => hasPermission(item.permission))
     },
-  ];
+  ], [pendingOrdersCount, hasPermission]);
+
+  const handleNavScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    navScrollRef.current = (e.currentTarget as HTMLDivElement).scrollTop;
+  }, []);
+
+  const handleMobileNavScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    mobileNavScrollRef.current = (e.currentTarget as HTMLDivElement).scrollTop;
+  }, []);
+
+  useLayoutEffect(() => {
+    if (navRef.current && navScrollRef.current > 0) {
+      navRef.current.scrollTop = navScrollRef.current;
+    }
+    if (mobileNavRef.current && mobileNavScrollRef.current > 0) {
+      mobileNavRef.current.scrollTop = mobileNavScrollRef.current;
+    }
+  });
 
   const handleNavigation = useCallback((path: string) => {
-    saveScrollPosition();
     setLocation(path);
     setIsSidebarOpen(false);
-  }, [saveScrollPosition, setLocation]);
+  }, [setLocation]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     try {
       const adminUser = localStorage.getItem('admin_user');
       const user = adminUser ? JSON.parse(adminUser) : null;
@@ -187,11 +405,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     } catch {}
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_user');
-    sessionStorage.removeItem('admin_sidebar_scroll');
     window.location.href = '/admin-login';
-  };
+  }, []);
 
-  const getCurrentPageLabel = () => {
+  const getCurrentPageLabel = useCallback(() => {
     for (const group of menuGroups) {
       for (const item of group.items) {
         if (location === item.path || (item.path !== '/admin' && location.startsWith(item.path))) {
@@ -200,206 +417,31 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       }
     }
     return 'لوحة التحكم';
-  };
+  }, [location, menuGroups]);
 
-  const AdminAvatar = ({ size = 'md' }: { size?: 'sm' | 'md' }) => (
-    <div className={`${size === 'sm' ? 'w-7 h-7 text-xs' : 'w-9 h-9 text-sm'} bg-primary rounded-full flex items-center justify-center flex-shrink-0`}>
-      <span className="text-white font-bold">
-        {currentAdmin?.name ? currentAdmin.name.charAt(0) : 'م'}
-      </span>
-    </div>
-  );
-
-  const NavItems = ({ navElRef }: { navElRef: React.RefObject<HTMLDivElement> }) => (
-    <nav ref={navElRef} className="flex-1 p-3 overflow-y-auto">
-      {menuGroups.map((group) => {
-        const visibleItems = group.items.filter(item => hasPermission((item as any).permission));
-        if (visibleItems.length === 0) return null;
-        return (
-          <div key={group.key} className="mb-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase px-2 mb-1.5 tracking-widest">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {visibleItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location === item.path ||
-                  (item.path !== '/admin' && location.startsWith(item.path));
-                const badge = (item as any).badge;
-
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => handleNavigation(item.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right transition-all duration-150 ${
-                      isActive
-                        ? 'bg-primary text-white shadow-md shadow-primary/30'
-                        : 'text-gray-700 hover:bg-primary/5 hover:text-primary'
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400'}`} />
-                    <span className={`flex-1 font-medium text-sm text-right ${isActive ? 'text-white' : 'text-gray-800'}`}>
-                      {item.label}
-                    </span>
-                    {badge > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center font-bold">
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </nav>
-  );
-
-  const SidebarHeader = () => (
-    <>
-      {getSidebarImageUrl() ? (
-        <div className="w-full h-36 border-b overflow-hidden relative flex-shrink-0">
-          <img src={getSidebarImageUrl()} alt="خلفية القائمة" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
-            <div>
-              <h2 className="text-white font-bold text-sm leading-tight">لوحة تحكم وادارة</h2>
-              <p className="text-white/80 text-xs font-medium">{getAppName()}</p>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="p-4 border-b flex-shrink-0 header-gradient">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-              <BarChart3 className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-white leading-tight">لوحة تحكم وادارة</h2>
-              <p className="text-white/80 text-xs">{getAppName()}</p>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="px-3 py-2.5 border-b bg-gray-50 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <AdminAvatar size="sm" />
-          <div className="min-w-0">
-            <p className="font-semibold text-gray-900 text-sm truncate">
-              {currentAdmin?.name || 'مدير النظام'}
-            </p>
-            <p className="text-xs text-gray-500">
-              {isSubAdmin ? 'مشرف' : 'صلاحيات كاملة'}
-            </p>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-
-  const SidebarFooter = () => (
-    <div className="p-3 border-t flex-shrink-0">
-      <Button
-        variant="outline"
-        onClick={handleLogout}
-        className="w-full flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
-        size="sm"
-      >
-        <LogOut className="h-4 w-4" />
-        تسجيل الخروج
-      </Button>
-    </div>
-  );
-
-  const NotificationsPanel = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <div className={`absolute ${isMobile ? 'left-0' : 'left-0'} top-full mt-2 ${isMobile ? 'w-72' : 'w-80'} bg-white rounded-xl shadow-2xl border border-gray-100 z-50`}>
-      <div className="p-3 border-b flex items-center justify-between">
-        <h3 className="font-bold text-sm">الإشعارات</h3>
-        <div className="flex items-center gap-2">
-          {pendingOrdersCount > 0 && (
-            <Badge variant="destructive" className="text-xs">{pendingOrdersCount} طلب جديد</Badge>
-          )}
-          <button onClick={() => setShowNotifications(false)} className="p-1 text-gray-400 hover:text-gray-600">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-      <div className="max-h-64 overflow-y-auto">
-        {pendingOrders.length > 0 ? (
-          pendingOrders.slice(0, 6).map((order: any) => (
-            <div
-              key={order.id}
-              className="p-3 border-b hover:bg-primary/5 cursor-pointer transition-colors"
-              onClick={() => { handleNavigation('/admin/orders'); setShowNotifications(false); }}
-            >
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">طلب جديد #{order.orderNumber || order.id?.slice(0, 8)}</p>
-                  <p className="text-xs text-gray-500 truncate">{order.customerName || 'عميل'} — {order.totalAmount} ريال</p>
-                  <p className="text-xs text-red-500 mt-0.5">بانتظار تعيين سائق</p>
-                </div>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="p-8 text-center text-gray-400">
-            <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">لا توجد إشعارات جديدة</p>
-          </div>
-        )}
-      </div>
-      {pendingOrders.length > 6 && (
-        <div className="p-2 border-t">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-primary hover:bg-primary/5 text-xs"
-            onClick={() => { handleNavigation('/admin/orders'); setShowNotifications(false); }}
-          >
-            عرض جميع الطلبات ({pendingOrders.length})
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-
-  const BellButton = () => (
-    <div className="relative">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="relative h-9 w-9"
-        onClick={() => setShowNotifications(!showNotifications)}
-      >
-        <Bell className="h-5 w-5" />
-        {pendingOrdersCount > 0 && (
-          <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
-            {pendingOrdersCount > 9 ? '9+' : pendingOrdersCount}
-          </span>
-        )}
-      </Button>
-      {showNotifications && <NotificationsPanel />}
-    </div>
-  );
+  const adminName = currentAdmin?.name || 'مدير النظام';
+  const sidebarImageUrl = getSidebarImageUrl();
+  const appName = getAppName();
+  const logoUrl = getLogoUrl();
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden" dir="rtl">
-      {/* Desktop Sidebar - fixed height, no scrolling outside */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white border-l shadow-lg flex-shrink-0 h-full">
-        <SidebarHeader />
-        <NavItems navElRef={navRef} />
-        <SidebarFooter />
+      <aside className="hidden lg:flex flex-col w-64 bg-white border-l shadow-lg flex-shrink-0 h-full overflow-hidden">
+        <SidebarHeader sidebarImageUrl={sidebarImageUrl} appName={appName} />
+        <SidebarAdminInfo name={adminName} isSubAdmin={isSubAdmin} />
+        <NavItems
+          menuGroups={menuGroups}
+          location={location}
+          onNavigate={handleNavigation}
+          navRef={navRef}
+          onScroll={handleNavScroll}
+        />
+        <SidebarFooter onLogout={handleLogout} />
       </aside>
 
-      {/* Right Side: Header + Scrollable Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-        {/* Sticky Top Header - never scrolls */}
         <header className="bg-white border-b flex items-center justify-between px-4 py-3 flex-shrink-0 shadow-sm z-30">
-          {/* Left: Logo / Page label */}
           <div className="flex items-center gap-3">
-            {/* Mobile menu button */}
             <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="sm" className="lg:hidden h-9 w-9">
@@ -407,14 +449,21 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-64 p-0 flex flex-col border-none">
-                <SidebarHeader />
-                <NavItems navElRef={mobileNavRef} />
-                <SidebarFooter />
+                <SidebarHeader sidebarImageUrl={sidebarImageUrl} appName={appName} />
+                <SidebarAdminInfo name={adminName} isSubAdmin={isSubAdmin} />
+                <NavItems
+                  menuGroups={menuGroups}
+                  location={location}
+                  onNavigate={handleNavigation}
+                  navRef={mobileNavRef}
+                  onScroll={handleMobileNavScroll}
+                />
+                <SidebarFooter onLogout={handleLogout} />
               </SheetContent>
             </Sheet>
 
-            {getLogoUrl() ? (
-              <img src={getLogoUrl()} alt="شعار" className="h-8 object-contain" />
+            {logoUrl ? (
+              <img src={logoUrl} alt="شعار" className="h-8 object-contain" />
             ) : (
               <div>
                 <p className="font-bold text-gray-900 text-sm leading-tight hidden lg:block">
@@ -427,28 +476,48 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             )}
           </div>
 
-          {/* Right: Notifications + Profile */}
           <div className="flex items-center gap-1">
-            <BellButton />
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="relative h-9 w-9"
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <Bell className="h-5 w-5" />
+                {pendingOrdersCount > 0 && (
+                  <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
+                    {pendingOrdersCount > 9 ? '9+' : pendingOrdersCount}
+                  </span>
+                )}
+              </Button>
+              {showNotifications && (
+                <NotificationsPanel
+                  pendingOrders={pendingOrders}
+                  pendingOrdersCount={pendingOrdersCount}
+                  onClose={() => setShowNotifications(false)}
+                  onNavigate={handleNavigation}
+                />
+              )}
+            </div>
             <button
               className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               onClick={() => handleNavigation('/admin/profile')}
             >
-              <AdminAvatar />
+              <AdminAvatar name={adminName} />
               <span className="text-sm font-medium text-gray-700">
-                {currentAdmin?.name || 'مدير النظام'}
+                {adminName}
               </span>
             </button>
             <button
               className="lg:hidden"
               onClick={() => handleNavigation('/admin/profile')}
             >
-              <AdminAvatar size="sm" />
+              <AdminAvatar name={adminName} size="sm" />
             </button>
           </div>
         </header>
 
-        {/* Scrollable Page Content */}
         <main className="flex-1 overflow-y-auto">
           {isSetupMode && (
             <div className="bg-amber-500 text-white px-4 py-2.5 text-sm flex items-center justify-between gap-3 flex-wrap" dir="rtl">
@@ -467,7 +536,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      {/* Overlay to close notifications */}
       {showNotifications && (
         <div className="fixed inset-0 z-20" onClick={() => setShowNotifications(false)} />
       )}
