@@ -27,6 +27,7 @@ interface Driver {
 }
 
 interface ProfilePageProps {
+  driverId?: string;
   onLogout: () => void;
 }
 

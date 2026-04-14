@@ -19,6 +19,7 @@ interface Order {
 }
 
 interface HistoryPageProps {
+  driverId?: string;
   onSelectOrder: (orderId: string) => void;
 }
 
