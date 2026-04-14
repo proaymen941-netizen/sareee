@@ -8,37 +8,23 @@ import { AdvancedDatabaseStorage } from "../db-advanced";
 
 const router = express.Router();
 
-// --- مسارات عامة أو للإدارة (لا تتطلب توكن سائق) ---
+// ================================================================
+// المسارات العامة (للإدارة - لا تتطلب توكن سائق)
+// ================================================================
 
 // جلب جميع السائقين
 router.get("/", async (req, res) => {
   try {
     const { available } = req.query;
     let drivers;
-    
     if (available === 'true') {
       drivers = await storage.getAvailableDrivers();
     } else {
       drivers = await storage.getDrivers();
     }
-    
     res.json(drivers);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch drivers" });
-  }
-});
-
-// جلب سائق محدد بالمعرف
-router.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const driver = await storage.getDriver(id);
-    if (!driver) {
-      return res.status(404).json({ message: "Driver not found" });
-    }
-    res.json(driver);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch driver" });
   }
 });
 
@@ -51,77 +37,43 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error("خطأ في إضافة سائق:", error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        message: "بيانات السائق غير صحيحة", 
-        details: error.errors 
+      return res.status(400).json({
+        message: "بيانات السائق غير صحيحة",
+        details: error.errors
       });
     }
-    res.status(400).json({ 
-      message: error instanceof Error ? error.message : "حدث خطأ أثناء إضافة السائق" 
+    res.status(400).json({
+      message: error instanceof Error ? error.message : "حدث خطأ أثناء إضافة السائق"
     });
   }
 });
 
-// تحديث بيانات سائق (من لوحة التحكم)
-router.put("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const validatedData = insertDriverSchema.partial().parse(req.body);
-    const driver = await storage.updateDriver(id, validatedData);
-    if (!driver) {
-      return res.status(404).json({ message: "Driver not found" });
-    }
-    res.json(driver);
-  } catch (error) {
-    res.status(400).json({ message: "Invalid driver data" });
-  }
-});
+// ================================================================
+// مسارات تطبيق السائق المحمية (تتطلب توكن سائق)
+// ملاحظة مهمة: يجب تعريف المسارات المحددة قبل مسارات الـ wildcard
+// ================================================================
 
-// حذف سائق
-router.delete("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const success = await storage.deleteDriver(id);
-    if (!success) {
-      return res.status(404).json({ message: "Driver not found" });
-    }
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ message: "Failed to delete driver" });
-  }
-});
-
-// --- مسارات خاصة بالسائق (تتطلب توكن سائق) ---
-
-// تطبيق ميدل وير المصادقة على المسارات التالية فقط
-router.use(requireDriverAuth);
-
-// جلب لوحة معلومات السائق (Dashboard)
-router.get("/app/dashboard", async (req: AuthenticatedRequest, res) => {
+// لوحة معلومات السائق
+router.get("/app/dashboard", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
-    
-    // التحقق من وجود السائق
+
     const driver = await storage.getDriver(driverId);
     if (!driver) {
       return res.status(404).json({ error: "السائق غير موجود" });
     }
 
-    // جلب جميع الطلبات وفلترتها
     const allOrders = await storage.getOrders();
     const driverOrders = allOrders.filter(order => order.driverId === driverId);
-    
-    // جلب معلومات الرصيد
+
     const driverBalance = await storage.getDriverBalance(driverId);
     const driverCommissions = await storage.getDriverCommissions(driverId);
-    
-    // جلب المراجعات (التقييمات)
+
     const advStorage = new AdvancedDatabaseStorage(storage.db);
     const driverReviews = await advStorage.getDriverReviews(driverId);
-    
-    // حساب الإحصائيات
+
     const todayStr = new Date().toDateString();
-    
+
     const todayOrders = driverOrders.filter(order => {
       try {
         const createdDate = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
@@ -131,8 +83,7 @@ router.get("/app/dashboard", async (req: AuthenticatedRequest, res) => {
       }
     });
     const completedToday = todayOrders.filter(order => order.status === "delivered");
-    
-    // حساب الأرباح من العمولات
+
     const commissionsToday = driverCommissions.filter(commission => {
       try {
         const createdDate = commission.createdAt instanceof Date ? commission.createdAt : new Date(commission.createdAt);
@@ -141,22 +92,20 @@ router.get("/app/dashboard", async (req: AuthenticatedRequest, res) => {
         return false;
       }
     });
-    const todayEarnings = commissionsToday.reduce((sum, commission) => 
-      sum + (parseFloat(commission.commissionAmount?.toString()) || 0), 0
-    );
-    
-    const totalEarnings = driverCommissions.reduce((sum, commission) => 
+    const todayEarnings = commissionsToday.reduce((sum, commission) =>
       sum + (parseFloat(commission.commissionAmount?.toString()) || 0), 0
     );
 
-    // الطلبات المتاحة (المُعيَّنة لهذا السائق تحديداً ولكن لم يقبلها بعد)
+    const totalEarnings = driverCommissions.reduce((sum, commission) =>
+      sum + (parseFloat(commission.commissionAmount?.toString()) || 0), 0
+    );
+
     const availableOrders = allOrders
       .filter(order => (order.status === "confirmed" || order.status === "assigned") && order.driverId === driverId)
       .slice(0, 10);
 
-    // الطلبات الحالية للسائق
-    const currentOrders = driverOrders.filter(order => 
-      ["ready", "picked_up", "on_way"].includes(order.status)
+    const currentOrders = driverOrders.filter(order =>
+      ["preparing", "ready", "picked_up", "on_way"].includes(order.status)
     );
 
     res.json({
@@ -193,47 +142,17 @@ router.get("/app/dashboard", async (req: AuthenticatedRequest, res) => {
   }
 });
 
-// جلب طلبات السائق (فلترة حسب الحالة)
-router.get("/orders", async (req: AuthenticatedRequest, res) => {
+// جلب الطلبات المتاحة (قبل /orders لأنه أكثر تحديداً)
+router.get("/orders/available", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
-    const { status } = req.query;
-    
     const allOrders = await storage.getOrders();
-    let driverOrders = allOrders.filter(order => order.driverId === driverId);
-    
-    if (status === 'active') {
-      driverOrders = driverOrders.filter(order => 
-        ['ready', 'picked_up', 'on_way'].includes(order.status)
-      );
-    } else if (status === 'history') {
-      driverOrders = driverOrders.filter(order => 
-        ['delivered', 'cancelled'].includes(order.status)
-      );
-    } else if (status && typeof status === 'string') {
-      driverOrders = driverOrders.filter(order => order.status === status);
-    }
-    
-    driverOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    
-    res.json(driverOrders);
-  } catch (error) {
-    console.error("خطأ في جلب طلبات السائق:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
 
-// جلب الطلبات المتاحة
-router.get("/orders/available", async (req: AuthenticatedRequest, res) => {
-  try {
-    const driverId = req.driverId!;
-    const allOrders = await storage.getOrders();
-    
-    const availableOrders = allOrders.filter(order => 
-      (order.status === "confirmed" || order.status === "assigned") && 
+    const availableOrders = allOrders.filter(order =>
+      (order.status === "confirmed" || order.status === "assigned") &&
       order.driverId === driverId
     );
-    
+
     availableOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     res.json(availableOrders);
   } catch (error) {
@@ -242,12 +161,42 @@ router.get("/orders/available", async (req: AuthenticatedRequest, res) => {
   }
 });
 
+// جلب طلبات السائق (فلترة حسب الحالة)
+router.get("/orders", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const driverId = req.driverId!;
+    const { status } = req.query;
+
+    const allOrders = await storage.getOrders();
+    let driverOrders = allOrders.filter(order => order.driverId === driverId);
+
+    if (status === 'active') {
+      driverOrders = driverOrders.filter(order =>
+        ['preparing', 'ready', 'picked_up', 'on_way'].includes(order.status)
+      );
+    } else if (status === 'history') {
+      driverOrders = driverOrders.filter(order =>
+        ['delivered', 'cancelled'].includes(order.status)
+      );
+    } else if (status && typeof status === 'string') {
+      driverOrders = driverOrders.filter(order => order.status === status);
+    }
+
+    driverOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    res.json(driverOrders);
+  } catch (error) {
+    console.error("خطأ في جلب طلبات السائق:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
 // قبول طلب
-router.post("/orders/:id/accept", async (req: AuthenticatedRequest, res) => {
+router.post("/orders/:id/accept", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
     const driverId = req.driverId!;
-    
+
     const driver = await storage.getDriver(driverId);
     if (!driver) return res.status(404).json({ error: "السائق غير موجود" });
 
@@ -281,22 +230,22 @@ router.post("/orders/:id/accept", async (req: AuthenticatedRequest, res) => {
 });
 
 // تحديث حالة الطلب
-router.put("/orders/:id/status", async (req: AuthenticatedRequest, res) => {
+router.put("/orders/:id/status", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
     const { status, location } = req.body;
     const driverId = req.driverId!;
-    
+
     const order = await storage.getOrder(id);
     if (!order) return res.status(404).json({ error: "الطلب غير موجود" });
     if (order.driverId !== driverId) return res.status(403).json({ error: "غير مصرح لك" });
 
-    const allowedStatuses = ["ready", "picked_up", "on_way", "delivered"];
+    const allowedStatuses = ["preparing", "ready", "picked_up", "on_way", "delivered"];
     if (!allowedStatuses.includes(status)) return res.status(400).json({ error: "حالة غير صحيحة" });
 
     const updateData: any = { status };
     if (location) updateData.currentLocation = location;
-    
+
     if (status === "delivered") {
       updateData.actualDeliveryTime = new Date();
       if (order.driverCommissionAmount && !order.commissionProcessed) {
@@ -308,15 +257,14 @@ router.put("/orders/:id/status", async (req: AuthenticatedRequest, res) => {
           commissionAmount: parseFloat(order.driverCommissionAmount) || 0,
           status: 'approved'
         });
-        
+
         await storage.updateDriverBalance(driverId, {
           amount: parseFloat(order.driverCommissionAmount) || 0,
           type: 'commission',
           description: `عمولة توصيل الطلب رقم: ${order.orderNumber}`,
           orderId: order.id
         });
-        
-        // تحديث إحصائيات السائق في جدول السائقين
+
         const driver = await storage.getDriver(driverId);
         if (driver) {
           const currentEarnings = parseFloat(driver.earnings?.toString() || "0");
@@ -324,10 +272,10 @@ router.put("/orders/:id/status", async (req: AuthenticatedRequest, res) => {
           await storage.updateDriver(driverId, {
             completedOrders: (driver.completedOrders || 0) + 1,
             earnings: (currentEarnings + commissionAmount).toString(),
-            isAvailable: true // إتاحة السائق للطلبات الجديدة بعد التوصيل
+            isAvailable: true
           });
         }
-        
+
         updateData.commissionProcessed = true;
       }
     }
@@ -335,7 +283,7 @@ router.put("/orders/:id/status", async (req: AuthenticatedRequest, res) => {
     const updatedOrder = await storage.updateOrder(id, updateData);
     const ws = req.app.get('ws');
     if (ws) ws.broadcast('order_update', { orderId: id, status, driverId });
-    
+
     res.json({ success: true, order: updatedOrder });
   } catch (error) {
     console.error("خطأ في تحديث حالة الطلب:", error);
@@ -343,12 +291,12 @@ router.put("/orders/:id/status", async (req: AuthenticatedRequest, res) => {
   }
 });
 
-// جلب تفاصيل طلب
-router.get("/orders/:id", async (req: AuthenticatedRequest, res) => {
+// جلب تفاصيل طلب محدد
+router.get("/orders/:id", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
     const driverId = req.driverId!;
-    
+
     const order = await storage.getOrder(id);
     if (!order || order.driverId !== driverId) return res.status(404).json({ error: "الطلب غير موجود" });
 
@@ -359,7 +307,7 @@ router.get("/orders/:id", async (req: AuthenticatedRequest, res) => {
 });
 
 // جلب إحصائيات السائق
-router.get("/stats", async (req: AuthenticatedRequest, res) => {
+router.get("/stats", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
     const driver = await storage.getDriver(driverId);
@@ -367,14 +315,14 @@ router.get("/stats", async (req: AuthenticatedRequest, res) => {
 
     const driverBalance = await storage.getDriverBalance(driverId);
     const driverCommissions = await storage.getDriverCommissions(driverId);
-    
+
     const advStorage = new AdvancedDatabaseStorage(storage.db);
     const driverReviews = await advStorage.getDriverReviews(driverId);
-    
+
     const allOrders = await storage.getOrders();
     const driverOrders = allOrders.filter(order => order.driverId === driverId);
     const deliveredOrders = driverOrders.filter(order => order.status === "delivered");
-    
+
     const totalEarnings = driverCommissions.reduce((sum, c) => sum + (parseFloat(c.commissionAmount.toString()) || 0), 0);
 
     res.json({
@@ -392,8 +340,8 @@ router.get("/stats", async (req: AuthenticatedRequest, res) => {
   }
 });
 
-// جلب بيانات الرصيد
-router.get("/balance", async (req: AuthenticatedRequest, res) => {
+// جلب بيانات الرصيد والمحفظة
+router.get("/balance", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
     const balance = await storage.getDriverBalance(driverId);
@@ -410,11 +358,11 @@ router.get("/balance", async (req: AuthenticatedRequest, res) => {
   }
 });
 
-// تحديث حالة السائق (متاح / غير متاح) وإدارة جلسات العمل
-router.post("/status", async (req: AuthenticatedRequest, res) => {
+// تحديث حالة السائق (متاح / غير متاح)
+router.post("/status", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
-    const { status } = req.body; // 'available' or 'offline'
+    const { status } = req.body;
 
     if (!['available', 'offline'].includes(status)) {
       return res.status(400).json({ error: "حالة غير صحيحة" });
@@ -423,16 +371,15 @@ router.post("/status", async (req: AuthenticatedRequest, res) => {
     const isAvailable = status === 'available';
     await storage.updateDriver(driverId, { isAvailable });
 
-    // إرسال تحديث عبر Socket لإعلام لوحة التحكم فوراً
     const ws = req.app.get('ws');
     if (ws) {
-      ws.broadcast('driver_status_update', { 
-        driverId, 
-        isAvailable, 
+      ws.broadcast('driver_status_update', {
+        driverId,
+        isAvailable,
         status,
         timestamp: new Date()
       });
-      
+
       if (typeof ws.sendToAdmin === 'function') {
         ws.sendToAdmin('driver_status_update', { driverId, isAvailable, status });
       }
@@ -441,7 +388,6 @@ router.post("/status", async (req: AuthenticatedRequest, res) => {
     const advStorage = new AdvancedDatabaseStorage(storage.db);
 
     if (isAvailable) {
-      // بدء جلسة عمل جديدة
       await advStorage.createWorkSession({
         driverId,
         startTime: new Date(),
@@ -450,10 +396,8 @@ router.post("/status", async (req: AuthenticatedRequest, res) => {
         totalEarnings: "0"
       });
     } else {
-      // إنهاء الجلسة النشطة
       const activeSession = await advStorage.getActiveWorkSession(driverId);
       if (activeSession) {
-        // جلب إحصائيات الجلسة (يمكن تطويرها مستقبلاً لجلب بيانات دقيقة لهذه الجلسة فقط)
         await advStorage.endWorkSession(activeSession.id, 0, 0);
       }
     }
@@ -466,7 +410,7 @@ router.post("/status", async (req: AuthenticatedRequest, res) => {
 });
 
 // طلب سحب رصيد
-router.post("/withdraw", async (req: AuthenticatedRequest, res) => {
+router.post("/withdraw", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
     const { amount, method, details } = req.body;
@@ -494,7 +438,7 @@ router.post("/withdraw", async (req: AuthenticatedRequest, res) => {
 });
 
 // جلب الملف الشخصي
-router.get("/profile", async (req: AuthenticatedRequest, res) => {
+router.get("/profile", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
     const driver = await storage.getDriver(driverId);
@@ -506,39 +450,84 @@ router.get("/profile", async (req: AuthenticatedRequest, res) => {
 });
 
 // تحديث الملف الشخصي
-router.put("/profile", async (req: AuthenticatedRequest, res) => {
+router.put("/profile", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
     const coercedData = coerceRequestData(req.body);
     const validatedData = insertDriverSchema.partial().parse(coercedData);
-    
+
     const driver = await storage.updateDriver(driverId, validatedData);
     if (!driver) return res.status(404).json({ error: "السائق غير موجود" });
-    
-    // إرسال تحديث عبر Socket لإعلام لوحة التحكم بتغيير حالة السائق
+
     const ws = req.app.get('ws');
     if (ws && validatedData.isAvailable !== undefined) {
-      ws.broadcast('driver_status_update', { 
-        driverId, 
+      ws.broadcast('driver_status_update', {
+        driverId,
         isAvailable: driver.isAvailable,
         name: driver.name,
         timestamp: new Date()
       });
-      
-      // إرسال تحديث خاص للمديرين إذا كان هناك قناة مخصصة
+
       if (typeof ws.sendToAdmin === 'function') {
-        ws.sendToAdmin('driver_status_update', { 
-          driverId, 
+        ws.sendToAdmin('driver_status_update', {
+          driverId,
           isAvailable: driver.isAvailable,
           name: driver.name
         });
       }
     }
-    
+
     res.json({ success: true, driver });
   } catch (error) {
     console.error("خطأ في تحديث الملف الشخصي:", error);
     res.status(400).json({ error: "بيانات غير صحيحة" });
+  }
+});
+
+// ================================================================
+// مسارات الـ Wildcard للإدارة (يجب أن تكون في النهاية دائماً)
+// ================================================================
+
+// جلب سائق محدد بالمعرف
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const driver = await storage.getDriver(id);
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+    res.json(driver);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch driver" });
+  }
+});
+
+// تحديث بيانات سائق (من لوحة التحكم)
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const validatedData = insertDriverSchema.partial().parse(req.body);
+    const driver = await storage.updateDriver(id, validatedData);
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+    res.json(driver);
+  } catch (error) {
+    res.status(400).json({ message: "Invalid driver data" });
+  }
+});
+
+// حذف سائق
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = await storage.deleteDriver(id);
+    if (!success) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete driver" });
   }
 });
 
