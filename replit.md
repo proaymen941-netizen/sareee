@@ -24,6 +24,12 @@ Primary Color: Red-Orange — hsl(14 92% 52%) / ~#f04a17
 - صلاحيات iOS كاملة: كاميرا، موقع، جهات اتصال
 - رابط السيرفر في `flutter_app/lib/utils/constants.dart` - يجب تحديثه عند تغيير الاستضافة
 
+## Notifications & Restaurant Accounts Enhancements (Latest Session)
+- **Enhanced Notifications Admin Page** (`/admin/notifications`): Full notifications system with stats, targeted sending (all/customers/drivers/app users), notification history with filters, device management tab
+- **New Backend Endpoints** in `server/routes/flutter.ts`: `POST /send-targeted`, `GET /history`, `DELETE /:id`, `GET /stats`
+- **Enhanced Restaurant Accounts Page** (`/admin/restaurant-accounts`): Full financial dashboard with restaurant list, all-withdrawals management (approve/reject/complete with notes), commission settings per restaurant
+- **New Backend Endpoints** in `server/routes/restaurant-accounts.ts`: `GET /all-withdrawals`, `PUT /:restaurantId/commission`; fixed withdrawal insert/update to use correct schema fields (`bankDetails` JSON, `adminNotes`, `rejectionReason`)
+
 ## API Routing Fixes (Latest Session)
 - **Restaurant Accounts Router**: Registered at `/api/restaurant-accounts` in `server/routes.ts` using `AdvancedDatabaseStorage` for wallet methods
 - **Flutter Router**: Registered at `/api/flutter` in `server/routes.ts` for push notification polling and device token registration
