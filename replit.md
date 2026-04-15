@@ -24,6 +24,13 @@ Primary Color: Red-Orange — hsl(14 92% 52%) / ~#f04a17
 - صلاحيات iOS كاملة: كاميرا، موقع، جهات اتصال
 - رابط السيرفر في `flutter_app/lib/utils/constants.dart` - يجب تحديثه عند تغيير الاستضافة
 
+## API Routing Fixes (Latest Session)
+- **Restaurant Accounts Router**: Registered at `/api/restaurant-accounts` in `server/routes.ts` using `AdvancedDatabaseStorage` for wallet methods
+- **Flutter Router**: Registered at `/api/flutter` in `server/routes.ts` for push notification polling and device token registration
+- **Admin Notifications WebSocket**: `POST /api/admin/notifications` now broadcasts via `broadcastEvent('new_notification', ...)` to all connected WebSocket clients
+- **Sub-admin Permission Middleware**: Added `requirePermission()` middleware in `server/routes/admin.ts`; applied to all sub-admin CRUD routes (`GET/POST/PUT/DELETE /api/admin/sub-admins`) requiring `manage_admins` permission
+- **Permission Parsing**: Auth middleware now parses sub-admin permissions JSON and attaches to `req.adminPermissions`; null = full access (main admin)
+
 ## Replit Setup Notes
 - **Workflow**: `npm run dev` on port 5000 (webview)
 - **Database**: PostgreSQL via Replit built-in (DATABASE_URL env var)
