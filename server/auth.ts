@@ -3,11 +3,45 @@ import { randomUUID } from 'crypto';
 import { storage } from './storage';
 import { 
   type InsertAdminUser, 
-  type InsertAdminSession,
   type User,
   type Driver,
   type AdminUser
 } from '@shared/schema';
+
+// نوع بيانات الجلسة
+interface SessionData {
+  adminId: string;
+  userType: string;
+  expiresAt: Date;
+}
+
+// نوع إدخال الجلسة
+interface InsertAdminSession {
+  adminId: string;
+  token: string;
+  userType: string;
+  expiresAt: Date;
+}
+
+// مخزن الجلسات في الذاكرة
+const sessionStore = new Map<string, SessionData>();
+
+// دوال إدارة الجلسات
+function createAdminSession(data: InsertAdminSession): void {
+  sessionStore.set(data.token, {
+    adminId: data.adminId,
+    userType: data.userType,
+    expiresAt: data.expiresAt
+  });
+}
+
+function getAdminSession(token: string): SessionData | null {
+  return sessionStore.get(token) || null;
+}
+
+function deleteAdminSession(token: string): boolean {
+  return sessionStore.delete(token);
+}
 
 // نوع المستخدم الموحد للمصادقة
 export interface AuthUser {
@@ -191,7 +225,7 @@ export class UnifiedAuthService {
         expiresAt
       };
 
-      await storage.createAdminSession(sessionData);
+      createAdminSession(sessionData);
 
       console.log('🎉 تم تسجيل الدخول بنجاح للمستخدم:', user.name);
       

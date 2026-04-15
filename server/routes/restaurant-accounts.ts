@@ -7,9 +7,8 @@ import express from "express";
 import { DatabaseStorage } from "../db";
 import { AdvancedDatabaseStorage } from "../db-advanced";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { orders, restaurants, restaurantWallets, withdrawalRequests } from "@shared/schema";
-import bcrypt from "bcryptjs";
 
 const router = express.Router();
 const dbStorage = new DatabaseStorage();
@@ -28,16 +27,17 @@ router.get("/", async (req, res) => {
     const accounts = await Promise.all(allRestaurants.map(async (restaurant) => {
       const wallet = await advStorage.getRestaurantWallet(restaurant.id);
 
-      // حساب إجمالي الطلبات والإيرادات من الطلبات المكتملة
       const restaurantOrders = await db.select().from(orders).where(eq(orders.restaurantId, restaurant.id));
       const deliveredOrders = restaurantOrders.filter(o => o.status === 'delivered');
       const totalRevenue = deliveredOrders.reduce((sum, o) => sum + parseFloat(o.restaurantEarnings?.toString() || '0'), 0);
 
-      // جلب السحوبات المعلقة
-      const pendingWithdrawals = await db.select().from(withdrawalRequests)
-        .where(eq(withdrawalRequests.entityId, restaurant.id));
-      const pendingAmount = pendingWithdrawals
+      const allWithdrawals = await db.select().from(withdrawalRequests)
+        .where(and(eq(withdrawalRequests.entityId, restaurant.id), eq(withdrawalRequests.entityType, 'restaurant')));
+      const pendingAmount = allWithdrawals
         .filter(w => w.status === 'pending')
+        .reduce((sum, w) => sum + parseFloat(w.amount?.toString() || '0'), 0);
+      const withdrawnAmount = allWithdrawals
+        .filter(w => w.status === 'completed')
         .reduce((sum, w) => sum + parseFloat(w.amount?.toString() || '0'), 0);
 
       return {
@@ -45,13 +45,15 @@ router.get("/", async (req, res) => {
           id: restaurant.id,
           name: restaurant.name,
           image: restaurant.image,
-          isActive: restaurant.isActive
+          isActive: restaurant.isActive,
+          phone: restaurant.phone || '',
         },
         account: {
           totalOrders: deliveredOrders.length,
           totalRevenue: totalRevenue.toFixed(2),
           availableBalance: wallet?.balance?.toString() || '0',
           pendingAmount: pendingAmount.toFixed(2),
+          withdrawnAmount: withdrawnAmount.toFixed(2),
           commissionRate: restaurant.commissionRate?.toString() || '0'
         }
       };
@@ -60,6 +62,46 @@ router.get("/", async (req, res) => {
     res.json(accounts);
   } catch (error) {
     console.error('خطأ في جلب حسابات المطاعم:', error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// جلب جميع طلبات السحب من جميع المطاعم
+router.get("/all-withdrawals", async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    let allWithdrawals = await db.select().from(withdrawalRequests)
+      .where(eq(withdrawalRequests.entityType, 'restaurant'))
+      .orderBy(desc(withdrawalRequests.createdAt));
+
+    if (status && typeof status === 'string' && status !== 'all') {
+      allWithdrawals = allWithdrawals.filter(w => w.status === status);
+    }
+
+    // إضافة اسم المطعم لكل طلب
+    const allRestaurants = await dbStorage.getRestaurants();
+    const restaurantMap = new Map(allRestaurants.map(r => [r.id, r]));
+
+    const enriched = allWithdrawals.map(w => {
+      const restaurant = restaurantMap.get(w.entityId);
+      let bankInfo: any = {};
+      try {
+        bankInfo = w.bankDetails ? JSON.parse(w.bankDetails) : {};
+      } catch {}
+      return {
+        ...w,
+        restaurantName: restaurant?.name || 'مطعم غير معروف',
+        restaurantImage: restaurant?.image || null,
+        bankName: bankInfo.bankName || '',
+        accountNumber: bankInfo.accountNumber || '',
+        accountHolder: bankInfo.accountHolder || restaurant?.name || '',
+      };
+    });
+
+    res.json({ withdrawals: enriched, total: enriched.length });
+  } catch (error) {
+    console.error('خطأ في جلب جميع طلبات السحب:', error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
@@ -88,10 +130,13 @@ router.get("/:restaurantId", async (req, res) => {
     const deliveredOrders = restaurantOrders.filter(o => o.status === 'delivered');
     const totalRevenue = deliveredOrders.reduce((sum, o) => sum + parseFloat(o.restaurantEarnings?.toString() || '0'), 0);
 
-    const pendingWithdrawals = await db.select().from(withdrawalRequests)
-      .where(eq(withdrawalRequests.entityId, restaurantId));
-    const pendingAmount = pendingWithdrawals
+    const allWithdrawals = await db.select().from(withdrawalRequests)
+      .where(and(eq(withdrawalRequests.entityId, restaurantId), eq(withdrawalRequests.entityType, 'restaurant')));
+    const pendingAmount = allWithdrawals
       .filter(w => w.status === 'pending')
+      .reduce((sum, w) => sum + parseFloat(w.amount?.toString() || '0'), 0);
+    const withdrawnAmount = allWithdrawals
+      .filter(w => w.status === 'completed')
       .reduce((sum, w) => sum + parseFloat(w.amount?.toString() || '0'), 0);
 
     res.json({
@@ -103,6 +148,7 @@ router.get("/:restaurantId", async (req, res) => {
       totalRevenue: totalRevenue.toFixed(2),
       availableBalance: wallet.balance?.toString() || '0',
       pendingAmount: pendingAmount.toFixed(2),
+      withdrawnAmount: withdrawnAmount.toFixed(2),
       commissionRate: restaurant.commissionRate?.toString() || '0',
       createdAt: wallet.createdAt,
       updatedAt: wallet.updatedAt
@@ -118,6 +164,10 @@ router.get("/:restaurantId/stats", async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const { period } = req.query;
+
+    const advStorage = getAdvStorage();
+    const wallet = await advStorage.getRestaurantWallet(restaurantId);
+    const restaurant = await dbStorage.getRestaurant(restaurantId);
 
     const restaurantOrders = await db.select().from(orders).where(eq(orders.restaurantId, restaurantId));
 
@@ -143,6 +193,15 @@ router.get("/:restaurantId/stats", async (req, res) => {
     const totalCommission = deliveredOrders.reduce((sum, o) => sum + parseFloat(o.companyEarnings?.toString() || '0'), 0);
     const avgOrderValue = deliveredOrders.length > 0 ? totalRevenue / deliveredOrders.length : 0;
 
+    // all-time stats
+    const allDelivered = restaurantOrders.filter(o => o.status === 'delivered');
+    const allWithdrawals = await db.select().from(withdrawalRequests)
+      .where(and(eq(withdrawalRequests.entityId, restaurantId), eq(withdrawalRequests.entityType, 'restaurant')));
+    const totalWithdrawn = allWithdrawals
+      .filter(w => w.status === 'completed')
+      .reduce((sum, w) => sum + parseFloat(w.amount?.toString() || '0'), 0);
+    const netRevenue = allDelivered.reduce((sum, o) => sum + parseFloat(o.restaurantEarnings?.toString() || '0'), 0);
+
     res.json({
       period,
       totalOrders: filteredOrders.length,
@@ -152,10 +211,41 @@ router.get("/:restaurantId/stats", async (req, res) => {
       totalRevenue,
       totalCommission,
       avgOrderValue,
-      successRate: filteredOrders.length > 0 ? (deliveredOrders.length / filteredOrders.length * 100).toFixed(1) : '0'
+      successRate: filteredOrders.length > 0 ? (deliveredOrders.length / filteredOrders.length * 100).toFixed(1) : '0',
+      // all-time
+      completedOrders: allDelivered.length,
+      netRevenue: netRevenue.toFixed(2),
+      totalWithdrawn: totalWithdrawn.toFixed(2),
+      availableBalance: wallet?.balance?.toString() || '0',
+      commissionRate: restaurant?.commissionRate?.toString() || '0',
     });
   } catch (error) {
     console.error('خطأ في جلب إحصائيات المطعم:', error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// تحديث نسبة عمولة المطعم
+router.put("/:restaurantId/commission", async (req, res) => {
+  try {
+    const { restaurantId } = req.params;
+    const { commissionRate } = req.body;
+
+    if (commissionRate === undefined || commissionRate === null) {
+      return res.status(400).json({ error: "نسبة العمولة مطلوبة" });
+    }
+
+    const rate = parseFloat(commissionRate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      return res.status(400).json({ error: "نسبة العمولة يجب أن تكون بين 0 و 100" });
+    }
+
+    await dbStorage.updateRestaurant(restaurantId, { commissionRate: rate.toString() } as any);
+    const restaurant = await dbStorage.getRestaurant(restaurantId);
+
+    res.json({ success: true, restaurant, commissionRate: rate });
+  } catch (error) {
+    console.error('خطأ في تحديث نسبة العمولة:', error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
@@ -198,7 +288,7 @@ router.put("/:restaurantId", async (req, res) => {
   }
 });
 
-// جلب معاملات المطعم (من الطلبات المكتملة)
+// جلب معاملات المطعم
 router.get("/:restaurantId/transactions", async (req, res) => {
   try {
     const { restaurantId } = req.params;
@@ -220,19 +310,26 @@ router.get("/:restaurantId/transactions", async (req, res) => {
         createdAt: o.createdAt
       }));
 
-    // إضافة معاملات السحب
     const withdrawals = await db.select().from(withdrawalRequests)
-      .where(eq(withdrawalRequests.entityId, restaurantId))
+      .where(and(eq(withdrawalRequests.entityId, restaurantId), eq(withdrawalRequests.entityType, 'restaurant')))
       .orderBy(desc(withdrawalRequests.createdAt));
 
-    const withdrawalTransactions = withdrawals.map(w => ({
-      id: w.id,
-      restaurantId,
-      type: `withdrawal_${w.status}`,
-      amount: `-${w.amount}`,
-      description: `طلب سحب - ${w.status === 'completed' ? 'مكتمل' : w.status === 'pending' ? 'معلق' : 'مرفوض'}`,
-      createdAt: w.createdAt
-    }));
+    const withdrawalTransactions = withdrawals.map(w => {
+      let bankInfo: any = {};
+      try { bankInfo = w.bankDetails ? JSON.parse(w.bankDetails) : {}; } catch {}
+      return {
+        id: w.id,
+        restaurantId,
+        type: `withdrawal_${w.status}`,
+        amount: `-${w.amount}`,
+        description: `طلب سحب - ${w.status === 'completed' ? 'مكتمل' : w.status === 'pending' ? 'معلق' : w.status === 'approved' ? 'موافق عليه' : 'مرفوض'}`,
+        bankName: bankInfo.bankName || '',
+        accountNumber: bankInfo.accountNumber || '',
+        status: w.status,
+        adminNotes: w.adminNotes || '',
+        createdAt: w.createdAt
+      };
+    });
 
     let allTransactions = [...transactions, ...withdrawalTransactions]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -243,12 +340,7 @@ router.get("/:restaurantId/transactions", async (req, res) => {
     const offsetNum = parseInt(offsetParam as string) || 0;
     const paginated = allTransactions.slice(offsetNum, offsetNum + limitNum);
 
-    res.json({
-      transactions: paginated,
-      total: allTransactions.length,
-      limit: limitNum,
-      offset: offsetNum
-    });
+    res.json({ transactions: paginated, total: allTransactions.length, limit: limitNum, offset: offsetNum });
   } catch (error) {
     console.error('خطأ في جلب معاملات المطعم:', error);
     res.status(500).json({ error: "خطأ في الخادم" });
@@ -259,7 +351,7 @@ router.get("/:restaurantId/transactions", async (req, res) => {
 router.post("/:restaurantId/withdraw", async (req, res) => {
   try {
     const { restaurantId } = req.params;
-    const { amount, notes, bankName, accountNumber, accountHolder } = req.body;
+    const { amount, bankName, accountNumber, accountHolder } = req.body;
 
     if (!amount || parseFloat(amount) <= 0) {
       return res.status(400).json({ error: "المبلغ يجب أن يكون أكبر من صفر" });
@@ -274,16 +366,15 @@ router.post("/:restaurantId/withdraw", async (req, res) => {
     }
 
     const restaurant = await dbStorage.getRestaurant(restaurantId);
+    const bankDetails = JSON.stringify({ bankName: bankName || '', accountNumber: accountNumber || '', accountHolder: accountHolder || restaurant?.name || '' });
+
     const withdrawal = await db.insert(withdrawalRequests).values({
       entityType: 'restaurant',
       entityId: restaurantId,
       amount: amount.toString(),
-      accountNumber: accountNumber || '',
-      bankName: bankName || '',
-      accountHolder: accountHolder || restaurant?.name || '',
-      requestedBy: restaurantId,
+      bankDetails,
       status: 'pending'
-    } as any).returning();
+    }).returning();
 
     res.json({ success: true, message: "تم تقديم طلب السحب بنجاح", withdrawal: withdrawal[0] });
   } catch (error) {
@@ -299,14 +390,20 @@ router.get("/:restaurantId/withdrawals", async (req, res) => {
     const { status } = req.query;
 
     let withdrawals = await db.select().from(withdrawalRequests)
-      .where(eq(withdrawalRequests.entityId, restaurantId))
+      .where(and(eq(withdrawalRequests.entityId, restaurantId), eq(withdrawalRequests.entityType, 'restaurant')))
       .orderBy(desc(withdrawalRequests.createdAt));
 
     if (status && typeof status === 'string') {
       withdrawals = withdrawals.filter(w => w.status === status);
     }
 
-    res.json({ withdrawals, total: withdrawals.length });
+    const enriched = withdrawals.map(w => {
+      let bankInfo: any = {};
+      try { bankInfo = w.bankDetails ? JSON.parse(w.bankDetails) : {}; } catch {}
+      return { ...w, bankName: bankInfo.bankName || '', accountNumber: bankInfo.accountNumber || '', accountHolder: bankInfo.accountHolder || '' };
+    });
+
+    res.json({ withdrawals: enriched, total: enriched.length });
   } catch (error) {
     console.error('خطأ في جلب طلبات السحب:', error);
     res.status(500).json({ error: "خطأ في الخادم" });
@@ -349,14 +446,19 @@ router.get("/:restaurantId/daily-stats", async (req, res) => {
 router.put("/withdrawals/:withdrawalId", async (req, res) => {
   try {
     const { withdrawalId } = req.params;
-    const { status, adminNotes } = req.body;
+    const { status, adminNotes, rejectionReason } = req.body;
 
     if (!['approved', 'rejected', 'completed'].includes(status)) {
       return res.status(400).json({ error: "حالة غير صحيحة" });
     }
 
     const [updated] = await db.update(withdrawalRequests)
-      .set({ status, notes: adminNotes, updatedAt: new Date() } as any)
+      .set({
+        status,
+        adminNotes: adminNotes || null,
+        rejectionReason: status === 'rejected' ? (rejectionReason || adminNotes || null) : null,
+        updatedAt: new Date()
+      })
       .where(eq(withdrawalRequests.id, withdrawalId))
       .returning();
 

@@ -216,6 +216,139 @@ router.post("/notifications/send", async (req, res) => {
   }
 });
 
+// POST /api/flutter/notifications/send-targeted
+// إرسال إشعار موجّه لفئة محددة
+router.post("/notifications/send-targeted", async (req, res) => {
+  try {
+    const { title, message, type = "info", recipientType = "all", recipientId = null } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ success: false, message: "العنوان والمحتوى مطلوبان" });
+    }
+
+    const db = getDb();
+
+    const [newNotification] = await db
+      .insert(notifications)
+      .values({
+        type,
+        title,
+        message,
+        recipientType,
+        recipientId: recipientId || null,
+        isRead: false,
+      })
+      .returning();
+
+    const recipientLabel =
+      recipientType === 'all' ? 'جميع المستخدمين' :
+      recipientType === 'customer' ? 'العملاء' :
+      recipientType === 'driver' ? 'السائقين' :
+      recipientType === 'flutter' ? 'مستخدمي التطبيق' :
+      'مستخدم محدد';
+
+    res.json({
+      success: true,
+      message: `تم إرسال الإشعار بنجاح إلى ${recipientLabel}`,
+      notification: newNotification,
+    });
+  } catch (error) {
+    console.error("خطأ في إرسال الإشعار الموجّه:", error);
+    res.status(500).json({ success: false, message: "خطأ في الخادم" });
+  }
+});
+
+// GET /api/flutter/notifications/history
+// سجل جميع الإشعارات المرسلة
+router.get("/notifications/history", async (req, res) => {
+  try {
+    const db = getDb();
+    const { recipientType, type: notifType, limit: limitStr, offset: offsetStr } = req.query;
+
+    const limitNum = parseInt(limitStr as string) || 50;
+    const offsetNum = parseInt(offsetStr as string) || 0;
+
+    let query = db
+      .select()
+      .from(notifications)
+      .orderBy(desc(notifications.createdAt));
+
+    const allNotifications = await query;
+
+    let filtered = allNotifications;
+    if (recipientType && recipientType !== 'all') {
+      filtered = filtered.filter(n => n.recipientType === recipientType);
+    }
+    if (notifType) {
+      filtered = filtered.filter(n => n.type === notifType);
+    }
+
+    const paginated = filtered.slice(offsetNum, offsetNum + limitNum);
+    const unreadCount = filtered.filter(n => !n.isRead).length;
+
+    res.json({
+      success: true,
+      notifications: paginated,
+      total: filtered.length,
+      unreadCount,
+      limit: limitNum,
+      offset: offsetNum,
+    });
+  } catch (error) {
+    console.error("خطأ في جلب سجل الإشعارات:", error);
+    res.status(500).json({ success: false, message: "خطأ في الخادم" });
+  }
+});
+
+// DELETE /api/flutter/notifications/:id
+// حذف إشعار
+router.delete("/notifications/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getDb();
+
+    await db.delete(notifications).where(eq(notifications.id, id));
+
+    res.json({ success: true, message: "تم حذف الإشعار بنجاح" });
+  } catch (error) {
+    console.error("خطأ في حذف الإشعار:", error);
+    res.status(500).json({ success: false, message: "خطأ في الخادم" });
+  }
+});
+
+// GET /api/flutter/notifications/stats
+// إحصائيات الإشعارات
+router.get("/notifications/stats", async (req, res) => {
+  try {
+    const db = getDb();
+    const allNotifications = await db.select().from(notifications).orderBy(desc(notifications.createdAt));
+    const deviceCount = await db.select().from(deviceTokens).where(eq(deviceTokens.isActive, true));
+
+    const total = allNotifications.length;
+    const unread = allNotifications.filter(n => !n.isRead).length;
+    const byType: Record<string, number> = {};
+    const byRecipient: Record<string, number> = {};
+
+    allNotifications.forEach(n => {
+      byType[n.type] = (byType[n.type] || 0) + 1;
+      byRecipient[n.recipientType] = (byRecipient[n.recipientType] || 0) + 1;
+    });
+
+    res.json({
+      success: true,
+      total,
+      unread,
+      readRate: total > 0 ? ((total - unread) / total * 100).toFixed(1) : '0',
+      deviceCount: deviceCount.length,
+      byType,
+      byRecipient,
+    });
+  } catch (error) {
+    console.error("خطأ في جلب إحصائيات الإشعارات:", error);
+    res.status(500).json({ success: false, message: "خطأ في الخادم" });
+  }
+});
+
 // GET /api/flutter/device-tokens
 // يُعيد قائمة الأجهزة المسجّلة (للمشرف)
 router.get("/device-tokens", async (req, res) => {
