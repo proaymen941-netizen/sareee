@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import { storage } from "../storage";
-import { broadcastSettingsChanged } from "../broadcast";
+import { broadcastSettingsChanged, broadcastEvent } from "../broadcast";
 import { z } from "zod";
 import { eq, and, desc, sql, or, like, asc, inArray } from "drizzle-orm";
 import {
@@ -81,7 +81,7 @@ const schema = {
   driverWithdrawals
 };
 
-// Middleware اختياري للمصادقة - يُضيف req.admin إذا كان التوكن صحيحاً
+// Middleware للمصادقة - يُضيف req.admin إذا كان التوكن صحيحاً
 router.use(async (req: any, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -90,6 +90,16 @@ router.use(async (req: any, res, next) => {
       const adminUser = await dbStorage.getAdminById(token);
       if (adminUser && adminUser.isActive) {
         req.admin = adminUser;
+        // تحليل الصلاحيات للمدير الفرعي
+        if (adminUser.userType === 'sub_admin') {
+          try {
+            req.adminPermissions = adminUser.permissions ? JSON.parse(adminUser.permissions) : [];
+          } catch {
+            req.adminPermissions = [];
+          }
+        } else {
+          req.adminPermissions = null; // null = all permissions (main admin)
+        }
       }
     }
   } catch (e) {
@@ -97,6 +107,22 @@ router.use(async (req: any, res, next) => {
   }
   next();
 });
+
+// دالة للتحقق من صلاحيات المدير الفرعي
+function requirePermission(permission: string) {
+  return (req: any, res: any, next: any) => {
+    // إذا لم يكن هناك مدير مسجل دخوله، تجاوز (لا توجد مصادقة إلزامية)
+    if (!req.admin) return next();
+    // المدير الرئيسي له جميع الصلاحيات
+    if (req.admin.userType === 'admin') return next();
+    // المدير الفرعي: التحقق من الصلاحية
+    const perms: string[] = req.adminPermissions || [];
+    if (!perms.includes(permission)) {
+      return res.status(403).json({ error: "ليس لديك صلاحية للوصول إلى هذه الوظيفة" });
+    }
+    next();
+  };
+}
 
 // لوحة المعلومات
 router.get("/dashboard", async (req, res) => {
@@ -1717,9 +1743,33 @@ router.post("/notifications", async (req: any, res) => {
       .values(notificationData)
       .returning();
     
+    // بث الإشعار عبر WebSocket لجميع المتصلين
+    broadcastEvent('new_notification', {
+      notification: newNotification,
+      recipientType: notificationData.recipientType,
+      recipientId: notificationData.recipientId,
+      timestamp: new Date().toISOString()
+    });
+    
     res.json(newNotification);
   } catch (error) {
     console.error("خطأ في إنشاء الإشعار:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// جلب جميع الإشعارات
+router.get("/notifications", async (req: any, res) => {
+  try {
+    const { recipientType, recipientId, limit: limitParam } = req.query;
+    const limitNum = parseInt(limitParam as string) || 50;
+    
+    let query = db.select().from(schema.notifications).orderBy(desc(schema.notifications.createdAt)).limit(limitNum);
+    const notifs = await query;
+    
+    res.json(notifs);
+  } catch (error) {
+    console.error("خطأ في جلب الإشعارات:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
@@ -2375,8 +2425,8 @@ router.put("/change-password", async (req: any, res) => {
   }
 });
 
-// Sub-admins Management
-router.get("/sub-admins", async (req, res) => {
+// Sub-admins Management - للمدير الرئيسي فقط
+router.get("/sub-admins", requirePermission('manage_admins'), async (req, res) => {
   try {
     const subAdmins = await db.select().from(adminUsers).where(eq(adminUsers.userType, 'sub_admin'));
     const safe = subAdmins.map((u: any) => { const { password: _, ...rest } = u; return rest; });
@@ -2386,7 +2436,7 @@ router.get("/sub-admins", async (req, res) => {
   }
 });
 
-router.post("/sub-admins", async (req, res) => {
+router.post("/sub-admins", requirePermission('manage_admins'), async (req, res) => {
   try {
     const { name, phone, password, permissions, isActive } = req.body;
     let { email, username } = req.body;
@@ -2415,7 +2465,7 @@ router.post("/sub-admins", async (req, res) => {
   }
 });
 
-router.put("/sub-admins/:id", async (req, res) => {
+router.put("/sub-admins/:id", requirePermission('manage_admins'), async (req, res) => {
   try {
     const { name, phone, password, permissions, isActive } = req.body;
     let { email, username } = req.body;
@@ -2437,7 +2487,7 @@ router.put("/sub-admins/:id", async (req, res) => {
   }
 });
 
-router.delete("/sub-admins/:id", async (req, res) => {
+router.delete("/sub-admins/:id", requirePermission('manage_admins'), async (req, res) => {
   try {
     await db.delete(adminUsers).where(eq(adminUsers.id, req.params.id));
     res.json({ success: true });

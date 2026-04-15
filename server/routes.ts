@@ -14,6 +14,8 @@ import deliveryFeeRoutes from "./routes/delivery-fees";
 import { adminRoutes } from "./routes/admin";
 import { registerAdvancedRoutes } from "./routes/advanced";
 import { publicRoutes } from "./routes/public";
+import restaurantAccountsRouter from "./routes/restaurant-accounts";
+import flutterRouter from "./routes/flutter";
 import imageUploadRouter from "./imageUpload";
 import { ensureUploadsDir, UPLOADS_DIR } from "./localStorage";
 
@@ -897,6 +899,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register delivery fee routes
   app.use("/api/delivery-fees", deliveryFeeRoutes);
+
+  // Register restaurant accounts routes
+  app.use("/api/restaurant-accounts", restaurantAccountsRouter);
+
+  // Register Flutter API routes
+  app.use("/api/flutter", flutterRouter);
 
   // Register public routes (including Flutter API)
   app.use("/api", publicRoutes);
