@@ -16,6 +16,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useUiSettings } from '@/context/UiSettingsContext';
+import { CustomerNotificationsPanel } from './CustomerNotificationsPanel';
 
 export const TopBar: React.FC = () => {
   const [, setLocation] = useLocation();
@@ -126,7 +127,7 @@ export const TopBar: React.FC = () => {
       {/* Mobile Header - Red-Orange background like reference image */}
       <div className="md:hidden header-gradient shadow-md">
         <div className="px-3 py-2.5 flex items-center justify-between gap-2">
-          {/* Right side: Menu + User + Search */}
+          {/* Right side: Menu + Notifications + Search */}
           <div className="flex items-center gap-1">
             <Button 
               variant="ghost" 
@@ -136,12 +137,7 @@ export const TopBar: React.FC = () => {
             >
               <MenuIcon className="h-6 w-6" />
             </Button>
-            <button 
-              onClick={() => setLocation(user ? '/profile' : '/auth')}
-              className="h-10 w-10 flex items-center justify-center text-white hover:bg-white/20 rounded-full transition-colors"
-            >
-              <User className="h-5 w-5" />
-            </button>
+            <CustomerNotificationsPanel />
             <button 
               onClick={() => setIsSearchOpen(!isSearchOpen)}
               className="h-10 w-10 flex items-center justify-center text-white hover:bg-white/20 rounded-full transition-colors"

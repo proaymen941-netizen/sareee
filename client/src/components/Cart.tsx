@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'; // أضف useEffect
-import { Minus, Plus, Trash2, ShoppingBag, X, MapPin, Loader2 } from 'lucide-react'; 
+import { useState, useEffect } from 'react';
+import { Minus, Plus, Trash2, ShoppingBag, X, MapPin, Loader2, Calendar, Clock } from 'lucide-react'; 
 import { useCart } from '../context/CartContext';
 import { useUserLocation as useGeoLocation } from '../context/LocationContext';
 import { GoogleMapsLocationPicker, LocationData } from './GoogleMapsLocationPicker';
 import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button'; // أضف استيراد Button
+import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
 
 interface CartProps {
@@ -31,6 +31,26 @@ export function Cart({ isOpen, onClose }: CartProps) {
     notes: '',
     paymentMethod: 'cash'
   });
+
+  // نظام الطلب المؤجل
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [appClosedMessage, setAppClosedMessage] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [customScheduleMode, setCustomScheduleMode] = useState(false);
+
+  const getScheduleSlots = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().split('T')[0];
+    const dateLabel = tomorrow.toLocaleDateString('ar-SA', { weekday: 'long', month: 'long', day: 'numeric' });
+    return [
+      { label: `${dateLabel} - 9:00 صباحاً`, date: dateStr, time: '09:00', display: `الغد 9:00 صباحاً` },
+      { label: `${dateLabel} - 10:00 صباحاً`, date: dateStr, time: '10:00', display: `الغد 10:00 صباحاً` },
+      { label: `${dateLabel} - 12:00 ظهراً`, date: dateStr, time: '12:00', display: `الغد 12:00 ظهراً` },
+      { label: `${dateLabel} - 3:00 مساءً`, date: dateStr, time: '15:00', display: `الغد 3:00 مساءً` },
+    ];
+  };
 
   const paymentMethods = [
     { id: 'cash', name: 'نقداً عند الاستلام', icon: '💵' },
@@ -159,6 +179,24 @@ export function Cart({ isOpen, onClose }: CartProps) {
     }
   };
 
+  const buildOrderData = (scheduled?: { date: string; time: string }) => ({
+    customerName: customerInfo.name,
+    customerPhone: customerInfo.phone,
+    deliveryAddress: selectedLocation?.address || '',
+    customerLocationLat: selectedLocation?.lat,
+    customerLocationLng: selectedLocation?.lng,
+    notes: customerInfo.notes,
+    paymentMethod: customerInfo.paymentMethod,
+    items: JSON.stringify(state.items),
+    subtotal: state.subtotal,
+    deliveryFee: deliveryFee,
+    totalAmount: state.subtotal + deliveryFee,
+    restaurantId: state.restaurantId,
+    deliveryPreference: scheduled ? 'scheduled' : 'now',
+    scheduledDate: scheduled?.date || null,
+    scheduledTimeSlot: scheduled?.time || null,
+  });
+
   const handleCheckout = async () => {
     if (isSubmitting) return;
 
@@ -182,35 +220,16 @@ export function Cart({ isOpen, onClose }: CartProps) {
 
     setIsSubmitting(true);
     try {
-      const orderData = {
-        customerName: customerInfo.name,
-        customerPhone: customerInfo.phone,
-        deliveryAddress: selectedLocation.address,
-        customerLocationLat: selectedLocation.lat,
-        customerLocationLng: selectedLocation.lng,
-        notes: customerInfo.notes,
-        paymentMethod: customerInfo.paymentMethod,
-        items: JSON.stringify(state.items),
-        subtotal: state.subtotal,
-        deliveryFee: deliveryFee,
-        totalAmount: state.subtotal + deliveryFee,
-        restaurantId: state.restaurantId
-      };
-
       const response = await fetch('/api/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildOrderData()),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Save customer info to profile after successful order
         await saveCustomerInfoToProfile();
-        
         toast({
           title: "تم تأكيد طلبك بنجاح! 🎉",
           description: `رقم الطلب: ${data.order?.orderNumber || data.orderNumber}`,
@@ -218,7 +237,14 @@ export function Cart({ isOpen, onClose }: CartProps) {
         clearCart();
         onClose();
       } else {
-        throw new Error(data.error || data.message || 'فشل في إرسال الطلب');
+        const errorMsg: string = data.error || data.message || 'فشل في إرسال الطلب';
+        const isClosedError = errorMsg.includes('مغلق') || errorMsg.includes('closed');
+        if (isClosedError) {
+          setAppClosedMessage(errorMsg);
+          setShowScheduleDialog(true);
+        } else {
+          throw new Error(errorMsg);
+        }
       }
     } catch (error: any) {
       console.error('Order error:', error);
@@ -227,6 +253,41 @@ export function Cart({ isOpen, onClose }: CartProps) {
         description: error.message || "يرجى المحاولة مرة أخرى",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitScheduled = async (date: string, time: string) => {
+    if (!customerInfo.name || !customerInfo.phone || !selectedLocation) {
+      toast({ title: "بيانات ناقصة", description: "يرجى إكمال البيانات", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    setShowScheduleDialog(false);
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildOrderData({ date, time })),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        await saveCustomerInfoToProfile();
+        const timeLabel = time.replace('09:00', '9:00 صباحاً').replace('10:00', '10:00 صباحاً')
+          .replace('12:00', '12:00 ظهراً').replace('15:00', '3:00 مساءً');
+        toast({
+          title: "تم جدولة طلبك! 📅",
+          description: `سيتم توصيل طلبك رقم ${data.order?.orderNumber || data.orderNumber} في ${timeLabel}`,
+        });
+        clearCart();
+        onClose();
+      } else {
+        throw new Error(data.error || 'فشل في إرسال الطلب المؤجل');
+      }
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      setShowScheduleDialog(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -535,6 +596,97 @@ export function Cart({ isOpen, onClose }: CartProps) {
         onLocationSelect={setSelectedLocation}
         restaurantLocation={getRestaurantLocation()}
       />
+
+      {/* نافذة الطلب المؤجل */}
+      {showScheduleDialog && (
+        <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-primary to-red-700 px-5 py-4 text-white">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="h-5 w-5" />
+                <h3 className="font-black text-lg">التطبيق مغلق حالياً</h3>
+              </div>
+              <p className="text-white/80 text-sm">{appClosedMessage}</p>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-gray-700 font-bold text-sm mb-3 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                هل تريد جدولة طلبك لوقت لاحق؟
+              </p>
+
+              {!customScheduleMode ? (
+                <div className="space-y-2">
+                  {getScheduleSlots().map((slot) => (
+                    <button
+                      key={slot.time}
+                      onClick={() => handleSubmitScheduled(slot.date, slot.time)}
+                      disabled={isSubmitting}
+                      className="w-full text-right px-4 py-3 rounded-xl border-2 border-gray-100 hover:border-primary hover:bg-primary/5 transition-all flex items-center justify-between group"
+                    >
+                      <span className="font-bold text-sm text-gray-800 group-hover:text-primary">{slot.display}</span>
+                      <Clock className="h-4 w-4 text-gray-400 group-hover:text-primary" />
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const tomorrow = new Date();
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      setScheduledDate(tomorrow.toISOString().split('T')[0]);
+                      setScheduledTime('09:00');
+                      setCustomScheduleMode(true);
+                    }}
+                    className="w-full text-right px-4 py-3 rounded-xl border-2 border-dashed border-gray-200 hover:border-primary/50 transition-all text-sm text-gray-500 hover:text-primary"
+                  >
+                    اختيار وقت آخر...
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">التاريخ</label>
+                    <input
+                      type="date"
+                      value={scheduledDate}
+                      min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      className="w-full p-3 border-2 rounded-xl text-sm focus:border-primary outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">الوقت</label>
+                    <input
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      className="w-full p-3 border-2 rounded-xl text-sm focus:border-primary outline-none"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => handleSubmitScheduled(scheduledDate, scheduledTime)}
+                    disabled={isSubmitting || !scheduledDate || !scheduledTime}
+                    className="w-full bg-primary text-white py-3 rounded-xl font-bold"
+                  >
+                    {isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'تأكيد الجدولة'}
+                  </Button>
+                  <button
+                    onClick={() => setCustomScheduleMode(false)}
+                    className="w-full text-sm text-gray-400 hover:text-gray-600"
+                  >
+                    رجوع
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => { setShowScheduleDialog(false); setCustomScheduleMode(false); }}
+                className="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 py-2"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
