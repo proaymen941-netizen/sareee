@@ -24,6 +24,27 @@ Primary Color: Red-Orange — hsl(14 92% 52%) / ~#f04a17
 - صلاحيات iOS كاملة: كاميرا، موقع، جهات اتصال
 - رابط السيرفر في `flutter_app/lib/utils/constants.dart` - يجب تحديثه عند تغيير الاستضافة
 
+## Latest Session Features (April 2026)
+
+### 1. Scheduled Orders (طلب مجدول)
+- When the store is closed, Cart.tsx detects the "store closed" error response and shows a scheduling dialog
+- The dialog offers next-day time slots: 9:00 AM, 10:00 AM, 12:00 PM, 3:00 PM, or a custom date+time picker
+- Orders are saved with `status: 'scheduled'` and `scheduledDate` + `scheduledTimeSlot` fields
+- Server cron job runs every 60s: promotes scheduled orders to `pending` when within 30 min of their scheduled time, and sends notifications to admin and customer
+- OrderTrackingPage shows a styled info card for scheduled orders with date/time and auto-activation message
+
+### 2. Notifications Bell in TopBar
+- TopBar.tsx on mobile now shows `CustomerNotificationsPanel` (bell icon with unread count badge) instead of the user icon
+- The panel polls every 30s for new notifications and supports mark-all-read
+- Backend endpoints: `GET /api/notifications/customer` (filter by phone/customerId), `PUT /api/notifications/customer/mark-all-read`
+
+### 3. Cancel Order with Reason Dialog
+- OrderTrackingPage.tsx: cancel button is only shown for `CANCELLABLE_STATUSES = ['pending', 'scheduled', 'confirmed']`
+- Clicking cancel opens a dialog with 5 preset reasons + free-text textarea
+- For non-cancellable in-progress statuses (preparing, on_way, etc.) shows a friendly amber info message
+- Calls `PATCH /api/orders/:orderId/cancel` with `{ reason, cancelledBy: 'customer' }`
+- RatingDialog is also now rendered from OrderTrackingPage when order is delivered
+
 ## Notifications & Restaurant Accounts Enhancements (Latest Session)
 - **Enhanced Notifications Admin Page** (`/admin/notifications`): Full notifications system with stats, targeted sending (all/customers/drivers/app users), notification history with filters, device management tab
 - **New Backend Endpoints** in `server/routes/flutter.ts`: `POST /send-targeted`, `GET /history`, `DELETE /:id`, `GET /stats`
