@@ -16,6 +16,7 @@ import { registerAdvancedRoutes } from "./routes/advanced";
 import { publicRoutes } from "./routes/public";
 import restaurantAccountsRouter from "./routes/restaurant-accounts";
 import flutterRouter from "./routes/flutter";
+import wasalniRouter from "./routes/wasalni";
 import imageUploadRouter from "./imageUpload";
 import { ensureUploadsDir, UPLOADS_DIR } from "./localStorage";
 
@@ -906,6 +907,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register Flutter API routes
   app.use("/api/flutter", flutterRouter);
 
+  // Register Wasalni (وصل لي) routes
+  app.use("/api/wasalni", wasalniRouter);
+
   // Register public routes (including Flutter API)
   app.use("/api", publicRoutes);
 
@@ -932,7 +936,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!phone && !customerId) {
         return res.status(400).json({ message: "phone or customerId required" });
       }
-      const allNotifs = await storage.getNotifications('customer', undefined, false);
+      // Get ALL customer notifications (both read and unread) - no unread filter
+      const allNotifs = await storage.getNotifications('customer');
       const filtered = allNotifs.filter((n: any) => {
         if (customerId && n.recipientId === customerId) return true;
         if (phone && n.recipientId === phone) return true;
@@ -953,7 +958,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!phone && !customerId) {
         return res.status(400).json({ message: "phone or customerId required" });
       }
-      const allNotifs = await storage.getNotifications('customer', undefined, false);
+      // Get ALL customer notifications then filter unread ones
+      const allNotifs = await storage.getNotifications('customer');
       const unread = allNotifs.filter((n: any) => {
         if (!n.isRead) {
           if (customerId && n.recipientId === customerId) return true;

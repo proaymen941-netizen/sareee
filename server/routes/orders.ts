@@ -72,9 +72,14 @@ router.post("/", async (req, res) => {
       const closingTime = settingsMap.get('closing_time') || '23:00';
 
       if (storeStatus === 'closed') {
-        return res.status(400).json({ 
-          error: "التطبيق مغلق حالياً من قِبل الإدارة"
-        });
+        // السماح فقط بالطلبات المجدولة عند إغلاق التطبيق يدوياً
+        if (!isScheduledOrder) {
+          return res.status(400).json({ 
+            error: "التطبيق مغلق حالياً من قِبل الإدارة",
+            code: "APP_CLOSED"
+          });
+        }
+        // الطلبات المجدولة مسموح بها حتى عند إغلاق التطبيق
       }
 
       // إذا كان المتجر مفتوحاً يدوياً، نتجاوز فحص الوقت تماماً

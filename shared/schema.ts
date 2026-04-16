@@ -1319,3 +1319,53 @@ export const insertCouponUsageSchema = createInsertSchema(couponUsages).partial(
 export const selectCouponUsageSchema = createSelectSchema(couponUsages);
 export type CouponUsage = z.infer<typeof selectCouponUsageSchema>;
 export type InsertCouponUsage = z.infer<typeof insertCouponUsageSchema>;
+
+// Wasalni (وصل لي) Requests table
+export const wasalniRequests = pgTable("wasalni_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requestNumber: varchar("request_number", { length: 50 }).notNull(),
+  customerName: text("customer_name").notNull(),
+  customerPhone: varchar("customer_phone", { length: 20 }).notNull(),
+  customerId: uuid("customer_id").references(() => users.id),
+  fromAddress: text("from_address").notNull(),
+  toAddress: text("to_address").notNull(),
+  fromLat: decimal("from_lat", { precision: 10, scale: 8 }),
+  fromLng: decimal("from_lng", { precision: 11, scale: 8 }),
+  toLat: decimal("to_lat", { precision: 10, scale: 8 }),
+  toLng: decimal("to_lng", { precision: 11, scale: 8 }),
+  orderType: varchar("order_type", { length: 100 }).default("طعام"),
+  notes: text("notes"),
+  scheduledDate: varchar("scheduled_date", { length: 20 }),
+  scheduledTime: varchar("scheduled_time", { length: 20 }),
+  estimatedFee: decimal("estimated_fee", { precision: 10, scale: 2 }),
+  status: varchar("status", { length: 30 }).default("pending").notNull(),
+  driverId: uuid("driver_id").references(() => drivers.id),
+  cancelReason: text("cancel_reason"),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWasalniRequestSchema = createInsertSchema(wasalniRequests).partial({
+  id: true,
+  requestNumber: true,
+  customerId: true,
+  fromLat: true,
+  fromLng: true,
+  toLat: true,
+  toLng: true,
+  orderType: true,
+  notes: true,
+  scheduledDate: true,
+  scheduledTime: true,
+  estimatedFee: true,
+  status: true,
+  driverId: true,
+  cancelReason: true,
+  adminNotes: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const selectWasalniRequestSchema = createSelectSchema(wasalniRequests);
+export type WasalniRequest = z.infer<typeof selectWasalniRequestSchema>;
+export type InsertWasalniRequest = z.infer<typeof insertWasalniRequestSchema>;

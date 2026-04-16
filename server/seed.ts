@@ -12,6 +12,8 @@ const defaultUiSettings = [
   { key: "show_delivery_app", value: "true", category: "navigation", description: "عرض تطبيق التوصيل" },
   { key: "show_hero_section", value: "true", category: "navigation", description: "عرض البانر الرئيسي المتحرك" },
   { key: "show_featured_products", value: "true", category: "navigation", description: "عرض المنتجات المميزة" },
+  { key: "show_wasalni_service", value: "true", category: "navigation", description: "عرض خدمة وصل لي في الصفحة الرئيسية" },
+  { key: "wasalni_base_fee", value: "5", category: "delivery", description: "رسوم خدمة وصل لي الأساسية" },
   { key: "bottom_bar_enabled", value: "true", category: "navigation", description: "إظهار شريط التنقل السفلي" },
   // إعدادات عامة
   { key: "app_name", value: "السريع ون", category: "general", description: "اسم التطبيق" },

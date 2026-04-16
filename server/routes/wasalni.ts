@@ -1,0 +1,163 @@
+import express from "express";
+import { storage } from "../storage.js";
+import { wasalniRequests, insertWasalniRequestSchema } from "../../shared/schema.js";
+import { randomUUID } from "crypto";
+
+const router = express.Router();
+
+// Get all wasalni requests (admin)
+router.get("/", async (req, res) => {
+  try {
+    const { phone, customerId, status } = req.query;
+    const db = (storage as any).db;
+    if (!db) return res.status(500).json({ error: "Database not available" });
+
+    const { desc } = await import("drizzle-orm");
+    let results = await db.select().from(wasalniRequests).orderBy(desc(wasalniRequests.createdAt));
+
+    if (status) results = results.filter((r: any) => r.status === status);
+    if (phone) results = results.filter((r: any) => r.customerPhone === phone);
+    if (customerId) results = results.filter((r: any) => r.customerId === customerId);
+
+    res.json(results);
+  } catch (error) {
+    console.error("Error fetching wasalni requests:", error);
+    res.status(500).json({ error: "فشل في جلب الطلبات" });
+  }
+});
+
+// Get wasalni request by ID
+router.get("/:id", async (req, res) => {
+  try {
+    const db = (storage as any).db;
+    const { eq } = await import("drizzle-orm");
+    const [request] = await db.select().from(wasalniRequests).where(eq(wasalniRequests.id, req.params.id));
+    if (!request) return res.status(404).json({ error: "الطلب غير موجود" });
+    res.json(request);
+  } catch (error) {
+    res.status(500).json({ error: "فشل في جلب الطلب" });
+  }
+});
+
+// Create new wasalni request
+router.post("/", async (req, res) => {
+  try {
+    const {
+      customerName, customerPhone, customerId,
+      fromAddress, toAddress, fromLat, fromLng, toLat, toLng,
+      orderType, notes, scheduledDate, scheduledTime, estimatedFee
+    } = req.body;
+
+    if (!customerName || !customerPhone || !fromAddress || !toAddress) {
+      return res.status(400).json({ error: "البيانات الأساسية مطلوبة: الاسم، الهاتف، من عنوان، إلى عنوان" });
+    }
+
+    const requestNumber = `WSL-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+    const db = (storage as any).db;
+    const [newRequest] = await db.insert(wasalniRequests).values({
+      requestNumber,
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      customerId: customerId || null,
+      fromAddress: fromAddress.trim(),
+      toAddress: toAddress.trim(),
+      fromLat: fromLat ? String(fromLat) : null,
+      fromLng: fromLng ? String(fromLng) : null,
+      toLat: toLat ? String(toLat) : null,
+      toLng: toLng ? String(toLng) : null,
+      orderType: orderType || "طعام",
+      notes: notes?.trim() || null,
+      scheduledDate: scheduledDate || null,
+      scheduledTime: scheduledTime || null,
+      estimatedFee: estimatedFee ? String(estimatedFee) : null,
+      status: "pending",
+    }).returning();
+
+    // Create notification for admin
+    await storage.createNotification({
+      type: "new_wasalni_request",
+      title: "طلب وصل لي جديد",
+      message: `طلب وصل لي جديد رقم ${requestNumber} من ${customerName} - من: ${fromAddress} إلى: ${toAddress}`,
+      recipientType: "admin",
+      recipientId: null,
+      orderId: null,
+      isRead: false,
+    });
+
+    // Create notification for customer
+    await storage.createNotification({
+      type: "wasalni_received",
+      title: "تم استلام طلب وصل لي",
+      message: `تم استلام طلبك رقم ${requestNumber} وهو قيد المراجعة`,
+      recipientType: "customer",
+      recipientId: customerId || customerPhone,
+      orderId: null,
+      isRead: false,
+    });
+
+    res.status(201).json({ success: true, request: newRequest });
+  } catch (error) {
+    console.error("Error creating wasalni request:", error);
+    res.status(500).json({ error: "فشل في إنشاء الطلب" });
+  }
+});
+
+// Update wasalni request status (admin)
+router.put("/:id", async (req, res) => {
+  try {
+    const db = (storage as any).db;
+    const { eq } = await import("drizzle-orm");
+    const { status, driverId, adminNotes, cancelReason, estimatedFee } = req.body;
+
+    const updateData: any = { updatedAt: new Date() };
+    if (status) updateData.status = status;
+    if (driverId !== undefined) updateData.driverId = driverId;
+    if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+    if (cancelReason !== undefined) updateData.cancelReason = cancelReason;
+    if (estimatedFee !== undefined) updateData.estimatedFee = String(estimatedFee);
+
+    const [updated] = await db.update(wasalniRequests).set(updateData).where(eq(wasalniRequests.id, req.params.id)).returning();
+    if (!updated) return res.status(404).json({ error: "الطلب غير موجود" });
+
+    // Notify customer on status change
+    if (status) {
+      const statusMessages: Record<string, string> = {
+        confirmed: "تم قبول طلب وصل لي الخاص بك",
+        on_way: "السائق في طريقه لاستلام طلبك",
+        delivered: "تم تنفيذ طلب وصل لي بنجاح",
+        cancelled: `تم إلغاء طلب وصل لي. ${cancelReason ? `السبب: ${cancelReason}` : ''}`,
+      };
+      if (statusMessages[status]) {
+        await storage.createNotification({
+          type: "wasalni_status_update",
+          title: "تحديث طلب وصل لي",
+          message: `${statusMessages[status]} - رقم الطلب: ${updated.requestNumber}`,
+          recipientType: "customer",
+          recipientId: updated.customerId || updated.customerPhone,
+          orderId: null,
+          isRead: false,
+        });
+      }
+    }
+
+    res.json({ success: true, request: updated });
+  } catch (error) {
+    console.error("Error updating wasalni request:", error);
+    res.status(500).json({ error: "فشل في تحديث الطلب" });
+  }
+});
+
+// Delete wasalni request
+router.delete("/:id", async (req, res) => {
+  try {
+    const db = (storage as any).db;
+    const { eq } = await import("drizzle-orm");
+    await db.delete(wasalniRequests).where(eq(wasalniRequests.id, req.params.id));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "فشل في حذف الطلب" });
+  }
+});
+
+export default router;
