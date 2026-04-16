@@ -501,7 +501,7 @@ router.put("/:id/prices", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, updatedBy, updatedByType } = req.body;
+    const { status, updatedBy, updatedByType, cancelReason } = req.body;
 
     if (!status) {
       return res.status(400).json({ error: "الحالة مطلوبة" });
@@ -610,7 +610,9 @@ router.put("/:id", async (req, res) => {
         }
         break;
       case 'cancelled':
-        statusMessage = 'تم إلغاء الطلب';
+        statusMessage = cancelReason 
+          ? `تم إلغاء الطلب - السبب: ${cancelReason}` 
+          : 'تم إلغاء الطلب';
         // تحرير السائق إذا كان مُعيَّناً
         if (order.driverId) {
           await storage.updateDriver(order.driverId, { isAvailable: true });
