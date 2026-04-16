@@ -93,6 +93,85 @@ app.use((req, res, next) => {
     }, () => {
       log(`serving on port ${port}`);
     });
+
+    // ===== مؤقت تفعيل الطلبات المجدولة =====
+    // كل دقيقة: ابحث عن طلبات scheduled موعدها خلال 30 دقيقة أو أقل وفعّلها
+    setInterval(async () => {
+      try {
+        const allOrders = await storage.getOrders();
+        const scheduledOrders = allOrders.filter((o: any) => o.status === 'scheduled');
+        if (scheduledOrders.length === 0) return;
+
+        const now = new Date();
+        const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+
+        for (const order of scheduledOrders) {
+          if (!order.scheduledDate || !order.scheduledTimeSlot) continue;
+          try {
+            // parse scheduledDate (YYYY-MM-DD) + scheduledTimeSlot (HH:MM)
+            const timeStr = order.scheduledTimeSlot.replace(/[^\d:]/g, '').trim();
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            if (isNaN(hours) || isNaN(minutes)) continue;
+
+            const scheduledDateTime = new Date(order.scheduledDate);
+            scheduledDateTime.setHours(hours, minutes, 0, 0);
+
+            // إذا كان الموعد خلال 30 دقيقة أو قد فات وقته
+            if (scheduledDateTime <= thirtyMinutesFromNow) {
+              await storage.updateOrder(order.id, {
+                status: 'pending',
+                updatedAt: new Date()
+              });
+
+              // إشعار للإدارة
+              await storage.createNotification({
+                type: 'scheduled_order_ready',
+                title: '📅 طلب مجدول جاهز',
+                message: `الطلب المجدول رقم ${order.orderNumber} من ${order.customerName} أصبح جاهزاً للتوصيل. موعده: ${order.scheduledDate} ${order.scheduledTimeSlot}`,
+                recipientType: 'admin',
+                recipientId: null,
+                orderId: order.id,
+                isRead: false
+              });
+
+              // إشعار للعميل
+              await storage.createNotification({
+                type: 'order_status_update',
+                title: 'طلبك المجدول قيد التنفيذ',
+                message: `بدأ تجهيز طلبك المجدول رقم ${order.orderNumber} - سيصلك قريباً`,
+                recipientType: 'customer',
+                recipientId: order.customerId || order.customerPhone,
+                orderId: order.id,
+                isRead: false
+              });
+
+              // تتبع
+              await storage.createOrderTracking({
+                orderId: order.id,
+                status: 'pending',
+                message: `تم تفعيل الطلب المجدول تلقائياً - موعد التوصيل: ${order.scheduledDate} ${order.scheduledTimeSlot}`,
+                createdBy: 'system',
+                createdByType: 'system'
+              });
+
+              // WebSocket broadcast
+              const wsServer = app.get('ws');
+              if (wsServer) {
+                wsServer.broadcast('order_update', { orderId: order.id, status: 'pending', type: 'scheduled_activated' });
+              }
+
+              log(`✅ تم تفعيل الطلب المجدول: ${order.orderNumber}`);
+            }
+          } catch (e) {
+            console.error(`خطأ في تفعيل الطلب المجدول ${order.id}:`, e);
+          }
+        }
+      } catch (e) {
+        console.error('خطأ في مؤقت الطلبات المجدولة:', e);
+      }
+    }, 60 * 1000); // كل دقيقة
+    log('⏰ تم تشغيل مؤقت الطلبات المجدولة');
+
   } catch (err) {
     console.error("Failed to start server:", err);
     process.exit(1);

@@ -925,6 +925,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer notifications endpoint - by phone or customerId
+  app.get("/api/notifications/customer", async (req, res) => {
+    try {
+      const { phone, customerId } = req.query;
+      if (!phone && !customerId) {
+        return res.status(400).json({ message: "phone or customerId required" });
+      }
+      const allNotifs = await storage.getNotifications('customer', undefined, false);
+      const filtered = allNotifs.filter((n: any) => {
+        if (customerId && n.recipientId === customerId) return true;
+        if (phone && n.recipientId === phone) return true;
+        return false;
+      });
+      filtered.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      res.json(filtered);
+    } catch (error) {
+      console.error('Error fetching customer notifications:', error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // Mark all customer notifications as read
+  app.put("/api/notifications/customer/mark-all-read", async (req, res) => {
+    try {
+      const { phone, customerId } = req.body;
+      if (!phone && !customerId) {
+        return res.status(400).json({ message: "phone or customerId required" });
+      }
+      const allNotifs = await storage.getNotifications('customer', undefined, false);
+      const unread = allNotifs.filter((n: any) => {
+        if (!n.isRead) {
+          if (customerId && n.recipientId === customerId) return true;
+          if (phone && n.recipientId === phone) return true;
+        }
+        return false;
+      });
+      await Promise.all(unread.map((n: any) => (storage as any).markNotificationAsRead(n.id)));
+      res.json({ success: true, markedCount: unread.length });
+    } catch (error) {
+      console.error('Error marking customer notifications as read:', error);
+      res.status(500).json({ message: "Failed to mark notifications as read" });
+    }
+  });
+
   // Mark notification as read
   app.put("/api/notifications/:id/read", async (req, res) => {
     try {
