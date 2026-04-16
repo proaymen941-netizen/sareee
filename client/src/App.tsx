@@ -119,6 +119,7 @@ import ProductDetails from "./pages/ProductDetails";
 import CustomerAuthPage from "./pages/CustomerAuthPage";
 import Favorites from "./pages/Favorites";
 import CustomerAddresses from "./pages/CustomerAddresses";
+import WasalniPage from "./pages/WasalniPage";
 
 function Router() {
   // Check UiSettings for page visibility
@@ -144,6 +145,7 @@ function Router() {
       <Route path="/my-addresses" component={CustomerAddresses} />
       <Route path="/settings" component={Settings} />
       <Route path="/privacy" component={Privacy} />
+      <Route path="/wasalni" component={WasalniPage} />
       
       {/* Authentication Routes */}
       <Route path="/admin-login" component={AdminLoginPage} />
