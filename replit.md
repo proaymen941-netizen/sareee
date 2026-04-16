@@ -1,251 +1,59 @@
-# السريع ون | منصة توصيل الطلبات في المملكة العربية السعودية
+# السريع ون - Al-Saree One Food Delivery System
 
-## Overview
-منصة متكاملة لخدمة التوصيل في المملكة العربية السعودية. تحتوي على ثلاثة واجهات: تطبيق العميل، تطبيق السائق، ولوحة الإدارة.
-Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
-Primary Color: Red-Orange — hsl(14 92% 52%) / ~#f04a17
-
-## Branding
-- **App Name**: السريع ون (Al-Saree One)
-- **Primary Color**: Red-Orange `hsl(14 92% 52%)` — updated across all CSS variables (light + dark mode)
-- **theme-color** meta tag: `#d91643` in `client/index.html`
-- **CSS Classes**: `.header-gradient`, `.orange-gradient`, `.red-gradient` (all deep red)
-- **DB Settings**: Updated in `system_settings_table` via admin UI or direct DB query
-
-## Flutter App Integration
-- تطبيق Flutter (`flutter_app/`) يعرض الموقع عبر WebView
-- شاشة البداية في Flutter تجلب إعداداتها (الشعار، العنوان، الألوان) من السيرفر عبر `/api/flutter/app-config`
-- تم حذف شاشة الترحيب الخضراء من تطبيق العميل (web) بالكامل - Flutter يتولى ذلك
-- عند الفتح من Flutter: يُكتشف تلقائياً عبر User-Agent ويُتجاوز تحميل الـ splash
-- دعم كامل للروابط الخارجية: WhatsApp, tel, SMS, mailto, Telegram, Maps
-- رسالة تأكيد عند الخروج من التطبيق
-- رسالة "لا يوجد اتصال بالإنترنت" مع إمكانية إعادة المحاولة
-- صلاحيات Android كاملة: كاميرا، موقع، هاتف، رسائل، واتساب، تيليجرام
-- صلاحيات iOS كاملة: كاميرا، موقع، جهات اتصال
-- رابط السيرفر في `flutter_app/lib/utils/constants.dart` - يجب تحديثه عند تغيير الاستضافة
-
-## Latest Session Features (April 2026)
-
-### 1. Scheduled Orders (طلب مجدول)
-- When the store is closed, Cart.tsx detects the "store closed" error response and shows a scheduling dialog
-- The dialog offers next-day time slots: 9:00 AM, 10:00 AM, 12:00 PM, 3:00 PM, or a custom date+time picker
-- Orders are saved with `status: 'scheduled'` and `scheduledDate` + `scheduledTimeSlot` fields
-- Server cron job runs every 60s: promotes scheduled orders to `pending` when within 30 min of their scheduled time, and sends notifications to admin and customer
-- OrderTrackingPage shows a styled info card for scheduled orders with date/time and auto-activation message
-
-### 2. Notifications Bell in TopBar
-- TopBar.tsx on mobile now shows `CustomerNotificationsPanel` (bell icon with unread count badge) instead of the user icon
-- The panel polls every 30s for new notifications and supports mark-all-read
-- Backend endpoints: `GET /api/notifications/customer` (filter by phone/customerId), `PUT /api/notifications/customer/mark-all-read`
-
-### 3. Cancel Order with Reason Dialog
-- OrderTrackingPage.tsx: cancel button is only shown for `CANCELLABLE_STATUSES = ['pending', 'scheduled', 'confirmed']`
-- Clicking cancel opens a dialog with 5 preset reasons + free-text textarea
-- For non-cancellable in-progress statuses (preparing, on_way, etc.) shows a friendly amber info message
-- Calls `PATCH /api/orders/:orderId/cancel` with `{ reason, cancelledBy: 'customer' }`
-- RatingDialog is also now rendered from OrderTrackingPage when order is delivered
-
-## Notifications & Restaurant Accounts Enhancements (Latest Session)
-- **Enhanced Notifications Admin Page** (`/admin/notifications`): Full notifications system with stats, targeted sending (all/customers/drivers/app users), notification history with filters, device management tab
-- **New Backend Endpoints** in `server/routes/flutter.ts`: `POST /send-targeted`, `GET /history`, `DELETE /:id`, `GET /stats`
-- **Enhanced Restaurant Accounts Page** (`/admin/restaurant-accounts`): Full financial dashboard with restaurant list, all-withdrawals management (approve/reject/complete with notes), commission settings per restaurant
-- **New Backend Endpoints** in `server/routes/restaurant-accounts.ts`: `GET /all-withdrawals`, `PUT /:restaurantId/commission`; fixed withdrawal insert/update to use correct schema fields (`bankDetails` JSON, `adminNotes`, `rejectionReason`)
-
-## API Routing Fixes (Latest Session)
-- **Restaurant Accounts Router**: Registered at `/api/restaurant-accounts` in `server/routes.ts` using `AdvancedDatabaseStorage` for wallet methods
-- **Flutter Router**: Registered at `/api/flutter` in `server/routes.ts` for push notification polling and device token registration
-- **Admin Notifications WebSocket**: `POST /api/admin/notifications` now broadcasts via `broadcastEvent('new_notification', ...)` to all connected WebSocket clients
-- **Sub-admin Permission Middleware**: Added `requirePermission()` middleware in `server/routes/admin.ts`; applied to all sub-admin CRUD routes (`GET/POST/PUT/DELETE /api/admin/sub-admins`) requiring `manage_admins` permission
-- **Permission Parsing**: Auth middleware now parses sub-admin permissions JSON and attaches to `req.adminPermissions`; null = full access (main admin)
-
-## Replit Setup Notes
-- **Workflow**: `npm run dev` on port 5000 (webview)
-- **Database**: PostgreSQL via Replit built-in (DATABASE_URL env var)
-- **CSS Fix**: Root `tailwind.config.js` content paths fixed to point at `./client/src/**`. A `client/postcss.config.js` was added so Vite middleware mode picks up PostCSS/Tailwind correctly.
-- **HMR Warning**: WebSocket HMR connection shows a warning in the browser console due to Replit's proxy — this is normal and does not affect app functionality.
-- **PWA Files**: `client/public/manifest.json` and `client/public/sw.js` — service worker registration is in `client/index.html`
-- **Clean-up**: Removed root-level duplicate files (App.tsx, main.tsx, index.html, index.css, vite-env.d.ts)
-
-## Delivery Fee Architecture
-- **Global settings only**: Delivery fee settings (baseFee, perKmFee, minFee, maxFee, freeDeliveryThreshold, type) live in the global `deliveryFeeSettings` table — no per-restaurant overrides.
-- **Restaurant location**: Each restaurant has its own `latitude`/`longitude` fields set via map picker in AdminRestaurants. These are used directly by `calculateDeliveryFee()` to compute delivery distance.
-- **No storeLat/storeLng in settings**: The `storeLat`/`storeLng` columns in `deliveryFeeSettings` are no longer used or populated.
-- **Real-time sync**: When admin saves delivery fee settings or modifies a restaurant, `broadcastSettingsChanged()` is called via WebSocket, causing connected clients to invalidate relevant React Query caches automatically.
+## Project Overview
+A comprehensive food delivery system supporting three user roles: Customers, Drivers, and Administrators. Built as a full-stack TypeScript application with a React frontend and Express backend.
 
 ## Architecture
-
-### Frontend
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS + Radix UI components
-- **State Management**: TanStack Query (React Query)
-- **Routing**: Wouter
-- **Icons**: Lucide React
-
-### Backend
-- **Server**: Node.js + Express (TypeScript)
-- **Runtime**: tsx for development
-- **WebSockets**: ws library for real-time updates
-
-### Database
-- **Database**: PostgreSQL (Replit built-in)
-- **ORM**: Drizzle ORM
-- **Schema**: `shared/schema.ts`
-- **Migrations**: `drizzle/` directory
+- **Frontend**: React 18 + Vite, Tailwind CSS, Radix UI, TanStack Query, Wouter routing
+- **Backend**: Node.js + Express, Drizzle ORM, PostgreSQL, WebSockets (ws), Passport.js auth
+- **Database**: PostgreSQL (Replit managed), Drizzle ORM schema in `/shared/schema.ts`
+- **Package Manager**: npm
+- **Build Tool**: Vite (frontend) + esbuild (backend)
 
 ## Project Structure
-
-```
-/
-├── client/          # React frontend
-│   └── src/
-│       ├── components/  # UI components (Radix-based)
-│       ├── context/     # React Context providers
-│       ├── contexts/    # Additional contexts
-│       ├── hooks/       # Custom hooks
-│       ├── pages/       # App pages (customer, admin, driver)
-│       ├── services/    # API service layer
-│       └── utils/       # Utility functions
-├── server/          # Express backend
-│   ├── routes/      # API endpoints
-│   ├── services/    # Business logic
-│   ├── db.ts        # DatabaseStorage implementation
-│   ├── storage.ts   # Storage interface + MemStorage
-│   ├── seed.ts      # Database seeding
-│   ├── socket.ts    # WebSocket setup
-│   └── viteServer.ts # Vite dev middleware
-├── shared/          # Shared TypeScript types and schema
-│   └── schema.ts    # Drizzle schema (single source of truth)
-├── drizzle/         # DB migrations
-└── drizzle.config.ts
-```
+- `/client` - React frontend application
+  - `/src/pages` - Pages organized by role: admin, driver, customer
+  - `/src/components` - Reusable UI components (Shadcn UI based)
+  - `/src/context` - React Context providers (Auth, Cart, Location, Theme)
+- `/server` - Express backend
+  - `index.ts` - Entry point
+  - `db.ts` - DatabaseStorage class (Drizzle ORM)
+  - `storage.ts` - IStorage interface + MemStorage fallback
+  - `routes/` - Modular API routes (admin, driver, orders, etc.)
+  - `viteServer.ts` - Vite dev server integration
+  - `seed.ts` - Default data seeding
+- `/shared` - Shared code (Drizzle schema, types)
+- `/drizzle` - Migration files
 
 ## Development
+- **Dev command**: `npm run dev` (runs Express + Vite middleware on port 5000)
+- **Build command**: `npm run build`
+- **DB push**: `npm run db:push`
 
-### Running the App
-```bash
-npm run dev
-```
-The server starts on port 5000, serving both the Express API and Vite dev server via middleware.
-
-### Database Setup
-```bash
-npm run db:push   # Push schema changes to database
-npm run db:setup  # Run setup script
-```
-
-### Build for Production
-```bash
-npm run build     # Build both client and server
-npm start         # Run production server
-```
-
-## Key Configuration
-
-- **Port**: 5000 (both dev server and API)
-- **Storage**: `USE_MEMORY_STORAGE = false` in `server/storage.ts` — uses PostgreSQL
-- **Vite Config**: Root `vite.config.ts` serves client from `client/` directory
-- **Host**: `0.0.0.0` for dev server (Replit proxy compatibility)
-- **AllowedHosts**: `true` (bypasses host header check for Replit proxy)
+## Key Features
+- Customer app: Browse restaurants/categories, place orders, order tracking
+- Driver app: Manage deliveries, earnings, wallet
+- Admin panel: Orders management, drivers, financial reports, system settings
+- Real-time updates via WebSockets
+- PWA support with service worker
+- Scheduled orders with auto-activation timer
+- Hidden 4-click admin access (tap logo)
+- **AppClosedOverlay**: Interactive popup when store is closed, allows scheduling orders with date/time picker
+- **Wasalni Service (وصل لي)**: Full delivery-from-anywhere service
+  - Customer page: `/wasalni` with from/to address, order type, scheduled time, notes, invoice view
+  - Admin page: `/admin/wasalni` with request management, status updates, fee setting
+  - DB table: `wasalni_requests` (schema in `/shared/schema.ts`)
+  - API: `/api/wasalni` (CRUD in `server/routes/wasalni.ts`)
+  - Toggle: `show_wasalni_service` UI setting in admin panel
+- **Notifications fix**: Customer notifications now correctly fetched from server
+- **Scheduled orders bypass closure**: Scheduled orders allowed even when store is closed
 
 ## Environment Variables
-- `DATABASE_URL` - PostgreSQL connection string
-- `NODE_ENV` - development/production
-- `JWT_SECRET` - JWT signing secret
-- `SESSION_SECRET` - Session signing secret
+- `DATABASE_URL` - PostgreSQL connection (managed by Replit)
+- `SESSION_SECRET` - Session encryption key (managed by Replit)
+- `NODE_ENV` - Set to "development" for dev mode
 
-## Image Uploads
-- **Storage**: Local disk (no external service required)
-- **Upload API**: `POST /api/images/upload` and `POST /api/images/upload-multiple`
-- **Static Serving**: `/uploads/*` serves uploaded files
-- **Upload Dir**: `./uploads/` (git-ignored)
-- **Supabase removed**: Fully replaced with local disk storage (multer)
-
-## User Types
-1. **Customers** - Browse restaurants, place orders, track delivery
-2. **Drivers** - Accept/manage deliveries, track earnings
-3. **Admins** - Full platform management (restaurants, menus, drivers, analytics)
-
-## Authentication
-
-### Admin Panel
-- Protected route: accessing `/admin` redirects to `/admin-login` if no token
-- Auth endpoint: `POST /api/auth/admin/login` (email + password)
-- Validation: **bcrypt only** — passwords verified against hashed DB values (no bypass)
-- Token stored in `localStorage` as `admin_token` (uses admin UUID as token)
-- Logout clears token and redirects to `/admin-login`
-
-### Driver App
-- Protected: accessing `/driver` redirects to `/driver-login` if no token
-- Auth endpoint: `POST /api/auth/driver/login` (phone + password)
-- Token stored in `localStorage` as `driver_token`
-
-### Default Credentials (Seeded)
-- **Admin**: admin@alsarie-one.com / 777146387
-- **Admin 2**: manager@alsarie-one.com / manager123
-- **Driver 1**: +967771234567 / 123456
-- **Driver 2**: +967779876543 / 123456
-
-## UI Settings System
-Admin can control both customer and driver app interfaces from the admin panel at `/admin/ui-settings`:
-- **Customer App**: Show/hide pages (orders, tracking, search, categories, hero section, etc.), branding, support, privacy
-- **Driver App**: Show/hide wallet page, stats page, profile page, history page
-- Settings are stored in the `ui_settings` table and fetched via `/api/admin/ui-settings`
-- Both apps use `UiSettingsContext` to apply settings in real-time
-
-## Default Seed Data
-On first run with a fresh database, the app seeds:
-- 5 categories (vegetables, fruits, dates, etc.)
-- 3 restaurants
-- 4 menu items
-- 19 UI settings
-- 2 admin users
-- 2 drivers
-
-## Drivers Schema — Extended Fields
-The `drivers` table has these important fields:
-- `paymentMode`: 'commission' | 'salary' — how driver is paid
-- `commissionRate`: percentage of delivery fee (when paymentMode='commission')
-- `salaryAmount`: monthly salary amount (when paymentMode='salary')
-- `allowProfileEdit`: boolean — admin controls if driver can edit their own profile
-- `notes`: admin notes about the driver
-- `joinDate`: when the driver joined
-
-## Admin Panel Features
-- **إدارة السائقين**: 4-tab account dialog (بيانات السائق, المحفظة, المعاملات, العمولات)
-- **الأقسام**: Search bar (sticky) added
-- **العروض الخاصة**: No restaurant association required (global store offers)
-- **Currency**: SAR everywhere (ر.س) — locale: ar-SA
-
-## Recent Improvements (April 2026)
-
-### Performance & Clean-up
-- **Compression**: Added Express gzip middleware (`compression` package) to shrink API responses
-- **QueryClient**: `staleTime` set to 60s, `refetchOnWindowFocus` disabled — reduces unnecessary API calls
-- **Google Fonts**: Replaced 30+ font imports in `client/index.html` with only Inter + Noto Sans Arabic; removed duplicate `@import` from `index.css`
-- **Unused files removed**: `Home.tsx`, `Restaurant.tsx`, `OrderTracking.tsx`, `ProfilePage.tsx` — and their imports from `App.tsx`
-
-### Bug Fixes
-- **Menu API**: Server now returns `{ allItems: [...] }` instead of plain array; `RestaurantPage` reads `menuData.allItems`
-- **Sections route**: Re-enabled `GET /api/restaurants/:restaurantId/sections` (was accidentally disabled)
-- **Sections fallback**: When DB has no sections, tabs are built from menu item `category` field
-
-### UI Redesign
-- **RestaurantPage**: Fully redesigned with sticky red header, restaurant info card, scrollable category tabs, menu items with image/price/add-to-cart
-- **Theme**: Changed from orange-red `hsl(13 95% 52%)` to vibrant red `hsl(350 88% 50%)` across all CSS variables in both light and dark modes
-
-## Recent Improvements (March 2026)
-
-### Bug Fixes
-- **Fixed missing admin routes**: Added `/admin/coupons`, `/admin/payment-methods`, `/admin/detailed-reports` routes to AdminApp.tsx
-- **Fixed AdminLayout wrapping**: AdminApp now wraps all routes with `<AdminLayout>` at the top level
-- **Fixed input focus issue in AdminUiSettings**: Created `StableTextInput` and `StableTextarea` components outside the main component to prevent React remounting on every state change (inputs no longer lose focus while typing)
-- **Fixed sidebar scroll preservation**: Added sessionStorage-based scroll position save/restore in AdminLayout.tsx using `useRef` and `useEffect`
-
-### New Features
-- **Sub-admins management moved to HR Management**: Sub-admins tab added to AdminHRManagement.tsx with full CRUD (create/edit/delete sub-admins, assign granular permissions)
-- **AdminProfile simplified**: Now shows only profile info + password change. Added hint to manage sub-admins via HR Management
-- **Security logging**: Login events are now logged to `audit_logs` table (entityType='auth'). Logout events logged via `POST /api/admin/security/log-logout`. Security page at `/admin/security` now displays real login/logout history
-- **Security API routes**: Added `GET /api/admin/security/logs`, `POST /api/admin/security/log-login`, `POST /api/admin/security/log-logout`, `GET /api/admin/security/settings`
-- **Sticky header in AdminLayout**: Desktop and mobile headers are now sticky (top-0 with z-30)
-- **Improved sidebar**: Clean grouping of nav items (Main, Store, Drivers, Reports, Management, Settings), notifications bell with badge, user avatar display
+## Deployment
+- Target: autoscale
+- Build: `npm run build`
+- Run: `node dist/index.js`
