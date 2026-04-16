@@ -35,6 +35,7 @@ import {
   Layers,
   Zap,
   Activity,
+  Bike,
 } from 'lucide-react';
 import type { UiSettings } from '@shared/schema';
 
@@ -356,6 +357,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: Users, label: 'العملاء', path: '/admin/users', permission: 'manage_customers' },
         { icon: Shield, label: 'الأمن والخصوصية', path: '/admin/security', permission: 'manage_settings' },
         { icon: Bell, label: 'الإشعارات', path: '/admin/notifications', permission: 'manage_settings' },
+        { icon: Bike, label: 'طلبات وصل لي', path: '/admin/wasalni', permission: 'manage_orders' },
       ].filter(item => hasPermission(item.permission))
     },
     {

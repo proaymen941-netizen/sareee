@@ -644,6 +644,17 @@ export function UiControlPanel() {
           </div>
 
           <div className="flex items-center justify-between">
+            <Label htmlFor="show_wasalni_service" className="flex-1">
+              عرض خدمة وصل لي
+            </Label>
+            <Switch
+              id="show_wasalni_service"
+              checked={isFeatureEnabled('show_wasalni_service')}
+              onCheckedChange={(checked) => handleToggle('show_wasalni_service', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
             <Label htmlFor="show_cart_button" className="flex-1">
               عرض زر السلة
             </Label>
