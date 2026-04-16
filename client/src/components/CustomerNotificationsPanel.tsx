@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, X, Check, CheckCheck, Package, Clock, AlertCircle, Info } from 'lucide-react';
+import { Bell, X, CheckCheck, Package, Clock, Info } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 
@@ -113,76 +113,92 @@ export function CustomerNotificationsPanel() {
       </button>
 
       {isOpen && (
-        <div
-          className="absolute left-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[200] overflow-hidden"
-          style={{ maxHeight: '70vh' }}
-        >
-          <div className="flex items-center justify-between px-4 py-3 bg-primary text-white">
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              <span className="font-bold text-sm">الإشعارات</span>
-              {unreadCount > 0 && (
-                <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
-                  {unreadCount} جديد
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
-                <button
-                  onClick={() => markAllReadMutation.mutate()}
-                  className="text-white/80 hover:text-white transition-colors"
-                  title="تعليم الكل كمقروء"
-                >
-                  <CheckCheck className="h-4 w-4" />
-                </button>
-              )}
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-white/80 hover:text-white transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="overflow-y-auto" style={{ maxHeight: 'calc(70vh - 52px)' }}>
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                <Bell className="h-10 w-10 mb-2 opacity-30" />
-                <p className="text-sm font-medium">لا توجد إشعارات</p>
+        <>
+          {/* خلفية شفافة لإغلاق اللوحة عند الضغط خارجها */}
+          <div className="fixed inset-0 z-[190]" onClick={() => setIsOpen(false)} />
+          
+          {/* لوحة الإشعارات - ثابتة ومرتبة */}
+          <div
+            className="fixed z-[200] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+            style={{
+              top: '64px',
+              right: '8px',
+              left: '8px',
+              maxWidth: '380px',
+              marginLeft: 'auto',
+              maxHeight: '75vh',
+            }}
+            dir="rtl"
+          >
+            {/* رأس اللوحة */}
+            <div className="flex items-center justify-between px-4 py-3 bg-primary text-white sticky top-0">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                <span className="font-bold text-sm">الإشعارات</span>
+                {unreadCount > 0 && (
+                  <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                    {unreadCount} جديد
+                  </span>
+                )}
               </div>
-            ) : (
-              notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  onClick={() => {
-                    if (!notif.isRead) markOneReadMutation.mutate(notif.id);
-                  }}
-                  className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 cursor-pointer transition-colors ${
-                    !notif.isRead ? 'bg-blue-50/60 hover:bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => markAllReadMutation.mutate()}
+                    className="text-white/80 hover:text-white transition-colors"
+                    title="تعليم الكل كمقروء"
+                  >
+                    <CheckCheck className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-white/80 hover:text-white transition-colors"
                 >
-                  <div className="mt-0.5 shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                    {getIcon(notif.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-1">
-                      <p className={`text-sm font-bold leading-tight ${!notif.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
-                        {notif.title}
-                      </p>
-                      {!notif.isRead && (
-                        <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{notif.message}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{timeAgo(notif.createdAt)}</p>
-                  </div>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* قائمة الإشعارات */}
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(75vh - 52px)' }}>
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                  <Bell className="h-10 w-10 mb-2 opacity-30" />
+                  <p className="text-sm font-medium">لا توجد إشعارات</p>
                 </div>
-              ))
-            )}
+              ) : (
+                notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    onClick={() => {
+                      if (!notif.isRead) markOneReadMutation.mutate(notif.id);
+                    }}
+                    className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 cursor-pointer transition-colors ${
+                      !notif.isRead ? 'bg-blue-50/60 hover:bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="mt-0.5 shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      {getIcon(notif.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-1">
+                        <p className={`text-sm font-bold leading-tight ${!notif.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
+                          {notif.title}
+                        </p>
+                        {!notif.isRead && (
+                          <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{notif.message}</p>
+                      <p className="text-[10px] text-gray-400 mt-1">{timeAgo(notif.createdAt)}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

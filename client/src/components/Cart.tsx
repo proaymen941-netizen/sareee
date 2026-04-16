@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Minus, Plus, Trash2, ShoppingBag, X, MapPin, Loader2, Calendar, Clock } from 'lucide-react'; 
+import { Minus, Plus, Trash2, ShoppingBag, X, MapPin, Loader2, Calendar, Clock, AlertTriangle } from 'lucide-react'; 
 import { useCart } from '../context/CartContext';
 import { useUserLocation as useGeoLocation } from '../context/LocationContext';
 import { GoogleMapsLocationPicker, LocationData } from './GoogleMapsLocationPicker';
@@ -34,10 +34,15 @@ export function Cart({ isOpen, onClose }: CartProps) {
 
   // نظام الطلب المؤجل
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
-  const [appClosedMessage, setAppClosedMessage] = useState('');
+  const [scheduleDialogTitle, setScheduleDialogTitle] = useState('');
+  const [scheduleDialogMessage, setScheduleDialogMessage] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [customScheduleMode, setCustomScheduleMode] = useState(false);
+
+  // حالة تأكيد الإرسال المكرر
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
+  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
   const getScheduleSlots = () => {
     const tomorrow = new Date();
@@ -59,14 +64,14 @@ export function Cart({ isOpen, onClose }: CartProps) {
     { id: 'online', name: 'دفع إلكتروني', icon: '🌐' }
   ];
 
-  // Automatically request location if not available when cart is open
+  // طلب الموقع تلقائياً عند فتح السلة
   useEffect(() => {
     if (isOpen && !userGeoLocation.position && !userGeoLocation.isLoading && !userGeoLocation.error) {
       getCurrentLocation();
     }
   }, [isOpen, userGeoLocation.position, userGeoLocation.isLoading]);
 
-  // Use GPS location as default if selectedLocation is null
+  // استخدام موقع GPS كافتراضي
   useEffect(() => {
     if (userGeoLocation.position && !selectedLocation && isOpen) {
       const { latitude, longitude } = userGeoLocation.position.coords;
@@ -76,17 +81,15 @@ export function Cart({ isOpen, onClose }: CartProps) {
         address: 'موقعي الحالي (GPS)',
         area: 'تحديد تلقائي'
       });
-      
-      // لا نحتاج لاستدعاء fetchDeliveryFee هنا لأن الـ useEffect التالي سيقوم بذلك بمجرد تغير selectedLocation
     }
   }, [userGeoLocation.position, selectedLocation, isOpen]);
 
-  // جلب إعدادات رسوم التوصيل
+  // إعدادات الواجهة
   const { data: uiSettings } = useQuery({
     queryKey: ['/api/admin/ui-settings'],
   });
 
-  // جلب بيانات المطعم للحصول على موقعه بدقة
+  // بيانات المطعم لموقعه
   const { data: restaurant } = useQuery({
     queryKey: [`/api/restaurants/${state.restaurantId}`],
     enabled: !!state.restaurantId,
@@ -128,11 +131,6 @@ export function Cart({ isOpen, onClose }: CartProps) {
       } catch (error: any) {
         if (isMounted && error.name !== 'AbortError') {
           console.error('Failed to calculate delivery fee:', error);
-          toast({
-            title: "خطأ في حساب الرسوم",
-            description: "فشل في الاتصال بالسيرفر",
-            variant: "destructive",
-          });
         }
       } finally {
         if (isMounted) {
@@ -149,25 +147,22 @@ export function Cart({ isOpen, onClose }: CartProps) {
     };
   }, [selectedLocation?.lat, selectedLocation?.lng, state.restaurantId, state.subtotal]);
 
-  // الحصول على موقع المطعم للحساب
   const getRestaurantLocation = () => {
-    if (restaurant && restaurant.latitude && restaurant.longitude) {
+    const r = restaurant as any;
+    if (r && r.latitude && r.longitude) {
       return { 
-        lat: parseFloat(restaurant.latitude), 
-        lng: parseFloat(restaurant.longitude) 
+        lat: parseFloat(r.latitude), 
+        lng: parseFloat(r.longitude) 
       };
     }
     return undefined;
   };
+
   if (!isOpen) return null;
 
-  // Function to save customer info to user profile
   const saveCustomerInfoToProfile = async () => {
     try {
-      // For now, we'll use the same demo user ID as in Profile component
       const userId = '5ea1edd8-b9e1-4c9e-84fb-25aa2741a0db';
-      
-      // Update user profile with delivery info
       await apiRequest('PUT', `/api/users/${userId}`, {
         name: customerInfo.name,
         phone: customerInfo.phone,
@@ -175,7 +170,6 @@ export function Cart({ isOpen, onClose }: CartProps) {
       });
     } catch (error) {
       console.error('Failed to save customer info to profile:', error);
-      // Don't show error to user as this is a background operation
     }
   };
 
@@ -197,8 +191,37 @@ export function Cart({ isOpen, onClose }: CartProps) {
     scheduledTimeSlot: scheduled?.time || null,
   });
 
+  // التحقق من توفر السائقين قبل الإرسال
+  const checkAvailableDrivers = async (): Promise<number> => {
+    try {
+      const res = await fetch('/api/drivers');
+      if (!res.ok) return 0;
+      const data = await res.json();
+      return Array.isArray(data) ? data.filter((d: any) => d.isAvailable && d.isActive !== false).length : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const submitOrder = async (orderData: any): Promise<{ success: boolean; data: any; error?: string }> => {
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderData),
+    });
+    const data = await response.json();
+    if (response.ok) {
+      return { success: true, data };
+    }
+    return { success: false, data, error: data.error || data.message || 'فشل في إرسال الطلب' };
+  };
+
   const handleCheckout = async () => {
-    if (isSubmitting) return;
+    // منع النقر المكرر أثناء الإرسال
+    if (isSubmitting) {
+      setShowDuplicateConfirm(true);
+      return;
+    }
 
     if (!selectedLocation) {
       toast({
@@ -220,27 +243,39 @@ export function Cart({ isOpen, onClose }: CartProps) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildOrderData()),
-      });
+      // فحص توفر السائقين
+      const availableDrivers = await checkAvailableDrivers();
+      
+      if (availableDrivers === 0) {
+        // لا يوجد سائقون متاحون - عرض خيار الجدولة
+        const orderData = buildOrderData();
+        setPendingOrderData(orderData);
+        setScheduleDialogTitle('لا يوجد سائقون متاحون');
+        setScheduleDialogMessage('لا يوجد سائقون متاحون حالياً. هل تريد جدولة طلبك لوقت لاحق؟');
+        setShowScheduleDialog(true);
+        setIsSubmitting(false);
+        return;
+      }
 
-      const data = await response.json();
+      // إرسال الطلب
+      const orderData = buildOrderData();
+      const result = await submitOrder(orderData);
 
-      if (response.ok) {
+      if (result.success) {
         await saveCustomerInfoToProfile();
         toast({
           title: "تم تأكيد طلبك بنجاح! 🎉",
-          description: `رقم الطلب: ${data.order?.orderNumber || data.orderNumber}`,
+          description: `رقم الطلب: ${result.data.order?.orderNumber || result.data.orderNumber}`,
         });
         clearCart();
         onClose();
       } else {
-        const errorMsg: string = data.error || data.message || 'فشل في إرسال الطلب';
+        const errorMsg = result.error || 'فشل في إرسال الطلب';
         const isClosedError = errorMsg.includes('مغلق') || errorMsg.includes('closed');
         if (isClosedError) {
-          setAppClosedMessage(errorMsg);
+          setPendingOrderData(buildOrderData());
+          setScheduleDialogTitle('التطبيق مغلق');
+          setScheduleDialogMessage(errorMsg);
           setShowScheduleDialog(true);
         } else {
           throw new Error(errorMsg);
@@ -248,6 +283,37 @@ export function Cart({ isOpen, onClose }: CartProps) {
       }
     } catch (error: any) {
       console.error('Order error:', error);
+      toast({
+        title: "خطأ في إرسال الطلب",
+        description: error.message || "يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // إرسال الطلب مرة أخرى بعد التأكيد
+  const handleConfirmResend = async () => {
+    setShowDuplicateConfirm(false);
+    if (!customerInfo.name || !customerInfo.phone || !selectedLocation) return;
+
+    setIsSubmitting(true);
+    try {
+      const orderData = buildOrderData();
+      const result = await submitOrder(orderData);
+      if (result.success) {
+        await saveCustomerInfoToProfile();
+        toast({
+          title: "تم تأكيد طلبك بنجاح! 🎉",
+          description: `رقم الطلب: ${result.data.order?.orderNumber || result.data.orderNumber}`,
+        });
+        clearCart();
+        onClose();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
       toast({
         title: "خطأ في إرسال الطلب",
         description: error.message || "يرجى المحاولة مرة أخرى",
@@ -293,10 +359,36 @@ export function Cart({ isOpen, onClose }: CartProps) {
     }
   };
 
+  // إرسال فوري (تجاهل تحذير السائقين)
+  const handleOrderNow = async () => {
+    setShowScheduleDialog(false);
+    if (!customerInfo.name || !customerInfo.phone || !selectedLocation) return;
+    setIsSubmitting(true);
+    try {
+      const orderData = buildOrderData();
+      const result = await submitOrder(orderData);
+      if (result.success) {
+        await saveCustomerInfoToProfile();
+        toast({
+          title: "تم استلام طلبك! 🎉",
+          description: `رقم الطلب: ${result.data.order?.orderNumber || result.data.orderNumber} - سيتم تعيين سائق قريباً`,
+        });
+        clearCart();
+        onClose();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-end">
       <div className="bg-white w-full max-w-md h-5/6 rounded-t-xl flex flex-col">
-        {/* Header */}
+        {/* رأس السلة */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <div className="text-xl font-black tracking-tighter">
@@ -314,7 +406,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
           </button>
         </div>
 
-        {/* Content */}
+        {/* المحتوى */}
         <div className="flex-1 overflow-y-auto">
           {state.items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
@@ -332,14 +424,14 @@ export function Cart({ isOpen, onClose }: CartProps) {
             </div>
           ) : (
             <>
-              {/* Restaurant Name */}
+              {/* اسم المطعم */}
               {state.restaurantName && (
                 <div className="p-4 bg-gray-50 border-b">
                   <h3 className="font-medium text-gray-800">من {state.restaurantName}</h3>
                 </div>
               )}
 
-              {/* Cart Items */}
+              {/* عناصر السلة */}
               <div className="p-4 space-y-4">
                 {state.items.map((item) => (
                   <div key={item.id} className="border rounded-lg p-3">
@@ -357,7 +449,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
                       </button>
                     </div>
 
-                    {/* Quantity Controls */}
+                    {/* التحكم في الكمية */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <button
@@ -379,7 +471,6 @@ export function Cart({ isOpen, onClose }: CartProps) {
                       </span>
                     </div>
 
-                    {/* Notes */}
                     <textarea
                       placeholder="ملاحظات خاصة بهذا العنصر"
                       value={item.notes || ''}
@@ -391,10 +482,9 @@ export function Cart({ isOpen, onClose }: CartProps) {
                 ))}
               </div>
 
-              {/* Checkout Section */}
+              {/* قسم الدفع */}
               {!showCheckout ? (
                 <div className="p-4 border-t">
-                  {/* Summary */}
                   <div className="space-y-2 mb-4">
                     <div className="flex justify-between">
                       <span>المجموع الفرعي:</span>
@@ -463,7 +553,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
                 </div>
               ) : (
                 <div className="p-4 border-t space-y-4">
-                  {/* Customer Info */}
+                  {/* معلومات العميل */}
                   <div>
                     <h3 className="font-medium mb-2">معلومات العميل</h3>
                     <div className="space-y-3">
@@ -558,7 +648,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
+                  {/* أزرار الإجراء */}
                   <div className="flex flex-col gap-3 pt-4 border-t mt-4">
                     <Button
                       onClick={handleCheckout}
@@ -597,16 +687,54 @@ export function Cart({ isOpen, onClose }: CartProps) {
         restaurantLocation={getRestaurantLocation()}
       />
 
-      {/* نافذة الطلب المؤجل */}
+      {/* نافذة تأكيد الإرسال المكرر */}
+      {showDuplicateConfirm && (
+        <div className="fixed inset-0 bg-black/70 z-[300] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-amber-500 px-5 py-4 text-white">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                <h3 className="font-black text-lg">تنبيه</h3>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-gray-700 font-bold text-base mb-1">
+                الطلب قيد الإرسال حالياً
+              </p>
+              <p className="text-gray-500 text-sm mb-5">
+                يبدو أن طلبك قد تم استلامه. هل أنت متأكد أنك تريد إرسال الطلب مرة أخرى؟
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={handleConfirmResend}
+                >
+                  نعم، إرسال مجدداً
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowDuplicateConfirm(false)}
+                >
+                  إلغاء
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* نافذة الطلب المؤجل / لا يوجد سائقون */}
       {showScheduleDialog && (
         <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-gradient-to-r from-primary to-red-700 px-5 py-4 text-white">
               <div className="flex items-center gap-2 mb-1">
                 <Clock className="h-5 w-5" />
-                <h3 className="font-black text-lg">التطبيق مغلق حالياً</h3>
+                <h3 className="font-black text-lg">{scheduleDialogTitle}</h3>
               </div>
-              <p className="text-white/80 text-sm">{appClosedMessage}</p>
+              <p className="text-white/80 text-sm">{scheduleDialogMessage}</p>
             </div>
             <div className="px-5 py-4">
               <p className="text-gray-700 font-bold text-sm mb-3 flex items-center gap-2">
@@ -677,9 +805,20 @@ export function Cart({ isOpen, onClose }: CartProps) {
                 </div>
               )}
 
+              {/* زر الطلب الفوري مع التحذير */}
+              <div className="mt-3 pt-3 border-t">
+                <button
+                  onClick={handleOrderNow}
+                  disabled={isSubmitting}
+                  className="w-full text-sm text-primary font-bold hover:underline py-1"
+                >
+                  أو اطلب الآن وانتظر تعيين سائق
+                </button>
+              </div>
+
               <button
                 onClick={() => { setShowScheduleDialog(false); setCustomScheduleMode(false); }}
-                className="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 py-2"
+                className="w-full mt-2 text-sm text-gray-400 hover:text-gray-600 py-2"
               >
                 إلغاء
               </button>
