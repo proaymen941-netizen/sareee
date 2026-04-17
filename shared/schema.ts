@@ -161,6 +161,18 @@ export const orders = pgTable("orders", {
   restaurantPhone: varchar("restaurant_phone", { length: 20 }), // رقم هاتف المطعم للسهولة
   driverId: uuid("driver_id").references(() => drivers.id),
   isRated: boolean("is_rated").default(false).notNull(), // تمت الإضافة: هل تم تقييم الطلب
+  // حقول خدمة وصل لي
+  isWaselLi: boolean("is_wasel_li").default(false).notNull(),
+  pickupAddress: text("pickup_address"),
+  pickupLocationLat: decimal("pickup_location_lat", { precision: 10, scale: 8 }),
+  pickupLocationLng: decimal("pickup_location_lng", { precision: 11, scale: 8 }),
+  pickupPhone: varchar("pickup_phone", { length: 20 }),
+  pickupName: varchar("pickup_name", { length: 100 }),
+  waselLiItemType: varchar("wasel_li_item_type", { length: 100 }),
+  // حقول الطلبات الآجلة
+  isScheduled: boolean("is_scheduled").default(false).notNull(),
+  scheduledDateTime: timestamp("scheduled_date_time"),
+  isScheduledOrderSent: boolean("is_scheduled_order_sent").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

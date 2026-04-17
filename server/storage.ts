@@ -1452,6 +1452,22 @@ export class MemStorage implements IStorage {
       createdAt: new Date()
     };
     this.notifications.set(id, newNotification);
+
+    // Notify client if WebSocket manager is available
+    if (global.WS_MANAGER) {
+      // Send based on recipient type
+      if (notification.recipientType === 'customer' && notification.recipientId) {
+        global.WS_MANAGER.sendToUser(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
+      } else if (notification.recipientType === 'driver' && notification.recipientId) {
+        global.WS_MANAGER.sendToDriver(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
+      } else if (notification.recipientType === 'admin') {
+        global.WS_MANAGER.sendToAdmin('NEW_NOTIFICATION', newNotification);
+      }
+      
+      // Always notify admin about all notifications for visibility
+      global.WS_MANAGER.sendToAdmin('NEW_NOTIFICATION', newNotification);
+    }
+
     return newNotification;
   }
 

@@ -63,6 +63,7 @@ app.use((req, res, next) => {
     // Setup WebSockets
     const ws = setupWebSockets(server);
     app.set('ws', ws);
+    global.WS_MANAGER = ws;
     registerBroadcast(ws.broadcast);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

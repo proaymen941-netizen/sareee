@@ -813,6 +813,22 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   async createNotification(notification: InsertNotification): Promise<Notification> {
     try {
       const [newNotification] = await this.db.insert(notifications).values(notification).returning();
+      
+      // Notify client if WebSocket manager is available
+      if (global.WS_MANAGER) {
+        // Send based on recipient type
+        if (notification.recipientType === 'customer' && notification.recipientId) {
+          global.WS_MANAGER.sendToUser(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
+        } else if (notification.recipientType === 'driver' && notification.recipientId) {
+          global.WS_MANAGER.sendToDriver(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
+        } else if (notification.recipientType === 'admin') {
+          global.WS_MANAGER.sendToAdmin('NEW_NOTIFICATION', newNotification);
+        }
+        
+        // Always notify admin about all notifications for visibility
+        global.WS_MANAGER.sendToAdmin('NEW_NOTIFICATION', newNotification);
+      }
+      
       return newNotification;
     } catch (error) {
       console.error('Error creating notification:', error);
