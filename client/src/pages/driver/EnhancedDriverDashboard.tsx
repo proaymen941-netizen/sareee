@@ -126,10 +126,11 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
           const message = JSON.parse(event.data);
           console.log('WS Message received:', message.type);
           
-          if (message.type === 'order_update' || message.type === 'new_order_assigned' || message.type === 'order_status_changed' || message.type === 'review_received') {
+          if (message.type === 'order_update' || message.type === 'new_order_assigned' || message.type === 'order_status_changed' || message.type === 'review_received' || message.type === 'NEW_NOTIFICATION') {
             // Invalidate all driver related queries
             queryClient.invalidateQueries({ queryKey: [`/api/drivers/app/dashboard`] });
             queryClient.invalidateQueries({ queryKey: ['/api/drivers/orders/available', driverId] });
+            queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer'] }); // Also refresh notifications if any
             
             if (message.type === 'review_received') {
               toast({ 

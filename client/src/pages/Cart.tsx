@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import AppClosedOverlay from '@/components/AppClosedOverlay';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +53,7 @@ export default function Cart() {
   const [showScheduledDialog, setShowScheduledDialog] = useState(false);
   const [showConfirmOrder, setShowConfirmOrder] = useState(false);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+  const [showAppClosedOverlay, setShowAppClosedOverlay] = useState(false);
 
   const [orderForm, setOrderForm] = useState({
     customerName: user?.name || localStorage.getItem('customer_name') || '',
@@ -241,10 +243,16 @@ export default function Cart() {
       return;
     }
 
+    if (!appStatus.isOpen) {
+      // عرض واجهة الإغلاق مع خيار الجدولة
+      setShowAppClosedOverlay(true);
+      return;
+    }
+
     if (!canPlaceOrder) {
       toast({
         title: "لا يمكن إتمام الطلب",
-        description: !appStatus.isOpen ? appStatus.message : (restaurantStatus?.message || 'المتجر مغلق حالياً'),
+        description: restaurantStatus?.message || 'المتجر مغلق حالياً',
         variant: "destructive",
       });
       return;
@@ -285,8 +293,41 @@ export default function Cart() {
     placeOrderMutation.mutate(buildOrderData());
   };
 
+  const appOpeningTime = (settings as any[])?.find((s: any) => s.key === 'opening_time')?.value || '08:00';
+  const appClosingTime = (settings as any[])?.find((s: any) => s.key === 'closing_time')?.value || '23:00';
+
+  const handleScheduleFromClosedOverlay = (scheduledDate: string, scheduledTimeSlot: string) => {
+    if (!orderForm.customerName || !orderForm.customerPhone || !orderForm.deliveryAddress) {
+      toast({
+        title: "معلومات ناقصة",
+        description: "يرجى ملء بياناتك (الاسم، الهاتف، العنوان) أولاً قبل الجدولة",
+        variant: "destructive",
+      });
+      setShowAppClosedOverlay(false);
+      return;
+    }
+    setShowAppClosedOverlay(false);
+    const orderData = buildOrderData({
+      scheduledDate,
+      scheduledTimeSlot,
+      status: 'scheduled',
+      deliveryPreference: 'scheduled',
+    });
+    placeOrderMutation.mutate(orderData);
+  };
+
   return (
     <div className="min-h-screen bg-white">
+      {showAppClosedOverlay && (
+        <AppClosedOverlay
+          openingTime={appOpeningTime}
+          closingTime={appClosingTime}
+          message={appStatus.message || 'سيُفتح التطبيق قريباً، يمكنك جدولة طلبك الآن'}
+          onScheduleOrder={handleScheduleFromClosedOverlay}
+          onClose={() => setShowAppClosedOverlay(false)}
+        />
+      )}
+
       <ScheduledOrderDialog
         open={showScheduledDialog}
         onClose={() => setShowScheduledDialog(false)}

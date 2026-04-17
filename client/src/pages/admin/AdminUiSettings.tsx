@@ -509,6 +509,8 @@ export default function AdminUiSettings() {
               <SettingRow label="قسم التصنيفات" {...rowProps('show_categories')} type="boolean" description="عرض شبكة التصنيفات" />
               <SettingRow label="قسم البانر الرئيسي" {...rowProps('show_hero_section')} type="boolean" description="عرض شريط العروض المتحرك" />
               <SettingRow label="قسم المنتجات المميزة" {...rowProps('show_featured_products')} type="boolean" description="عرض المنتجات الجديدة/المميزة" />
+              <SettingRow label="خدمة وصل لي" {...rowProps('show_wasalni_service')} type="boolean" description="إظهار بانر خدمة وصل لي في الرئيسية" />
+              <SettingRow label="رسوم خدمة وصل لي" {...rowProps('wasalni_base_fee')} placeholder="500" description="رسوم التوصيل الافتراضية لخدمة وصل لي" />
               <SettingRow label="الشريط السفلي" {...rowProps('bottom_bar_enabled')} type="boolean" description="إظهار شريط التنقل السفلي" />
             </SectionCard>
           </TabsContent>
