@@ -55,18 +55,27 @@ export default function AppClosedOverlay({ openingTime, message, onScheduleOrder
         </div>
 
         {!showScheduleForm ? (
-          <div className="p-6 space-y-3">
-            <p className="text-center text-gray-500 text-sm mb-4">
-              هل تريد استلام طلبك عند فتح التطبيق؟
+          <div className="p-6 space-y-3 text-center">
+            <p className="text-gray-600 text-sm font-bold mb-4">
+              هل تريد أن نقوم بتسجيل طلبك إلى وقت فتح التطبيق وهو ({openingTime})؟
             </p>
             {onScheduleOrder && (
-              <Button
-                onClick={() => setShowScheduleForm(true)}
-                className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl hover:opacity-90"
-              >
-                <Calendar className="h-5 w-5 ml-2" />
-                جدول طلبك لوقت محدد
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setShowScheduleForm(true)}
+                  className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl hover:opacity-90 shadow-md"
+                >
+                  <Calendar className="h-5 w-5 ml-2" />
+                  نعم، أريد جدولة طلبي
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={onClose}
+                  className="w-full text-gray-500 text-xs"
+                >
+                  لا شكراً، سأعود لاحقاً
+                </Button>
+              </div>
             )}
           </div>
         ) : (

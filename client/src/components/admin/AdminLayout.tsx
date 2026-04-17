@@ -197,12 +197,13 @@ SidebarFooter.displayName = 'SidebarFooter';
 
 interface NotificationsPanelProps {
   pendingOrders: any[];
+  pendingWasalni: any[];
   pendingOrdersCount: number;
   onClose: () => void;
   onNavigate: (path: string) => void;
 }
 
-const NotificationsPanel = React.memo(({ pendingOrders, pendingOrdersCount, onClose, onNavigate }: NotificationsPanelProps) => (
+const NotificationsPanel = React.memo(({ pendingOrders, pendingWasalni, pendingOrdersCount, onClose, onNavigate }: NotificationsPanelProps) => (
   <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50">
     <div className="p-3 border-b flex items-center justify-between">
       <h3 className="font-bold text-sm">الإشعارات</h3>
@@ -216,23 +217,42 @@ const NotificationsPanel = React.memo(({ pendingOrders, pendingOrdersCount, onCl
       </div>
     </div>
     <div className="max-h-64 overflow-y-auto">
-      {pendingOrders.length > 0 ? (
-        pendingOrders.slice(0, 6).map((order: any) => (
-          <div
-            key={order.id}
-            className="p-3 border-b hover:bg-primary/5 cursor-pointer transition-colors"
-            onClick={() => { onNavigate('/admin/orders'); onClose(); }}
-          >
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0"></div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">طلب جديد #{order.orderNumber || order.id?.slice(0, 8)}</p>
-                <p className="text-xs text-gray-500 truncate">{order.customerName || 'عميل'} — {order.totalAmount} ريال</p>
-                <p className="text-xs text-red-500 mt-0.5">بانتظار تعيين سائق</p>
+      {pendingOrders.length > 0 || pendingWasalni.length > 0 ? (
+        <>
+          {pendingOrders.slice(0, 5).map((order: any) => (
+            <div
+              key={order.id}
+              className="p-3 border-b hover:bg-primary/5 cursor-pointer transition-colors"
+              onClick={() => { onNavigate('/admin/orders'); onClose(); }}
+            >
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">طلب جديد #{order.orderNumber || order.id?.slice(0, 8)}</p>
+                  <p className="text-xs text-gray-500 truncate">{order.customerName || 'عميل'} — {order.totalAmount} ريال</p>
+                  <p className="text-xs text-red-500 mt-0.5">بانتظار تعيين سائق</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))
+          ))}
+          {pendingWasalni.slice(0, 5).map((request: any) => (
+            <div
+              key={request.id}
+              className="p-3 border-b hover:bg-orange-50 cursor-pointer transition-colors"
+              onClick={() => { onNavigate('/admin/wasalni'); onClose(); }}
+            >
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">طلب وصل لي جديد</p>
+                  <p className="text-xs text-gray-500 truncate">{request.customerName} — {request.requestNumber}</p>
+                  <p className="text-xs text-orange-600 mt-0.5">بانتظار المراجعة</p>
+                </div>
+                <Bike className="h-4 w-4 text-orange-400" />
+              </div>
+            </div>
+          ))}
+        </>
       ) : (
         <div className="p-8 text-center text-gray-400">
           <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
@@ -240,15 +260,15 @@ const NotificationsPanel = React.memo(({ pendingOrders, pendingOrdersCount, onCl
         </div>
       )}
     </div>
-    {pendingOrders.length > 6 && (
+    {(pendingOrders.length > 5 || pendingWasalni.length > 5) && (
       <div className="p-2 border-t">
         <Button
           variant="ghost"
           size="sm"
           className="w-full text-primary hover:bg-primary/5 text-xs"
-          onClick={() => { onNavigate('/admin/orders'); onClose(); }}
+          onClick={() => { onNavigate(pendingOrders.length > 5 ? '/admin/orders' : '/admin/wasalni'); onClose(); }}
         >
-          عرض جميع الطلبات ({pendingOrders.length})
+          عرض جميع الطلبات
         </Button>
       </div>
     )}
@@ -337,11 +357,22 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     refetchInterval: 30000,
   });
 
+  const { data: wasalniData = [] } = useQuery<any[]>({
+    queryKey: ['/api/wasalni'],
+    refetchInterval: 30000,
+  });
+
   const allOrders: any[] = ordersData?.orders || ordersData || [];
   const pendingOrders = allOrders.filter(
     (o: any) => o.status === 'pending' && !o.driverId
   );
+  
+  const pendingWasalni = wasalniData.filter(
+    (w: any) => w.status === 'pending' && !w.driverId
+  );
+
   const pendingOrdersCount = pendingOrders.length;
+  const pendingWasalniCount = pendingWasalni.length;
 
   const getLogoUrl = useCallback(() => uiSettings?.find(s => s.key === 'header_logo_url')?.value || '', [uiSettings]);
   const getSidebarImageUrl = useCallback(() => uiSettings?.find(s => s.key === 'sidebar_image_url')?.value || '', [uiSettings]);
@@ -407,7 +438,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: Users, label: 'العملاء', path: '/admin/users', permission: 'manage_customers' },
         { icon: Shield, label: 'الأمن والخصوصية', path: '/admin/security', permission: 'manage_settings' },
         { icon: Bell, label: 'الإشعارات', path: '/admin/notifications', permission: 'manage_settings' },
-        { icon: Bike, label: 'طلبات وصل لي', path: '/admin/wasalni', permission: 'manage_orders' },
+        { icon: Bike, label: 'طلبات وصل لي', path: '/admin/wasalni', badge: pendingWasalniCount, permission: 'manage_orders' },
       ].filter(item => hasPermission(item.permission))
     },
     {
@@ -419,7 +450,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: User, label: 'الملف الشخصي', path: '/admin/profile', permission: null },
       ].filter(item => hasPermission(item.permission))
     },
-  ], [pendingOrdersCount, hasPermission]);
+  ], [pendingOrdersCount, pendingWasalniCount, hasPermission]);
 
   const handleNavScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     navScrollRef.current = (e.currentTarget as HTMLDivElement).scrollTop;
@@ -537,16 +568,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 onClick={() => setShowNotifications(!showNotifications)}
               >
                 <Bell className="h-5 w-5" />
-                {pendingOrdersCount > 0 && (
+                {(pendingOrdersCount + pendingWasalniCount) > 0 && (
                   <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
-                    {pendingOrdersCount > 9 ? '9+' : pendingOrdersCount}
+                    {(pendingOrdersCount + pendingWasalniCount) > 9 ? '9+' : (pendingOrdersCount + pendingWasalniCount)}
                   </span>
                 )}
               </Button>
               {showNotifications && (
                 <NotificationsPanel
                   pendingOrders={pendingOrders}
-                  pendingOrdersCount={pendingOrdersCount}
+                  pendingWasalni={pendingWasalni}
+                  pendingOrdersCount={pendingOrdersCount + pendingWasalniCount}
                   onClose={() => setShowNotifications(false)}
                   onNavigate={handleNavigation}
                 />
