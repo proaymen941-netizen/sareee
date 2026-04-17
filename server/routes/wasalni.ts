@@ -160,4 +160,56 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// Assign driver to wasalni request
+router.post("/:id/assign-driver", async (req, res) => {
+  try {
+    const { driverId } = req.body;
+    if (!driverId) return res.status(400).json({ error: "معرف السائق مطلوب" });
+
+    const db = (storage as any).db;
+    const { eq } = await import("drizzle-orm");
+    
+    // Check if request exists
+    const [request] = await db.select().from(wasalniRequests).where(eq(wasalniRequests.id, req.params.id));
+    if (!request) return res.status(404).json({ error: "الطلب غير موجود" });
+
+    // Update request with driver and status
+    const [updated] = await db.update(wasalniRequests)
+      .set({ 
+        driverId, 
+        status: "confirmed",
+        updatedAt: new Date() 
+      })
+      .where(eq(wasalniRequests.id, req.params.id))
+      .returning();
+
+    // Create notification for customer
+    await storage.createNotification({
+      type: "wasalni_driver_assigned",
+      title: "تم تعيين سائق لطلبك",
+      message: `تم تعيين سائق لطلب وصل لي رقم ${request.requestNumber}. سيتواصل معك السائق قريباً.`,
+      recipientType: "customer",
+      recipientId: request.customerId || request.customerPhone,
+      orderId: null,
+      isRead: false,
+    });
+
+    // Create notification for driver
+    await storage.createNotification({
+      type: "new_wasalni_assignment",
+      title: "طلب وصل لي جديد مُعين لك",
+      message: `تم تعيين طلب وصل لي جديد لك رقم ${request.requestNumber}. من: ${request.fromAddress} إلى: ${request.toAddress}`,
+      recipientType: "driver",
+      recipientId: driverId,
+      orderId: null,
+      isRead: false,
+    });
+
+    res.json({ success: true, request: updated });
+  } catch (error) {
+    console.error("Error assigning driver to wasalni request:", error);
+    res.status(500).json({ error: "فشل في تعيين السائق" });
+  }
+});
+
 export default router;

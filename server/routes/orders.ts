@@ -241,17 +241,19 @@ router.post("/", async (req, res) => {
       });
 
       // إشعار للعميل بتأكيد استلام الطلب
-      await storage.createNotification({
-        type: 'order_status_update',
-        title: isScheduledOrder ? 'تم جدولة طلبك' : 'تم استلام طلبك',
-        message: isScheduledOrder 
-          ? `تم جدولة طلبك رقم ${orderNumber} للتوصيل في ${req.body.scheduledDate} ${req.body.scheduledTimeSlot}`
-          : `تم استلام طلبك رقم ${orderNumber} وهو قيد المراجعة حالياً`,
-        recipientType: 'customer',
-        recipientId: customerId || customerPhone,
-        orderId: order.id,
-        isRead: false
-      });
+      if (customerId) {
+        await storage.createNotification({
+          type: 'order_status_update',
+          title: isScheduledOrder ? 'تم جدولة طلبك' : 'تم استلام طلبك',
+          message: isScheduledOrder 
+            ? `تم جدولة طلبك رقم ${orderNumber} للتوصيل في ${req.body.scheduledDate} ${req.body.scheduledTimeSlot}`
+            : `تم استلام طلبك رقم ${orderNumber} وهو قيد المراجعة حالياً`,
+          recipientType: 'customer',
+          recipientId: customerId,
+          orderId: order.id,
+          isRead: false
+        });
+      }
 
       // تتبع الطلب
       await storage.createOrderTracking({

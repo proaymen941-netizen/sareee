@@ -101,15 +101,21 @@ app.use((req, res, next) => {
       try {
         const allOrders = await storage.getOrders();
         const scheduledOrders = allOrders.filter((o: any) => o.status === 'scheduled');
-        if (scheduledOrders.length === 0) return;
+        
+        const db = (storage as any).db;
+        let scheduledWasalni: any[] = [];
+        if (db) {
+          const { wasalniRequests } = await import("../shared/schema");
+          scheduledWasalni = await db.select().from(wasalniRequests).where(eq(wasalniRequests.status, 'scheduled'));
+        }
 
         const now = new Date();
         const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
 
+        // تفعيل طلبات الطعام المجدولة
         for (const order of scheduledOrders) {
           if (!order.scheduledDate || !order.scheduledTimeSlot) continue;
           try {
-            // parse scheduledDate (YYYY-MM-DD) + scheduledTimeSlot (HH:MM)
             const timeStr = order.scheduledTimeSlot.replace(/[^\d:]/g, '').trim();
             const [hours, minutes] = timeStr.split(':').map(Number);
             if (isNaN(hours) || isNaN(minutes)) continue;
@@ -117,14 +123,9 @@ app.use((req, res, next) => {
             const scheduledDateTime = new Date(order.scheduledDate);
             scheduledDateTime.setHours(hours, minutes, 0, 0);
 
-            // إذا كان الموعد خلال 30 دقيقة أو قد فات وقته
             if (scheduledDateTime <= thirtyMinutesFromNow) {
-              await storage.updateOrder(order.id, {
-                status: 'pending',
-                updatedAt: new Date()
-              });
+              await storage.updateOrder(order.id, { status: 'pending', updatedAt: new Date() });
 
-              // إشعار للإدارة
               await storage.createNotification({
                 type: 'scheduled_order_ready',
                 title: '📅 طلب مجدول جاهز',
@@ -135,7 +136,6 @@ app.use((req, res, next) => {
                 isRead: false
               });
 
-              // إشعار للعميل
               await storage.createNotification({
                 type: 'order_status_update',
                 title: 'طلبك المجدول قيد التنفيذ',
@@ -146,7 +146,6 @@ app.use((req, res, next) => {
                 isRead: false
               });
 
-              // تتبع
               await storage.createOrderTracking({
                 orderId: order.id,
                 status: 'pending',
@@ -155,22 +154,52 @@ app.use((req, res, next) => {
                 createdByType: 'system'
               });
 
-              // WebSocket broadcast
               const wsServer = app.get('ws');
-              if (wsServer) {
-                wsServer.broadcast('order_update', { orderId: order.id, status: 'pending', type: 'scheduled_activated' });
-              }
-
+              if (wsServer) wsServer.broadcast('order_update', { orderId: order.id, status: 'pending', type: 'scheduled_activated' });
               log(`✅ تم تفعيل الطلب المجدول: ${order.orderNumber}`);
             }
-          } catch (e) {
-            console.error(`خطأ في تفعيل الطلب المجدول ${order.id}:`, e);
-          }
+          } catch (e) { console.error(`خطأ في تفعيل الطلب المجدول ${order.id}:`, e); }
         }
-      } catch (e) {
-        console.error('خطأ في مؤقت الطلبات المجدولة:', e);
-      }
-    }, 60 * 1000); // كل دقيقة
+
+        // تفعيل طلبات وصل لي المجدولة
+        for (const request of scheduledWasalni) {
+          if (!request.scheduledDate || !request.scheduledTime) continue;
+          try {
+            const [hours, minutes] = request.scheduledTime.split(':').map(Number);
+            const scheduledDateTime = new Date(request.scheduledDate);
+            scheduledDateTime.setHours(hours, minutes, 0, 0);
+
+            if (scheduledDateTime <= thirtyMinutesFromNow) {
+              await db.update(wasalniRequests).set({ status: 'pending', updatedAt: new Date() }).where(eq(wasalniRequests.id, request.id));
+
+              await storage.createNotification({
+                type: 'new_wasalni_request',
+                title: '📅 طلب وصل لي مجدول جاهز',
+                message: `طلب وصل لي المجدول رقم ${request.requestNumber} أصبح جاهزاً. موعده: ${request.scheduledDate} ${request.scheduledTime}`,
+                recipientType: 'admin',
+                recipientId: null,
+                orderId: null,
+                isRead: false
+              });
+
+              await storage.createNotification({
+                type: 'wasalni_status_update',
+                title: 'طلب وصل لي قيد التنفيذ',
+                message: `بدأ العمل على طلب وصل لي رقم ${request.requestNumber} - سيصلك قريباً`,
+                recipientType: 'customer',
+                recipientId: request.customerId || request.customerPhone,
+                orderId: null,
+                isRead: false
+              });
+
+              const wsServer = app.get('ws');
+              if (wsServer) wsServer.broadcast('order_update', { type: 'wasalni_activated', requestId: request.id });
+              log(`✅ تم تفعيل طلب وصل لي المجدول: ${request.requestNumber}`);
+            }
+          } catch (e) { console.error(`خطأ في تفعيل طلب وصل لي ${request.id}:`, e); }
+        }
+      } catch (e) { console.error('خطأ في مؤقت الطلبات المجدولة:', e); }
+    }, 60 * 1000);
     log('⏰ تم تشغيل مؤقت الطلبات المجدولة');
 
   } catch (err) {
