@@ -179,6 +179,21 @@ export default function HomePage() {
               </span>
             </div>
 
+            {/* خدمة وصل لي في شريط التصنيفات */}
+            {showSection('show_wasalni_service') && (
+              <div
+                className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0 min-w-[70px]"
+                onClick={() => setLocation('/wasalni')}
+              >
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center border-2 bg-gradient-to-br from-orange-400 to-orange-600 border-transparent shadow-sm">
+                  <span className="text-2xl">🛵</span>
+                </div>
+                <span className="text-[11px] font-bold text-center leading-tight text-orange-600">
+                  {getS('wasalni_service_name', 'وصل لي')}
+                </span>
+              </div>
+            )}
+
             {categories?.filter(c => c.isActive !== false).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map(cat => (
               <div
                 key={cat.id}
@@ -324,31 +339,6 @@ export default function HomePage() {
               </div>
             </div>
           ) : null}
-        </div>
-      )}
-
-      {/* ── Wasalni (وصل لي) Banner ─────────────────────────────────────────── */}
-      {showSection('show_wasalni_service') && (
-        <div className="px-4 pt-3">
-          <div
-            className="w-full rounded-2xl overflow-hidden cursor-pointer shadow-sm"
-            onClick={() => setLocation('/wasalni')}
-          >
-            <div className="bg-gradient-to-l from-orange-400 to-orange-600 p-4 flex items-center justify-between">
-              <div className="flex flex-col items-end text-right">
-                <div className="bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white mb-1">خدمة توصيل</div>
-                <h3 className="text-white font-black text-base leading-snug">وصل لي</h3>
-                <p className="text-white/80 text-xs mt-0.5">أطلب توصيل من أي مكان بسرعة</p>
-                <div className="mt-2 bg-white text-orange-600 text-[11px] font-black px-4 py-1 rounded-full inline-flex items-center gap-1">
-                  اطلب الآن
-                  <ChevronLeft className="h-3 w-3" />
-                </div>
-              </div>
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                <span className="text-3xl">🛵</span>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 

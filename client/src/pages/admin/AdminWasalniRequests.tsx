@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,12 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bike, MapPin, Clock, Phone, User, Eye, CheckCircle, XCircle, Truck, Search } from 'lucide-react';
+import { Bike, MapPin, Clock, Phone, User, Eye, CheckCircle, XCircle, Truck, Search, UserCheck } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -20,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'قيد الانتظار',
@@ -47,6 +49,7 @@ export default function AdminWasalniRequests() {
   const [adminNotes, setAdminNotes] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [estimatedFee, setEstimatedFee] = useState('');
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
 
   const { data: requests = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/wasalni'],
@@ -55,7 +58,16 @@ export default function AdminWasalniRequests() {
       if (!res.ok) throw new Error('فشل في جلب الطلبات');
       return res.json();
     },
-    refetchInterval: 20000,
+    refetchInterval: 10000,
+  });
+
+  const { data: drivers = [] } = useQuery<any[]>({
+    queryKey: ['/api/drivers'],
+    queryFn: async () => {
+      const res = await fetch('/api/drivers');
+      if (!res.ok) return [];
+      return res.json();
+    }
   });
 
   const updateMutation = useMutation({
@@ -73,8 +85,28 @@ export default function AdminWasalniRequests() {
       toast({ title: "تم تحديث الطلب بنجاح" });
       setShowDetail(false);
     },
-    onError: () => {
-      toast({ title: "خطأ في التحديث", variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: "خطأ في التحديث", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const assignDriverMutation = useMutation({
+    mutationFn: async ({ requestId, driverId }: { requestId: string; driverId: string }) => {
+      const res = await fetch(`/api/wasalni/${requestId}/assign-driver`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driverId }),
+      });
+      if (!res.ok) throw new Error('فشل في تعيين السائق');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/wasalni'] });
+      toast({ title: "✅ تم تعيين السائق بنجاح" });
+      setShowDetail(false);
+    },
+    onError: (err: any) => {
+      toast({ title: "❌ خطأ", description: err.message, variant: "destructive" });
     },
   });
 
@@ -96,11 +128,17 @@ export default function AdminWasalniRequests() {
     updateMutation.mutate({ id: selectedRequest.id, data });
   };
 
+  const handleAssignDriver = () => {
+    if (!selectedRequest || !selectedDriverId) return;
+    assignDriverMutation.mutate({ requestId: selectedRequest.id, driverId: selectedDriverId });
+  };
+
   const openDetail = (r: any) => {
     setSelectedRequest(r);
     setAdminNotes(r.adminNotes || '');
     setCancelReason(r.cancelReason || '');
     setEstimatedFee(r.estimatedFee || '');
+    setSelectedDriverId(r.driverId || '');
     setShowDetail(true);
   };
 
@@ -300,6 +338,36 @@ export default function AdminWasalniRequests() {
                   onChange={(e) => setEstimatedFee(e.target.value)}
                   className="rounded-xl"
                 />
+              </div>
+
+              {/* تعيين سائق */}
+              <div className="space-y-2 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                <label className="text-xs font-bold text-orange-700 flex items-center gap-1.5 mb-1.5">
+                  <Truck className="h-3.5 w-3.5" />
+                  تعيين سائق للطلب
+                </label>
+                <div className="flex gap-2">
+                  <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                    <SelectTrigger className="rounded-xl bg-white">
+                      <SelectValue placeholder="اختر سائق..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {drivers.filter(d => d.isActive && d.isAvailable).map((driver) => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                          {driver.name} ({driver.phone})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    disabled={!selectedDriverId || assignDriverMutation.isPending}
+                    onClick={handleAssignDriver}
+                    className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl"
+                  >
+                    {assignDriverMutation.isPending ? 'جاري...' : 'تعيين'}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">

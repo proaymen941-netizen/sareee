@@ -243,18 +243,9 @@ export default function Cart() {
       return;
     }
 
-    if (!appStatus.isOpen) {
+    if (!appStatus.isOpen || (restaurantStatus && !restaurantStatus.isOpen)) {
       // عرض واجهة الإغلاق مع خيار الجدولة
       setShowAppClosedOverlay(true);
-      return;
-    }
-
-    if (!canPlaceOrder) {
-      toast({
-        title: "لا يمكن إتمام الطلب",
-        description: restaurantStatus?.message || 'المتجر مغلق حالياً',
-        variant: "destructive",
-      });
       return;
     }
 
@@ -296,6 +287,15 @@ export default function Cart() {
   const appOpeningTime = (settings as any[])?.find((s: any) => s.key === 'opening_time')?.value || '08:00';
   const appClosingTime = (settings as any[])?.find((s: any) => s.key === 'closing_time')?.value || '23:00';
 
+  // تحديد أي وقت فتح نستخدم (التطبيق أم المطعم)
+  const effectiveOpeningTime = (!appStatus.isOpen) 
+    ? appOpeningTime 
+    : (restaurantStatus?.nextOpenTime || restaurant?.openingTime || '08:00');
+  
+  const effectiveMessage = (!appStatus.isOpen)
+    ? (appStatus.message || 'سيُفتح التطبيق قريباً، يمكنك جدولة طلبك الآن')
+    : (restaurantStatus?.message || 'المطعم مغلق حالياً، يمكنك جدولة طلبك لموعد لاحق');
+
   const handleScheduleFromClosedOverlay = (scheduledDate: string, scheduledTimeSlot: string) => {
     if (!orderForm.customerName || !orderForm.customerPhone || !orderForm.deliveryAddress) {
       toast({
@@ -320,9 +320,9 @@ export default function Cart() {
     <div className="min-h-screen bg-white">
       {showAppClosedOverlay && (
         <AppClosedOverlay
-          openingTime={appOpeningTime}
+          openingTime={effectiveOpeningTime}
           closingTime={appClosingTime}
-          message={appStatus.message || 'سيُفتح التطبيق قريباً، يمكنك جدولة طلبك الآن'}
+          message={effectiveMessage}
           onScheduleOrder={handleScheduleFromClosedOverlay}
           onClose={() => setShowAppClosedOverlay(false)}
         />

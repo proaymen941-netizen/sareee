@@ -81,6 +81,7 @@ export default function WasalniPage() {
     (settings as any[])?.find((s: any) => s.key === key)?.value || def;
 
   const deliveryFee = parseFloat(getSettingVal('wasalni_base_fee', '5'));
+  const serviceName = getSettingVal('wasalni_service_name', 'وصل لي');
   const openingTime = getSettingVal('opening_time', '08:00');
   const closingTime = getSettingVal('closing_time', '23:00');
   const storeStatus = getSettingVal('store_status', 'open');
@@ -181,7 +182,7 @@ export default function WasalniPage() {
           <button onClick={() => setLocation('/')} className="p-1 hover:bg-white/20 rounded-full transition-colors">
             <ArrowRight className="h-6 w-6" />
           </button>
-          <h1 className="text-xl font-black">فاتورة طلب وصل لي</h1>
+          <h1 className="text-xl font-black">فاتورة طلب {serviceName}</h1>
         </div>
 
         <div className="max-w-md mx-auto p-4 space-y-4">
@@ -190,7 +191,7 @@ export default function WasalniPage() {
               <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
             <h2 className="text-xl font-black text-gray-900 mb-1">تم استلام طلبك!</h2>
-            <p className="text-gray-500 text-sm">رقم الطلب: <span className="font-bold text-primary">{submittedRequest.requestNumber}</span></p>
+            <p className="text-gray-500 text-sm">رقم طلب {serviceName}: <span className="font-bold text-primary">{submittedRequest.requestNumber}</span></p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
@@ -261,7 +262,7 @@ export default function WasalniPage() {
             <Bike className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-black">وصل لي</h1>
+            <h1 className="text-xl font-black">{serviceName}</h1>
             <p className="text-white/80 text-xs">خطوة {step} من 6</p>
           </div>
         </div>
@@ -474,7 +475,7 @@ export default function WasalniPage() {
             </div>
             <DialogTitle className="text-xl font-black">التطبيق مغلق حالياً</DialogTitle>
             <DialogDescription className="text-gray-600 font-medium pt-2">
-              {appStatus?.message || `التطبيق مغلق، يفتح في تمام الساعة ${openingTime}. هل تريد جدولة طلبك لوقت الافتتاح؟`}
+              {`هل تريد أن نقوم بتسجيل طلبك إلى وقت فتح التطبيق وهو (${openingTime})؟`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex flex-col gap-2 pt-4">

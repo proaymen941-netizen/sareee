@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Save, Settings, Eye, Image as ImageIcon, Smartphone, Truck, 
   MessageCircle, Phone, Share2, Lock, ShoppingCart, Star, Bell,
-  ChevronDown, ChevronRight, Hash, Globe
+  ChevronDown, ChevronRight, Hash, Globe, Bike
 } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
@@ -498,6 +498,34 @@ export default function AdminUiSettings() {
                 {...rowProps('cart_checkout_note')}
                 placeholder="سيتواصل معك فريقنا قريباً"
                 description="نص صغير يظهر أسفل زر التأكيد"
+              />
+            </SectionCard>
+
+            {/* خدمة وصل لي */}
+            <SectionCard {...secProps('wasalni')} title="إعدادات خدمة وصل لي" icon={Bike} color="text-orange-600">
+              <div className="py-2">
+                <div className="bg-orange-50 rounded-lg p-3 text-xs text-orange-700 mb-2">
+                  💡 هذه الإعدادات تتحكم في خدمة التوصيل الخاص (وصل لي) التي تظهر في شريط التصنيفات
+                </div>
+              </div>
+              <SettingRow
+                label="إظهار خدمة وصل لي"
+                {...rowProps('show_wasalni_service')}
+                type="boolean"
+                description="تفعيل أو تعطيل الخدمة في التطبيق بالكامل"
+              />
+              <SettingRow
+                label="اسم الخدمة"
+                {...rowProps('wasalni_service_name')}
+                placeholder="وصل لي"
+                description="الاسم الذي يظهر للمستخدم في شريط التصنيفات"
+              />
+              <SettingRow
+                label="رسوم التوصيل الأساسية (ريال)"
+                {...rowProps('wasalni_base_fee')}
+                placeholder="5"
+                description="رسوم الخدمة التي تظهر بشكل افتراضي للعميل"
+                type="number"
               />
             </SectionCard>
 
