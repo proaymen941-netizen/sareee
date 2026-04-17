@@ -1,6 +1,6 @@
-import React, { useState, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -281,6 +281,56 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { data: uiSettings } = useQuery<UiSettings[]>({
     queryKey: ['/api/admin/ui-settings'],
   });
+
+  const queryClient = useQueryClient();
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = () => {
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        // Authenticate as admin
+        ws?.send(JSON.stringify({
+          type: "auth",
+          payload: {
+            userId: "admin_dashboard",
+            userType: "admin"
+          }
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "order_update" || msg.type === "new_order" || msg.type === "NEW_NOTIFICATION") {
+            queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer'] });
+          }
+        } catch (_) {}
+      };
+
+      ws.onclose = () => {
+        reconnectTimeout = setTimeout(connect, 5000);
+      };
+
+      ws.onerror = () => {
+        ws?.close();
+      };
+    };
+
+    connect();
+
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      ws?.close();
+    };
+  }, [queryClient]);
 
   const { data: ordersData } = useQuery<any>({
     queryKey: ['/api/admin/orders'],

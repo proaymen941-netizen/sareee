@@ -85,9 +85,34 @@ export function Cart({ isOpen, onClose }: CartProps) {
   }, [userGeoLocation.position, selectedLocation, isOpen]);
 
   // إعدادات الواجهة
-  const { data: uiSettings } = useQuery({
-    queryKey: ['/api/admin/ui-settings'],
+  const { data: uiSettings } = useQuery<any[]>({
+    queryKey: ['/api/ui-settings'],
   });
+
+  const getSetting = (key: string, def = '') => 
+    uiSettings?.find((s: any) => s.key === key)?.value || def;
+
+  const openingTime = getSetting('opening_time', '08:00');
+  const closingTime = getSetting('closing_time', '23:00');
+  const storeStatus = getSetting('store_status', 'open');
+
+  const { data: appStatus } = useQuery({
+    queryKey: ['/api/app-status', openingTime, closingTime, storeStatus],
+    queryFn: async () => {
+      const res = await fetch(`/api/app-status?opening=${openingTime}&closing=${closingTime}&status=${storeStatus}`);
+      return res.json();
+    },
+    enabled: !!uiSettings
+  });
+
+  // التحقق من حالة التطبيق عند فتح السلة
+  useEffect(() => {
+    if (isOpen && appStatus && !appStatus.isOpen && !showScheduleDialog) {
+      setScheduleDialogTitle('التطبيق مغلق حالياً');
+      setScheduleDialogMessage(appStatus.message || `التطبيق مغلق حالياً. يفتح في تمام الساعة ${openingTime}. هل تريد جدولة طلبك لوقت الافتتاح؟`);
+      setShowScheduleDialog(true);
+    }
+  }, [isOpen, appStatus]);
 
   // بيانات المطعم لموقعه
   const { data: restaurant } = useQuery({
