@@ -521,10 +521,15 @@ router.put("/:id", async (req, res) => {
     }
 
     // تحديث الطلب
-    const updatedOrder = await storage.updateOrder(id, {
-      status,
-      updatedAt: new Date()
-    });
+    let updatedOrder;
+    if (status === 'delivered') {
+      updatedOrder = await storage.completeOrder(id);
+    } else {
+      updatedOrder = await storage.updateOrder(id, {
+        status,
+        updatedAt: new Date()
+      });
+    }
 
     // Broadcast update via WebSocket
     const ws = req.app.get('ws');
@@ -552,69 +557,6 @@ router.put("/:id", async (req, res) => {
         break;
       case 'delivered':
         statusMessage = 'تم تسليم الطلب بنجاح';
-        
-        // تحرير السائق وتحديث أرباحه وأرباح المطعم
-        if (order.driverId) {
-          await storage.updateDriver(order.driverId, { isAvailable: true });
-          
-          // تحديث رصيد السائق في المحفظة
-          try {
-            const driverEarnings = parseFloat(order.driverEarnings?.toString() || '0');
-            if (driverEarnings > 0) {
-              const { AdvancedDatabaseStorage } = await import("../db-advanced");
-              const advStorage = new AdvancedDatabaseStorage(storage.db);
-              
-              // التحقق من وجود محفظة للسائق أو إنشاؤها
-              let wallet = await advStorage.getDriverWallet(order.driverId);
-              if (!wallet) {
-                await advStorage.createDriverWallet({
-                  driverId: order.driverId,
-                  balance: "0",
-                  isActive: true
-                });
-              }
-              await advStorage.addDriverWalletBalance(order.driverId, driverEarnings);
-              
-              // تحديث إجمالي الأرباح في جدول السائقين
-              const driver = await storage.getDriver(order.driverId);
-              const currentEarnings = parseFloat(driver?.earnings?.toString() || '0');
-              const currentCompletedOrders = driver?.completedOrders || 0;
-              await storage.updateDriver(order.driverId, {
-                earnings: String(currentEarnings + driverEarnings),
-                completedOrders: currentCompletedOrders + 1
-              });
-            }
-          } catch (e) {
-            console.error('Error updating driver earnings:', e);
-          }
-        }
-
-        // تحديث أرباح المطعم
-        if (order.restaurantId) {
-          try {
-            const restaurantEarnings = parseFloat(order.restaurantEarnings?.toString() || '0');
-            if (restaurantEarnings > 0) {
-              const { AdvancedDatabaseStorage } = await import("../db-advanced");
-              const advStorage = new AdvancedDatabaseStorage(storage.db);
-              
-              let rWallet = await advStorage.getRestaurantWallet(order.restaurantId);
-              if (!rWallet) {
-                await advStorage.createRestaurantWallet({
-                  restaurantId: order.restaurantId,
-                  balance: "0",
-                  isActive: true
-                });
-              }
-              
-              const currentBalance = parseFloat(rWallet?.balance?.toString() || "0");
-              await advStorage.updateRestaurantWallet(order.restaurantId, {
-                balance: String(currentBalance + restaurantEarnings)
-              });
-            }
-          } catch (e) {
-            console.error('Error updating restaurant earnings:', e);
-          }
-        }
         break;
       case 'cancelled':
         statusMessage = cancelReason 

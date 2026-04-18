@@ -6,7 +6,7 @@ import {
   adminUsers, categories, restaurantSections, restaurants, 
   menuItems, users, customers, userAddresses, orders, specialOffers, 
   notifications, ratings, systemSettingsTable as systemSettings, drivers, orderTracking,
-  cart, favorites, employees, attendance, leaveRequests, driverWallets, driverEarningsTable,
+  cart, favorites, employees, attendance, leaveRequests, driverEarningsTable,
   driverBalances, driverTransactions, driverCommissions, driverWithdrawals,
   deliveryFeeSettings, deliveryZones, financialReports,
   geoZones, deliveryRules, deliveryDiscounts,
@@ -619,19 +619,7 @@ export class DatabaseStorage {
         throw new Error("فشل في إنشاء السائق");
       }
 
-      // 2. إنشاء محفظة للسائق
-      try {
-        await this.db.insert(driverWallets).values({
-          driverId: newDriver.id,
-          balance: "0",
-          isActive: true
-        });
-      } catch (walletError) {
-        console.error("خطأ في إنشاء محفظة السائق:", walletError);
-        // لا نفشل العملية كاملة إذا فشل إنشاء المحفظة، لكن يفضل تسجيل الخطأ
-      }
-
-      // 3. إنشاء سجل أرباح للسائق
+      // 2. إنشاء سجل أرباح للسائق
       try {
         await this.db.insert(driverEarningsTable).values({
           driverId: newDriver.id,
@@ -643,7 +631,7 @@ export class DatabaseStorage {
         console.error("خطأ في إنشاء سجل أرباح السائق:", earningsError);
       }
 
-      // 4. إنشاء سجل رصيد للسائق (للنظام المالي المتقدم)
+      // 3. إنشاء سجل رصيد للسائق
       try {
         await this.db.insert(driverBalances).values({
           driverId: newDriver.id,
@@ -684,7 +672,6 @@ export class DatabaseStorage {
       await this.db.delete(driverTransactions).where(eq(driverTransactions.driverId, id));
       await this.db.delete(driverCommissions).where(eq(driverCommissions.driverId, id));
       await this.db.delete(driverWithdrawals).where(eq(driverWithdrawals.driverId, id));
-      await this.db.delete(driverWallets).where(eq(driverWallets.driverId, id));
       await this.db.delete(driverEarningsTable).where(eq(driverEarningsTable.driverId, id));
       
       const result = await this.db.delete(drivers).where(eq(drivers.id, id));
@@ -2003,6 +1990,103 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
     return request;
   }
 
+  // Centralized Order Completion Logic
+  async completeOrder(orderId: string): Promise<Order | undefined> {
+    try {
+      const order = await this.getOrder(orderId);
+      if (!order) return undefined;
+      if (order.status === 'delivered') return order;
+
+      // 1. Update order status
+      const [updatedOrder] = await this.db.update(orders)
+        .set({ 
+          status: 'delivered', 
+          updatedAt: new Date(),
+          actualDeliveryTime: new Date(),
+          commissionProcessed: true
+        })
+        .where(eq(orders.id, orderId))
+        .returning();
+
+      // 2. Update Driver Earnings and Balance
+      if (order.driverId) {
+        const driverEarnings = parseFloat(order.driverEarnings?.toString() || order.driverCommissionAmount?.toString() || '0');
+        
+        if (driverEarnings > 0) {
+          // Update driver_balances
+          await this.updateDriverBalance(order.driverId, {
+            amount: driverEarnings,
+            type: 'commission',
+            description: `عمولة توصيل الطلب رقم: ${order.orderNumber}`,
+            orderId: order.id
+          });
+
+          // Create Driver Commission entry
+          await this.createDriverCommission({
+            driverId: order.driverId,
+            orderId: order.id,
+            orderAmount: parseFloat(order.totalAmount?.toString() || '0'),
+            commissionRate: parseFloat(order.driverCommissionRate?.toString() || '70'),
+            commissionAmount: driverEarnings,
+            status: 'approved'
+          });
+
+          // Update driver stats in drivers table
+          const driver = await this.getDriver(order.driverId);
+          if (driver) {
+            const currentEarnings = parseFloat(driver.earnings?.toString() || '0');
+            await this.updateDriver(order.driverId, {
+              completedOrders: (driver.completedOrders || 0) + 1,
+              earnings: (currentEarnings + driverEarnings).toString(),
+              isAvailable: true
+            });
+          }
+        } else {
+          // Just free the driver if no earnings
+          await this.updateDriver(order.driverId, { isAvailable: true });
+        }
+      }
+
+      // 3. Update Restaurant Earnings and Wallet
+      if (order.restaurantId) {
+        const restaurantEarnings = parseFloat(order.restaurantEarnings?.toString() || '0');
+        if (restaurantEarnings > 0) {
+          // Ensure restaurant wallet exists
+          let [rWallet] = await this.db.select().from(restaurantWallets).where(eq(restaurantWallets.restaurantId, order.restaurantId));
+          if (!rWallet) {
+            [rWallet] = await this.db.insert(restaurantWallets).values({
+              restaurantId: order.restaurantId,
+              balance: "0",
+              isActive: true
+            }).returning();
+          }
+
+          const currentBalance = parseFloat(rWallet.balance?.toString() || "0");
+          await this.db.update(restaurantWallets)
+            .set({ 
+              balance: (currentBalance + restaurantEarnings).toString(),
+              updatedAt: new Date()
+            })
+            .where(eq(restaurantWallets.restaurantId, order.restaurantId));
+        }
+      }
+
+      // 4. Create Order Tracking entry
+      await this.createOrderTracking({
+        orderId: order.id,
+        status: 'delivered',
+        message: 'تم تسليم الطلب بنجاح وتحديث الحسابات المادية',
+        createdBy: 'system',
+        createdByType: 'system'
+      });
+
+      return updatedOrder;
+    } catch (error) {
+      console.error('Error completing order:', error);
+      throw error;
+    }
+  }
+
   // Chat/Messages
   async getMessages(orderId: string): Promise<Message[]> {
     return await this.db.select().from(messages)
@@ -2191,7 +2275,7 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
       preparing: 'قيد التحضير',
       ready: 'جاهز',
       picked_up: 'تم الاستلام',
-      on_the_way: 'في الطريق',
+      on_way: 'في الطريق',
       delivered: 'تم التوصيل',
       cancelled: 'ملغى',
     };
@@ -2201,7 +2285,7 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
       preparing: 'bg-orange-100 text-orange-700',
       ready: 'bg-purple-100 text-purple-700',
       picked_up: 'bg-indigo-100 text-indigo-700',
-      on_the_way: 'bg-cyan-100 text-cyan-700',
+      on_way: 'bg-cyan-100 text-cyan-700',
       delivered: 'bg-green-100 text-green-700',
       cancelled: 'bg-red-100 text-red-700',
     };

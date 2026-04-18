@@ -243,44 +243,17 @@ router.put("/orders/:id/status", requireDriverAuth, async (req: AuthenticatedReq
     const allowedStatuses = ["preparing", "ready", "picked_up", "on_way", "delivered"];
     if (!allowedStatuses.includes(status)) return res.status(400).json({ error: "حالة غير صحيحة" });
 
-    const updateData: any = { status };
-    if (location) updateData.currentLocation = location;
-
-    if (status === "delivered") {
-      updateData.actualDeliveryTime = new Date();
-      if (order.driverCommissionAmount && !order.commissionProcessed) {
-        await storage.createDriverCommission({
-          driverId,
-          orderId: id,
-          orderAmount: parseFloat(order.totalAmount) || 0,
-          commissionRate: order.driverCommissionRate || 70,
-          commissionAmount: parseFloat(order.driverCommissionAmount) || 0,
-          status: 'approved'
-        });
-
-        await storage.updateDriverBalance(driverId, {
-          amount: parseFloat(order.driverCommissionAmount) || 0,
-          type: 'commission',
-          description: `عمولة توصيل الطلب رقم: ${order.orderNumber}`,
-          orderId: order.id
-        });
-
-        const driver = await storage.getDriver(driverId);
-        if (driver) {
-          const currentEarnings = parseFloat(driver.earnings?.toString() || "0");
-          const commissionAmount = parseFloat(order.driverCommissionAmount) || 0;
-          await storage.updateDriver(driverId, {
-            completedOrders: (driver.completedOrders || 0) + 1,
-            earnings: (currentEarnings + commissionAmount).toString(),
-            isAvailable: true
-          });
-        }
-
-        updateData.commissionProcessed = true;
-      }
+    if (location) {
+      await storage.updateDriver(driverId, { currentLocation: location });
     }
 
-    const updatedOrder = await storage.updateOrder(id, updateData);
+    let updatedOrder;
+    if (status === "delivered") {
+      updatedOrder = await storage.completeOrder(id);
+    } else {
+      updatedOrder = await storage.updateOrder(id, { status });
+    }
+
     const ws = req.app.get('ws');
     if (ws) ws.broadcast('order_update', { orderId: id, status, driverId });
 

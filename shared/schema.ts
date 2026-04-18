@@ -153,6 +153,9 @@ export const orders = pgTable("orders", {
   scheduledDate: varchar("scheduled_date", { length: 50 }),
   scheduledTimeSlot: varchar("scheduled_time_slot", { length: 100 }),
   driverEarnings: decimal("driver_earnings", { precision: 10, scale: 2 }).default("0"),
+  driverCommissionRate: decimal("driver_commission_rate", { precision: 5, scale: 2 }).default("0"),
+  driverCommissionAmount: decimal("driver_commission_amount", { precision: 10, scale: 2 }).default("0"),
+  commissionProcessed: boolean("commission_processed").default(false).notNull(),
   restaurantEarnings: decimal("restaurant_earnings", { precision: 10, scale: 2 }).default("0"),
   companyEarnings: decimal("company_earnings", { precision: 10, scale: 2 }).default("0"),
   distance: decimal("distance", { precision: 10, scale: 2 }).default("0"),
@@ -269,7 +272,7 @@ export const orderTracking = pgTable("order_tracking", {
   orderId: uuid("order_id").references(() => orders.id).notNull(),
   status: varchar("status", { length: 50 }).notNull(),
   message: text("message").notNull(),
-  createdBy: text("created_by").notNull(),
+  createdBy: uuid("created_by").notNull(),
   createdByType: varchar("created_by_type", { length: 50 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

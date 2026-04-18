@@ -1,11 +1,11 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { 
-  driverReviews, driverEarningsTable , driverWallets, restaurantWallets,
+  driverReviews, driverEarningsTable , driverBalances, restaurantWallets,
   commissionSettings, withdrawalRequests, driverWorkSessions,
   drivers, orders, users,
   type DriverReview, type InsertDriverReview,
   type DriverEarnings, type InsertDriverEarnings,
-  type DriverWallet, type InsertDriverWallet,
+  type DriverBalance, type InsertDriverBalance,
   type RestaurantWallet, type InsertRestaurantWallet,
   type CommissionSettings, type InsertCommissionSettings,
   type WithdrawalRequest, type InsertWithdrawalRequest,
@@ -55,16 +55,16 @@ export class AdvancedDatabaseStorage {
 
   // Driver Earnings
   async updateDriverEarnings(driverId: string, earnings: Partial<InsertDriverEarnings>): Promise<DriverEarnings> {
-    const result = await this.db.update(driverEarnings)
+    const result = await this.db.update(driverEarningsTable)
       .set(earnings)
-      .where(eq(driverEarnings.driverId, driverId))
+      .where(eq(driverEarningsTable.driverId, driverId))
       .returning();
     return result[0];
   }
 
   async getDriverEarnings(driverId: string): Promise<DriverEarnings | null> {
-    const result = await this.db.select().from(driverEarnings)
-      .where(eq(driverEarnings.driverId, driverId));
+    const result = await this.db.select().from(driverEarningsTable)
+      .where(eq(driverEarningsTable.driverId, driverId));
     return result[0] || null;
   }
 
@@ -82,45 +82,60 @@ export class AdvancedDatabaseStorage {
     };
   }
 
-  // Driver Wallets
-  async createDriverWallet(wallet: InsertDriverWallet): Promise<DriverWallet> {
-    const result = await this.db.insert(driverWallets).values(wallet).returning();
+  // Driver Wallets (Balances)
+  async createDriverWallet(balance: InsertDriverBalance): Promise<DriverBalance> {
+    const result = await this.db.insert(driverBalances).values(balance).returning();
     return result[0];
   }
 
-  async getDriverWallet(driverId: string): Promise<DriverWallet | null> {
-    const result = await this.db.select().from(driverWallets)
-      .where(eq(driverWallets.driverId, driverId));
+  async getDriverWallet(driverId: string): Promise<DriverBalance | null> {
+    const result = await this.db.select().from(driverBalances)
+      .where(eq(driverBalances.driverId, driverId));
     return result[0] || null;
   }
 
-  async updateDriverWallet(driverId: string, updates: Partial<InsertDriverWallet>): Promise<DriverWallet> {
-    const result = await this.db.update(driverWallets)
+  async updateDriverWallet(driverId: string, updates: Partial<InsertDriverBalance>): Promise<DriverBalance> {
+    const result = await this.db.update(driverBalances)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(driverWallets.driverId, driverId))
+      .where(eq(driverBalances.driverId, driverId))
       .returning();
     return result[0];
   }
 
-  async addDriverWalletBalance(driverId: string, amount: number): Promise<DriverWallet> {
+  async addDriverWalletBalance(driverId: string, amount: number): Promise<DriverBalance> {
     const wallet = await this.getDriverWallet(driverId);
-    if (!wallet) throw new Error("Wallet not found");
+    if (!wallet) {
+      // Create if not exists
+      return await this.createDriverWallet({
+        driverId,
+        totalBalance: amount.toString(),
+        availableBalance: amount.toString(),
+        withdrawnAmount: "0",
+        pendingAmount: "0"
+      });
+    }
     
-    const currentBalance = parseFloat(wallet.balance?.toString() || "0");
-    const newBalance = currentBalance + amount;
+    const currentAvailable = parseFloat(wallet.availableBalance?.toString() || "0");
+    const currentTotal = parseFloat(wallet.totalBalance?.toString() || "0");
     
-    return await this.updateDriverWallet(driverId, { balance: newBalance.toString() });
+    return await this.updateDriverWallet(driverId, { 
+      availableBalance: (currentAvailable + amount).toString(),
+      totalBalance: (currentTotal + amount).toString()
+    });
   }
 
-  async deductDriverWalletBalance(driverId: string, amount: number): Promise<DriverWallet> {
+  async deductDriverWalletBalance(driverId: string, amount: number): Promise<DriverBalance> {
     const wallet = await this.getDriverWallet(driverId);
     if (!wallet) throw new Error("Wallet not found");
     
-    const currentBalance = parseFloat(wallet.balance?.toString() || "0");
-    if (currentBalance < amount) throw new Error("Insufficient balance");
+    const currentAvailable = parseFloat(wallet.availableBalance?.toString() || "0");
+    const currentTotal = parseFloat(wallet.totalBalance?.toString() || "0");
+    if (currentAvailable < amount) throw new Error("Insufficient balance");
     
-    const newBalance = currentBalance - amount;
-    return await this.updateDriverWallet(driverId, { balance: newBalance.toString() });
+    return await this.updateDriverWallet(driverId, { 
+      availableBalance: (currentAvailable - amount).toString(),
+      totalBalance: (currentTotal - amount).toString()
+    });
   }
 
   // Restaurant Wallets
