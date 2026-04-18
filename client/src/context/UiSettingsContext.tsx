@@ -91,7 +91,8 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
           if (
             message.type === 'settings_updated' ||
             message.type === 'ui_settings_changed' ||
-            message.type === 'admin_update'
+            message.type === 'admin_update' ||
+            message.type === 'settings_changed'
           ) {
             loadSettings(false);
           }
