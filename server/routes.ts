@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { dbStorage } from "./db";
 import { log } from "./viteServer";
+import { broadcastSettingsChanged } from "./broadcast";
 import authRoutes from "./routes/auth";
 import { customerRoutes } from "./routes/customer";
 import driverRoutes from "./routes/driver";
@@ -360,6 +361,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "الإعداد غير موجود" });
       }
       
+      // بث التحديث عبر WebSocket
+      broadcastSettingsChanged(key);
+
       res.json(updated);
     } catch (error) {
       console.error('خطأ في تحديث إعداد الواجهة:', error);

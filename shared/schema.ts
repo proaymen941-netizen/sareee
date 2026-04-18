@@ -215,9 +215,9 @@ export const adminUsers = pgTable("admin_users", {
 });
 
 // System settings table
-export const systemSettings = pgTable("system_settings", {
+export const systemSettingsTable = pgTable("system_settings_table", {
   id: uuid("id").primaryKey().defaultRandom(),
-  key: varchar("key", { length: 100 }).notNull().unique(),
+  key: varchar("key", { length: 100 }).unique().notNull(),
   value: text("value").notNull(),
   category: varchar("category", { length: 100 }).default("general"),
   description: text("description"),
@@ -226,8 +226,9 @@ export const systemSettings = pgTable("system_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// UI settings table (alias for system_settings)
-export const uiSettings = systemSettings;
+// UI settings table alias
+export const systemSettings = systemSettingsTable;
+export const uiSettings = systemSettingsTable;
 
 // Restaurant sections table
 export const restaurantSections = pgTable("restaurant_sections", {
@@ -296,18 +297,6 @@ export const walletTransactions = pgTable("wallet_transactions", {
   description: text("description"),
   orderId: uuid("order_id").references(() => orders.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// System settings table (removed duplicate)
-export const systemSettingsTable = pgTable("system_settings_table", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  key: varchar("key", { length: 100 }).unique().notNull(),
-  value: text("value").notNull(),
-  category: varchar("category", { length: 50 }),
-  description: text("description"),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Restaurant earnings table

@@ -1797,6 +1797,9 @@ router.put("/settings/:key", async (req, res) => {
       .where(eq(schema.systemSettings.key, key))
       .returning();
     
+    // بث التحديث عبر WebSocket
+    broadcastSettingsChanged(key);
+
     res.json(updatedSetting);
   } catch (error) {
     res.status(500).json({ error: "خطأ في الخادم" });
@@ -1835,6 +1838,9 @@ router.put("/business-hours", async (req, res) => {
     }
     
     await Promise.all(updates);
+    
+    // بث التحديث عبر WebSocket لمزامنة جميع الأجهزة
+    broadcastSettingsChanged('business_hours');
     
     res.json({ success: true, message: "تم تحديث أوقات العمل بنجاح" });
   } catch (error) {
@@ -2092,6 +2098,9 @@ router.put("/ui-settings/:key", async (req, res) => {
     if (!setting) {
       return res.status(404).json({ error: "فشل في تحديث الإعداد" });
     }
+
+    // بث التحديث عبر WebSocket لمزامنة جميع الأجهزة فوراً
+    broadcastSettingsChanged(key);
 
     res.json(setting);
   } catch (error) {
