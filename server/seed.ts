@@ -75,6 +75,7 @@ const defaultUiSettings = [
   // إعدادات السلة والدفع
   { key: "show_payment_cards", value: "true", category: "cart", description: "إظهار بطاقات الدفع في السلة" },
   { key: "show_coupon_box_always", value: "true", category: "cart", description: "إظهار صندوق الكوبون دائمًا" },
+  { key: "coupon_min_order_value", value: "0", category: "cart", description: "الحد الأدنى لقيمة الطلب لإظهار صندوق الكوبون (0 = دائماً)" },
   { key: "show_cash_payment", value: "true", category: "cart", description: "إظهار خيار الدفع نقداً" },
   { key: "show_bank_transfer", value: "false", category: "cart", description: "إظهار خيار التحويل البنكي" },
   { key: "cart_checkout_button_text", value: "تأكيد الطلب", category: "cart", description: "نص زر الدفع" },
