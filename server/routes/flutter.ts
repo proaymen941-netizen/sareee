@@ -193,17 +193,14 @@ router.post("/notifications/send", async (req, res) => {
 
     const db = getDb();
 
-    const [newNotification] = await db
-      .insert(notifications)
-      .values({
+    const newNotification = await storage.createNotification({
         type,
         title,
         message,
         recipientType,
         recipientId: null,
         isRead: false,
-      })
-      .returning();
+      });
 
     res.json({
       success: true,
@@ -228,17 +225,14 @@ router.post("/notifications/send-targeted", async (req, res) => {
 
     const db = getDb();
 
-    const [newNotification] = await db
-      .insert(notifications)
-      .values({
+    const newNotification = await storage.createNotification({
         type,
         title,
         message,
         recipientType,
         recipientId: recipientId || null,
         isRead: false,
-      })
-      .returning();
+      });
 
     const recipientLabel =
       recipientType === 'all' ? 'جميع المستخدمين' :

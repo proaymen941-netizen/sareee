@@ -943,8 +943,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get ALL customer notifications (both read and unread) - no unread filter
       const allNotifs = await storage.getNotifications('customer');
       const filtered = allNotifs.filter((n: any) => {
+        // إذا كان الإشعار موجه لجميع العملاء (recipientId هو null)
+        if (!n.recipientId || n.recipientId === 'all') return true;
+        
+        // إذا كان الإشعار موجه لعميل محدد
         if (customerId && n.recipientId === customerId) return true;
         if (phone && n.recipientId === phone) return true;
+        
         return false;
       });
       filtered.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -966,6 +971,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allNotifs = await storage.getNotifications('customer');
       const unread = allNotifs.filter((n: any) => {
         if (!n.isRead) {
+          // إشعارات عامة
+          if (!n.recipientId || n.recipientId === 'all') return true;
+          // إشعارات خاصة
           if (customerId && n.recipientId === customerId) return true;
           if (phone && n.recipientId === phone) return true;
         }

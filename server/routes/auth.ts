@@ -291,6 +291,89 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// تسجيل الدخول عبر التواصل الاجتماعي (Google / Apple)
+router.post('/social-login', async (req, res) => {
+  try {
+    const { provider, socialId, email, name, phone } = req.body;
+
+    if (!provider || !socialId) {
+      return res.status(400).json({
+        success: false,
+        message: 'مزود الخدمة ومعرف التواصل الاجتماعي مطلوبان'
+      });
+    }
+
+    console.log(`🔐 محاولة تسجيل دخول اجتماعي (${provider}):`, socialId);
+
+    let user;
+    
+    // 1. البحث عن المستخدم بالمعرف الاجتماعي
+    const socialQuery = provider === 'google' ? eq(users.googleId, socialId) : eq(users.appleId, socialId);
+    const existingSocialUser = await dbStorage.db.select().from(users).where(socialQuery).limit(1);
+
+    if (existingSocialUser.length > 0) {
+      user = existingSocialUser[0];
+    } else if (email) {
+      // 2. البحث عن المستخدم بالبريد الإلكتروني لربط الحساب
+      const existingEmailUser = await dbStorage.db.select().from(users).where(eq(users.email, email)).limit(1);
+      
+      if (existingEmailUser.length > 0) {
+        user = existingEmailUser[0];
+        // تحديث معرف التواصل الاجتماعي
+        const updateData: any = {};
+        if (provider === 'google') updateData.googleId = socialId;
+        if (provider === 'apple') updateData.appleId = socialId;
+        
+        await dbStorage.db.update(users).set(updateData).where(eq(users.id, user.id));
+        console.log(`🔗 تم ربط حساب ${provider} بالمستخدم الموجود:`, email);
+      }
+    }
+
+    if (!user) {
+      // 3. إنشاء مستخدم جديد
+      console.log(`🆕 إنشاء مستخدم جديد عبر ${provider}:`, name);
+      const [newUser] = await dbStorage.db.insert(users).values({
+        name: name || 'مستخدم جديد',
+        email: email || null,
+        phone: phone || '0000000000', // قيمة افتراضية إذا لم يتوفر رقم الهاتف
+        googleId: provider === 'google' ? socialId : null,
+        appleId: provider === 'apple' ? socialId : null,
+        isActive: true,
+      }).returning();
+      user = newUser;
+    }
+
+    // التحقق من حالة الحساب
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'الحساب غير مفعل'
+      });
+    }
+
+    const token = user.id;
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        userType: 'customer'
+      },
+      message: 'تم تسجيل الدخول بنجاح'
+    });
+
+  } catch (error) {
+    console.error('خطأ في تسجيل الدخول الاجتماعي:', error);
+    res.status(500).json({
+      success: false,
+      message: 'حدث خطأ في الخادم'
+    });
+  }
+});
+
 // تسجيل الدخول للمديرين
 router.post('/admin/login', async (req, res) => {
   try {

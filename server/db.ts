@@ -777,7 +777,13 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
       conditions.push(eq(notifications.recipientType, recipientType));
     }
     if (recipientId) {
-      conditions.push(eq(notifications.recipientId, recipientId));
+      conditions.push(
+        or(
+          eq(notifications.recipientId, recipientId),
+          isNull(notifications.recipientId),
+          eq(notifications.recipientId, 'all')
+        )
+      );
     }
     if (unread !== undefined) {
       conditions.push(eq(notifications.isRead, !unread));
@@ -804,8 +810,13 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
       // Notify client if WebSocket manager is available
       if (global.WS_MANAGER) {
         // Send based on recipient type
-        if (notification.recipientType === 'customer' && notification.recipientId) {
-          global.WS_MANAGER.sendToUser(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
+        if (notification.recipientType === 'customer' || notification.recipientType === 'all' || notification.recipientType === 'flutter') {
+          if (!notification.recipientId || notification.recipientId === 'all') {
+            // Broadcast to all if it's a global notification
+            global.WS_MANAGER.broadcast('NEW_NOTIFICATION', newNotification);
+          } else {
+            global.WS_MANAGER.sendToUser(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
+          }
         } else if (notification.recipientType === 'driver' && notification.recipientId) {
           global.WS_MANAGER.sendToDriver(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
         } else if (notification.recipientType === 'admin') {

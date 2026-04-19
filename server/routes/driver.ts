@@ -382,6 +382,39 @@ router.post("/status", requireDriverAuth, async (req: AuthenticatedRequest, res)
   }
 });
 
+// تحديث موقع السائق (إحداثيات)
+router.post("/location", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const driverId = req.driverId!;
+    const { latitude, longitude, address } = req.body;
+
+    if (latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ error: "الإحداثيات مطلوبة" });
+    }
+
+    await storage.updateDriver(driverId, {
+      latitude: latitude.toString(),
+      longitude: longitude.toString(),
+      currentLocation: address || undefined
+    });
+
+    const ws = req.app.get('ws');
+    if (ws) {
+      ws.broadcast('driver_location_update', {
+        driverId,
+        latitude,
+        longitude,
+        timestamp: new Date()
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("خطأ في تحديث موقع السائق:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
 // طلب سحب رصيد
 router.post("/withdraw", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {

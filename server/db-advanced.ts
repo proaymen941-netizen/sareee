@@ -349,4 +349,96 @@ export class AdvancedDatabaseStorage {
       averageOrderValue: restaurantOrders.length > 0 ? totalRevenue / restaurantOrders.length : 0
     };
   }
+
+  // التقارير المتقدمة الجديدة
+  async getDailyRevenue(days: number = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const recentOrders = await this.db.select().from(orders)
+      .where(and(
+        eq(orders.status, 'delivered'),
+        gte(orders.createdAt, startDate)
+      ));
+
+    const revenueByDay: Record<string, number> = {};
+    
+    // تهيئة الأيام
+    for (let i = 0; i <= days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      revenueByDay[d.toISOString().split('T')[0]] = 0;
+    }
+
+    recentOrders.forEach((order: any) => {
+      const day = order.createdAt.toISOString().split('T')[0];
+      if (revenueByDay[day] !== undefined) {
+        revenueByDay[day] += parseFloat(order.totalAmount?.toString() || "0");
+      }
+    });
+
+    return Object.entries(revenueByDay)
+      .map(([date, amount]) => ({ date, amount }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  async getCustomerRetentionStats() {
+    const allOrders = await this.db.select().from(orders);
+    const customerOrderCount: Record<string, number> = {};
+    
+    allOrders.forEach((order: any) => {
+      if (order.customerId) {
+        customerOrderCount[order.customerId] = (customerOrderCount[order.customerId] || 0) + 1;
+      }
+    });
+
+    const counts = Object.values(customerOrderCount);
+    const totalCustomers = counts.length;
+    const returningCustomers = counts.filter(c => c > 1).length;
+    const newCustomers = totalCustomers - returningCustomers;
+
+    return {
+      newCustomers,
+      returningCustomers,
+      retentionRate: totalCustomers > 0 ? (returningCustomers / totalCustomers) * 100 : 0
+    };
+  }
+
+  async getTopDeliveryAreas(limit: number = 5) {
+    const allOrders = await this.db.select().from(orders);
+    const areaCounts: Record<string, number> = {};
+
+    allOrders.forEach((order: any) => {
+      // استخراج الحي أو المنطقة من العنوان (تبسيط للمثال)
+      const address = order.deliveryAddress || "";
+      const area = address.split(',')[0].trim(); // نفترض أن المنطقة هي الجزء الأول قبل الفاصلة
+      if (area) {
+        areaCounts[area] = (areaCounts[area] || 0) + 1;
+      }
+    });
+
+    return Object.entries(areaCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  async getInactiveUsers(days: number = 7) {
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() - days);
+
+    // الحصول على جميع العملاء
+    const allUsers = await this.db.select().from(users);
+    
+    // الحصول على الطلبات الأخيرة
+    const recentOrders = await this.db.select().from(orders)
+      .where(gte(orders.createdAt, thresholdDate));
+    
+    const activeCustomerIds = new Set(recentOrders.map((o: any) => o.customerId).filter(Boolean));
+    
+    // المستخدمون الذين ليس لديهم طلبات في الفترة المحددة
+    const inactiveUsers = allUsers.filter((u: any) => !activeCustomerIds.has(u.id));
+    
+    return inactiveUsers;
+  }
 }

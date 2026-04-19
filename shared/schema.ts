@@ -6,13 +6,14 @@ import { sql } from "drizzle-orm";
 // Users table (customers)
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  username: varchar("username", { length: 50 }).notNull().unique(),
-  password: text("password").notNull(),
+  username: varchar("username", { length: 50 }).unique(),
+  password: text("password"),
   name: text("name").notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
-  country: varchar("country", { length: 100 }),
   email: varchar("email", { length: 100 }),
   address: text("address"),
+  googleId: text("google_id"),
+  appleId: text("apple_id"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -115,6 +116,8 @@ export const drivers = pgTable("drivers", {
   vehicleType: varchar("vehicle_type", { length: 50 }),
   vehicleNumber: varchar("vehicle_number", { length: 50 }),
   currentLocation: varchar("current_location", { length: 200 }),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }),
   earnings: decimal("earnings", { precision: 10, scale: 2 }).default("0"),
   completedOrders: integer("completed_orders").default(0).notNull(),
   averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0.00"), // متوسط تقييم السائق
