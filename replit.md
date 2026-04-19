@@ -25,6 +25,15 @@ A comprehensive food delivery system supporting three user roles: Customers, Dri
 - `/shared` - Shared code (Drizzle schema, types)
 - `/drizzle` - Migration files
 
+## Recent Fixes Applied
+- Fixed `eq import` error in `server/index.ts` scheduled orders timer
+- Fixed admin/driver login routing in `AuthContext.tsx` and `LoginPage.tsx`
+- Added GPS location auto-fill (Nominatim reverse geocoding) to WasalniPage steps 1 & 2
+- Added conditional coupon field in CartPage based on `coupon_min_order_value` setting
+- Added `coupon_min_order_value` to seed.ts and AdminUiSettings admin panel
+- Removed hard location requirement from cart checkout button (order can be placed without GPS)
+- Fixed React invalid hook call and setState-in-render warning in App.tsx
+
 ## Development
 - **Dev command**: `npm run dev` (runs Express + Vite middleware on port 5000)
 - **Build command**: `npm run build`
