@@ -98,8 +98,8 @@ export default function AdminDriverTracking() {
                         {driver.phone}
                       </p>
                       <Badge 
-                        variant={driver.isAvailable ? "success" : "secondary"} 
-                        className="mt-2 text-[10px]"
+                        variant="secondary"
+                        className={driver.isAvailable ? "mt-2 text-[10px] bg-green-100 text-green-800" : "mt-2 text-[10px]"}
                       >
                         {driver.isAvailable ? 'متاح' : 'مشغول'}
                       </Badge>

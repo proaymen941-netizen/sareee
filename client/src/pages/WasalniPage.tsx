@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   ArrowRight, ArrowLeft, ArrowLeftRight, MapPin, Clock, ChevronDown,
-  Send, Package, CheckCircle, FileText, Bike, User, Phone, ClipboardList, Info
+  Send, Package, CheckCircle, FileText, Bike, User, Phone, ClipboardList, Info, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +60,47 @@ export default function WasalniPage() {
   const [submittedRequest, setSubmittedRequest] = useState<any>(null);
   const [step, setStep] = useState(1);
   const [showSchedulePopup, setShowSchedulePopup] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
+
+  const getLocationAddress = async (targetField: 'toAddress' | 'fromAddress') => {
+    if (!navigator.geolocation) {
+      toast({ title: "الموقع غير مدعوم", description: "متصفحك لا يدعم تحديد الموقع", variant: "destructive" });
+      return;
+    }
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=ar`,
+            { headers: { 'User-Agent': 'AlSarieOne/1.0' } }
+          );
+          const data = await response.json();
+          if (data && data.display_name) {
+            const parts = data.display_name.split(',');
+            const shortAddr = parts.slice(0, 4).join('،').trim();
+            setForm(p => ({ ...p, [targetField]: shortAddr }));
+            toast({ title: "تم تحديد الموقع", description: shortAddr });
+          } else {
+            const coordsText = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setForm(p => ({ ...p, [targetField]: coordsText }));
+          }
+        } catch {
+          const coordsText = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          setForm(p => ({ ...p, [targetField]: coordsText }));
+          toast({ title: "تم تحديد الإحداثيات", description: "أدخل العنوان يدوياً لمزيد من الدقة" });
+        } finally {
+          setGettingLocation(false);
+        }
+      },
+      (err) => {
+        setGettingLocation(false);
+        toast({ title: "تعذر تحديد الموقع", description: "يرجى السماح بالوصول للموقع أو إدخال العنوان يدوياً", variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const today = new Date().toISOString().split('T')[0];
   const nowTime = new Date().toTimeString().slice(0, 5);
@@ -293,6 +334,19 @@ export default function WasalniPage() {
                   placeholder="مثال: خور مكسر، حي السعادة، خلف معهد الفنون"
                   className="h-14 rounded-2xl border-gray-100 bg-gray-50 focus:bg-white focus:ring-orange-500 transition-all"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => getLocationAddress('toAddress')}
+                  disabled={gettingLocation}
+                  className="w-full h-10 rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50 text-sm gap-2"
+                >
+                  {gettingLocation ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> جاري تحديد موقعك...</>
+                  ) : (
+                    <><MapPin className="h-4 w-4" /> استخدم موقعي الحالي</>
+                  )}
+                </Button>
               </div>
             </div>
             <Button onClick={nextStep} className="w-full h-14 bg-orange-500 hover:bg-orange-600 rounded-2xl text-lg font-black">
@@ -317,6 +371,19 @@ export default function WasalniPage() {
                   placeholder="مثال: كريتر، بجانب مول عدن"
                   className="h-14 rounded-2xl border-gray-100 bg-gray-50 focus:bg-white focus:ring-green-500 transition-all"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => getLocationAddress('fromAddress')}
+                  disabled={gettingLocation}
+                  className="w-full h-10 rounded-xl border-green-200 text-green-600 hover:bg-green-50 text-sm gap-2"
+                >
+                  {gettingLocation ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> جاري تحديد موقعك...</>
+                  ) : (
+                    <><MapPin className="h-4 w-4" /> استخدم موقعي الحالي</>
+                  )}
+                </Button>
               </div>
             </div>
             <div className="flex gap-3">

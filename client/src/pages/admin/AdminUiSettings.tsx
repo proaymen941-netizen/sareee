@@ -470,6 +470,12 @@ export default function AdminUiSettings() {
                 description="إظهار حقل إدخال كود الخصم دائمًا في صفحة السلة"
               />
               <SettingRow
+                label="الحد الأدنى لإظهار صندوق الكوبون"
+                {...rowProps('coupon_min_order_value')}
+                placeholder="0"
+                description="أدخل قيمة الحد الأدنى للطلب لإظهار حقل الكوبون (0 = دائمًا). مثال: 50 يعني يظهر فقط إذا قيمة الطلب 50 أو أكثر"
+              />
+              <SettingRow
                 label="إظهار طرق الدفع الإلكترونية"
                 {...rowProps('show_payment_cards')}
                 type="boolean"

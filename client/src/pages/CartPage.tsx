@@ -62,7 +62,9 @@ export default function CartPage() {
   const canPlaceOrder = appStatus.isOpen && (restaurantStatus === null || restaurantStatus.isOpen);
 
   // إعدادات السلة من لوحة التحكم
-  const showCouponBox = getSetting('show_coupon_box_always', 'true') !== 'false';
+  const showCouponBoxAlways = getSetting('show_coupon_box_always', 'true') !== 'false';
+  const couponMinOrderValue = parseFloat(getSetting('coupon_min_order_value', '0') || '0');
+  const showCouponBox = showCouponBoxAlways || (couponMinOrderValue > 0 && subtotal >= couponMinOrderValue);
   const showPaymentCards = getSetting('show_payment_cards', 'true') !== 'false';
   const showCashPayment = getSetting('show_cash_payment', 'true') !== 'false';
   const showBankTransfer = getSetting('show_bank_transfer', 'false') === 'true';
@@ -283,8 +285,12 @@ export default function CartPage() {
       total: finalTotal.toString(),
       totalAmount: finalTotal.toString(),
       restaurantId: items[0]?.restaurantId || undefined,
-      customerLocationLat: userLocation.position?.coords.latitude.toString(),
-      customerLocationLng: userLocation.position?.coords.longitude.toString(),
+      customerLocationLat: userLocation.position?.coords.latitude
+        ? parseFloat(userLocation.position.coords.latitude.toFixed(8)).toString()
+        : undefined,
+      customerLocationLng: userLocation.position?.coords.longitude
+        ? parseFloat(userLocation.position.coords.longitude.toFixed(8)).toString()
+        : undefined,
       status: 'pending',
     };
 
@@ -565,7 +571,7 @@ export default function CartPage() {
 
             <Button
               onClick={handlePlaceOrder}
-              disabled={placeOrderMutation.isPending || calculatingFee || !userLocation.position || !canPlaceOrder}
+              disabled={placeOrderMutation.isPending || calculatingFee || !canPlaceOrder}
               className={`w-full mt-6 py-4 text-lg font-bold ${!canPlaceOrder ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : ''}`}
               data-testid="button-place-order"
             >
@@ -579,8 +585,6 @@ export default function CartPage() {
                 </span>
               ) : calculatingFee ? (
                 'جاري حساب رسوم التوصيل...'
-              ) : !userLocation.position ? (
-                'يرجى تحديد الموقع لإكمال الطلب'
               ) : (
                 checkoutButtonText
               )}
