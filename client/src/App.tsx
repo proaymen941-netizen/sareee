@@ -16,7 +16,7 @@ import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
 import DriverAppPage from "./pages/driver/DriverApp";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSettingsSync } from "./hooks/useSettingsSync";
 import HomePage from "./pages/HomePage";
 import RestaurantPage from "./pages/RestaurantPage";
@@ -61,13 +61,19 @@ function MainApp() {
 
   const isAdminRoute = currentLocation.startsWith('/admin');
   const isDriverRoute = currentLocation.startsWith('/driver');
+  const needsRedirectToAuth = !isAuthenticated && !isGuest && !isAuthPage && !isAdminRoute && !isDriverRoute;
+
+  useEffect(() => {
+    if (needsRedirectToAuth) {
+      setLocation('/auth');
+    }
+  }, [needsRedirectToAuth]);
 
   if (showSplash && !isAdminRoute && !isDriverRoute && !isAuthPage) {
     return <SplashScreen onFinish={handleSplashFinish} />;
   }
 
-  if (!isAuthenticated && !isGuest && !isAuthPage && !currentLocation.startsWith('/admin') && !currentLocation.startsWith('/driver')) {
-    setLocation('/auth');
+  if (needsRedirectToAuth) {
     return null;
   }
 
