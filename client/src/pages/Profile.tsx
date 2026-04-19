@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowRight, User, Phone, Mail, MapPin, Settings, Shield, Star, Clock, Receipt, Truck, MessageCircle, Share2, Globe } from 'lucide-react';
+import { ArrowRight, User, Phone, Mail, MapPin, Settings, Shield, Star, Clock, Receipt, Truck, MessageCircle, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,6 @@ export default function Profile() {
     username: '',
     name: '',
     phone: '',
-    country: '',
     email: '',
     address: '',
   });
@@ -86,7 +85,6 @@ export default function Profile() {
         username: (user as UserType).username || '',
         name: (user as UserType).name || '',
         phone: (user as UserType).phone || '',
-        country: (user as any).country || '',
         email: (user as UserType).email || '',
         address: (user as UserType).address || '',
       });
@@ -98,7 +96,6 @@ export default function Profile() {
       username: profile.username,
       name: profile.name,
       phone: profile.phone,
-      country: profile.country,
       email: profile.email,
       address: profile.address,
     } as any);
@@ -230,15 +227,6 @@ export default function Profile() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="country" className="text-foreground">الدولة</Label>
-                      <Input
-                        id="country"
-                        value={profile.country}
-                        onChange={(e) => setProfile(prev => ({ ...prev, country: e.target.value }))}
-                        placeholder="مثال: اليمن"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="email" className="text-foreground">البريد الإلكتروني (اختياري)</Label>
                       <Input
                         id="email"
@@ -271,10 +259,6 @@ export default function Profile() {
                     <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                       <Phone className="h-5 w-5 text-muted-foreground" />
                       <span className="text-foreground">{profile.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                      <Globe className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-foreground">{profile.country || 'لم يتم تحديد الدولة'}</span>
                     </div>
                     <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                       <Mail className="h-5 w-5 text-muted-foreground" />

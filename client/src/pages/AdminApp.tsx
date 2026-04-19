@@ -25,6 +25,7 @@ import RestaurantReports from "./admin/RestaurantReports";
 import AdminRestaurantAccounts from "./admin/AdminRestaurantAccounts";
 import AdminFlutterNotifications from "./admin/AdminFlutterNotifications";
 import AdminWasalniRequests from "./admin/AdminWasalniRequests";
+import AdminDriverTracking from "./admin/AdminDriverTracking";
 import AdminDashboardAdvanced from "./AdminDashboardAdvanced";
 import AdminBusinessHours from "./AdminBusinessHours";
 import AdminSpecialOffers from "./AdminSpecialOffers";
@@ -51,6 +52,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/menu-items" component={AdminMenuItems} />
         <Route path="/admin/drivers" component={AdminDrivers} />
         <Route path="/admin/drivers-advanced" component={AdminDriversAdvanced} />
+        <Route path="/admin/driver-tracking" component={AdminDriverTracking} />
         <Route path="/admin/delivery-fees" component={AdminDeliveryFees} />
         <Route path="/admin/offers" component={AdminOffers} />
         <Route path="/admin/special-offers" component={AdminSpecialOffers} />

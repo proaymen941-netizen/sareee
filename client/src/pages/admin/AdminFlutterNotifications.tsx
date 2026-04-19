@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bell, Send, Smartphone, Users, CheckCircle, Trash2,
   History, Filter, RefreshCw, Globe, Truck, User, Info,
-  Tag, AlertTriangle, ShoppingBag, CreditCard, BarChart2
+  Tag, AlertTriangle, ShoppingBag, CreditCard, BarChart2,
+  Users as UsersIcon, Clock, Target, Gift
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -54,6 +55,47 @@ export default function AdminNotifications() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('send');
   const [form, setForm] = useState({ title: '', message: '', type: 'info', recipientType: 'all' });
+  const [marketingForm, setMarketingForm] = useState({ title: '', message: '', type: 'offer', days: '7' });
+
+  // Inactive users query
+  const { data: inactiveUsers = [], isLoading: inactiveLoading } = useQuery({
+    queryKey: ['/api/admin/marketing/inactive-users', marketingForm.days],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/marketing/inactive-users?days=${marketingForm.days}`);
+      return res.json();
+    },
+    enabled: activeTab === 'marketing',
+  });
+
+  const sendMassMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/admin/marketing/send-mass-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: 'تم الإرسال بنجاح ✅', description: data.message });
+      setMarketingForm(f => ({ ...f, title: '', message: '' }));
+      queryClient.invalidateQueries({ queryKey: ['/api/flutter/notifications/history'] });
+    },
+  });
+
+  const handleSendMarketing = () => {
+    if (!marketingForm.title || !marketingForm.message || inactiveUsers.length === 0) {
+      toast({ title: 'خطأ', description: 'يرجى إكمال البيانات والتأكد من وجود مستهدفين', variant: 'destructive' });
+      return;
+    }
+    sendMassMutation.mutate({
+      userIds: inactiveUsers.map((u: any) => u.id),
+      title: marketingForm.title,
+      message: marketingForm.message,
+      type: marketingForm.type
+    });
+  };
+
   const [historyFilter, setHistoryFilter] = useState({ recipientType: 'all', type: '' });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -208,11 +250,111 @@ export default function AdminNotifications() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="send" className="gap-2"><Send className="h-4 w-4" />إرسال إشعار</TabsTrigger>
+          <TabsTrigger value="marketing" className="gap-2"><Target className="h-4 w-4" />تسويق ذكي</TabsTrigger>
           <TabsTrigger value="history" className="gap-2"><History className="h-4 w-4" />سجل الإشعارات</TabsTrigger>
           <TabsTrigger value="devices" className="gap-2"><Smartphone className="h-4 w-4" />الأجهزة</TabsTrigger>
         </TabsList>
+
+        {/* ── تبويب التسويق الذكي ── */}
+        <TabsContent value="marketing" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Targeted Tool */}
+            <Card className="lg:col-span-2 border-2 border-primary/10 shadow-lg">
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  حملة إعادة التنشيط
+                </CardTitle>
+                <CardDescription>استهدف العملاء الذين لم يطلبوا منذ فترة محددة</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center gap-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                  <Clock className="h-10 w-10 text-orange-500" />
+                  <div>
+                    <p className="font-bold text-orange-800">تحديد الفترة الزمنية</p>
+                    <Select 
+                      value={marketingForm.days} 
+                      onValueChange={(v) => setMarketingForm(f => ({...f, days: v}))}
+                    >
+                      <SelectTrigger className="w-[200px] mt-1">
+                        <SelectValue placeholder="اختر الفترة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">لم يطلبوا منذ يوم</SelectItem>
+                        <SelectItem value="3">لم يطلبوا منذ 3 أيام</SelectItem>
+                        <SelectItem value="7">لم يطلبوا منذ أسبوع</SelectItem>
+                        <SelectItem value="14">لم يطلبوا منذ أسبوعين</SelectItem>
+                        <SelectItem value="30">لم يطلبوا منذ شهر</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="font-bold">عنوان الحملة</Label>
+                    <Input 
+                      placeholder="مثال: اشتقنا لك! خصم خاص بانتظارك" 
+                      value={marketingForm.title}
+                      onChange={e => setMarketingForm(f => ({...f, title: e.target.value}))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold">نص الرسالة</Label>
+                    <Textarea 
+                      placeholder="اكتب عرضاً مغرياً لتشجيع العميل على العودة..." 
+                      className="min-h-[100px]"
+                      value={marketingForm.message}
+                      onChange={e => setMarketingForm(f => ({...f, message: e.target.value}))}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="bg-gray-50 border-t flex justify-between items-center p-4">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <UsersIcon className="h-4 w-4" />
+                  المستهدفون: <span className="font-bold text-primary">{inactiveLoading ? '...' : inactiveUsers.length} عميل</span>
+                </div>
+                <Button 
+                  onClick={handleSendMarketing}
+                  disabled={sendMassMutation.isPending || inactiveUsers.length === 0}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <Send className="h-4 w-4 ml-2" />
+                  إطلاق الحملة الآن
+                </Button>
+              </CardFooter>
+            </Card>
+
+            {/* Smart Suggestions */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Gift className="h-4 w-4 text-pink-500" />
+                    اقتراحات تسويقية
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-800 border border-blue-100">
+                    <p className="font-bold mb-1">💡 نصيحة</p>
+                    أفضل وقت لإرسال الإشعارات هو بين الساعة 12 ظهراً و 2 ظهراً، أو 7 مساءً و 9 مساءً.
+                  </div>
+                  <Button variant="outline" className="w-full text-xs justify-start gap-2 h-auto py-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                    عرض "توصيل مجاني" للعملاء الجدد
+                  </Button>
+                  <Button variant="outline" className="w-full text-xs justify-start gap-2 h-auto py-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                    تذكير بالسلة المهجورة
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
 
         {/* ── تبويب الإرسال ── */}
         <TabsContent value="send" className="space-y-4">
