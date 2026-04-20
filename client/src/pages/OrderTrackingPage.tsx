@@ -97,6 +97,9 @@ export default function OrderTrackingPage() {
             refetch();
           } else if (message.type === 'driver_location' && message.payload.driverId === orderData?.order.driverId) {
             setDriverLocation([message.payload.latitude, message.payload.longitude]);
+          } else if (message.type === 'settings_changed') {
+            // Refresh UI settings if they changed to ensure dynamic UI elements update
+            queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] });
           }
         } catch (err) {
           console.error('Failed to parse WS message:', err);

@@ -61,11 +61,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       ws.onopen = () => {
         console.log('🔔 Notification WebSocket connected');
-        // Authenticate the socket if user is logged in
-        if (user) {
+        // Authenticate the socket
+        const phone = localStorage.getItem('customer_phone');
+        if (user || phone) {
           ws?.send(JSON.stringify({
             type: 'auth',
-            payload: { userId: user.id, userType: 'customer' }
+            payload: { 
+              userId: user?.id || phone, 
+              userType: 'customer' 
+            }
           }));
         }
       };
@@ -87,6 +91,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               const audio = new Audio('/notification.mp3');
               audio.play();
             } catch (e) {}
+          } else if (data.type === 'order_status_changed') {
+            const { orderId, status, message } = data.payload;
+            // Show toast for order status change
+            showNotification({
+              type: 'info',
+              title: 'تحديث حالة الطلب',
+              message: message || `تغيرت حالة طلبك رقم ${orderId} إلى ${status}`,
+              duration: 10000
+            });
+            
+            try {
+              const audio = new Audio('/notification.mp3');
+              audio.play();
+            } catch (e) {}
+          } else if (data.type === 'settings_changed') {
+             // Invalidate UI settings if we have access to queryClient here
+             // or just show a message. Better to handle this in useSettingsSync
           }
         } catch (e) {
           console.error('Error parsing notification message', e);

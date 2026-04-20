@@ -24,7 +24,7 @@ export function useSettingsSync() {
             type: "auth",
             payload: {
               userId: user.id,
-              userType: "customer"
+              userType: user.userType || "customer"
             }
           }));
           authSent = true;
@@ -37,10 +37,22 @@ export function useSettingsSync() {
           
           if (msg.type === "settings_changed") {
             const key = msg.payload?.changedKey;
+            
+            // Invalidate ui-settings for any settings change
+            queryClient.invalidateQueries({ queryKey: ["/api/ui-settings"] });
+
             if (key === "restaurants" || key === "delivery_fee_settings" || !key) {
               queryClient.invalidateQueries({ queryKey: ["/api/restaurants"] });
               queryClient.invalidateQueries({ queryKey: ["/api/admin/restaurants"] });
               queryClient.invalidateQueries({ queryKey: ["/api/delivery-fees/settings"] });
+            }
+          } else if (msg.type === "order_status_changed" || msg.type === "order_update") {
+            // Invalidate orders queries
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+            if (msg.payload?.orderId) {
+              queryClient.invalidateQueries({ queryKey: [`/api/orders/${msg.payload.orderId}`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/orders/${msg.payload.orderId}/track`] });
             }
           } else if (msg.type === "NEW_NOTIFICATION") {
             // Invalidate notifications query
