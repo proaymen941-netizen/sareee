@@ -264,7 +264,7 @@ export const notifications = pgTable("notifications", {
   title: varchar("title", { length: 200 }).notNull(),
   message: text("message").notNull(),
   recipientType: varchar("recipient_type", { length: 50 }).notNull(),
-  recipientId: uuid("recipient_id"),
+  recipientId: text("recipient_id"), // تم التغيير من uuid إلى text لدعم الهوية بالهاتف للمستخدمين غير المسجلين
   orderId: uuid("order_id").references(() => orders.id),
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -276,7 +276,7 @@ export const orderTracking = pgTable("order_tracking", {
   orderId: uuid("order_id").references(() => orders.id).notNull(),
   status: varchar("status", { length: 50 }).notNull(),
   message: text("message").notNull(),
-  createdBy: uuid("created_by").notNull(),
+  createdBy: text("created_by").notNull(), // تم التغيير من uuid إلى text لدعم "system" أو "admin" أو رقم الهاتف
   createdByType: varchar("created_by_type", { length: 50 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

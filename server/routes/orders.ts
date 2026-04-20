@@ -70,16 +70,18 @@ router.post("/", async (req, res) => {
       const storeStatus = settingsMap.get('store_status');
       const openingTime = settingsMap.get('opening_time') || '08:00';
       const closingTime = settingsMap.get('closing_time') || '23:00';
+      const allowScheduledWhenClosed = settingsMap.get('allow_scheduled_orders_when_closed') !== 'false';
 
       if (storeStatus === 'closed') {
-        // السماح فقط بالطلبات المجدولة عند إغلاق التطبيق يدوياً
-        if (!isScheduledOrder) {
+        // التحقق من الإعداد إذا كان مسموحاً بالطلبات المجدولة عند إغلاق التطبيق
+        if (!isScheduledOrder || !allowScheduledWhenClosed) {
           return res.status(400).json({ 
             error: "التطبيق مغلق حالياً من قِبل الإدارة",
-            code: "APP_CLOSED"
+            code: "APP_CLOSED",
+            message: "التطبيق مغلق حالياً من قِبل الإدارة"
           });
         }
-        // الطلبات المجدولة مسموح بها حتى عند إغلاق التطبيق
+        // الطلبات المجدولة مسموح بها فقط إذا كان الإعداد مفعلاً
       }
 
       // إذا كان المتجر مفتوحاً يدوياً، نتجاوز فحص الوقت تماماً
@@ -241,7 +243,7 @@ router.post("/", async (req, res) => {
       });
 
       // إشعار للعميل بتأكيد استلام الطلب
-      if (customerId) {
+      if (customerId || customerPhone) {
         await storage.createNotification({
           type: 'order_status_update',
           title: isScheduledOrder ? 'تم جدولة طلبك' : 'تم استلام طلبك',
@@ -249,7 +251,7 @@ router.post("/", async (req, res) => {
             ? `تم جدولة طلبك رقم ${orderNumber} للتوصيل في ${req.body.scheduledDate} ${req.body.scheduledTimeSlot}`
             : `تم استلام طلبك رقم ${orderNumber} وهو قيد المراجعة حالياً`,
           recipientType: 'customer',
-          recipientId: customerId,
+          recipientId: customerId || customerPhone,
           orderId: order.id,
           isRead: false
         });

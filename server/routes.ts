@@ -381,59 +381,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "الطلب غير موجود" });
       }
 
-      // Create tracking data based on order status
-      const tracking = [];
-      const baseTime = new Date(order.createdAt);
+      // Fetch actual tracking from database
+      const trackingEntries = await storage.getOrderTracking(id);
       
-      if (order.status === 'pending' || order.status === 'confirmed' || order.status === 'preparing' || 
-          order.status === 'on_way' || order.status === 'delivered') {
-        tracking.push({
-          id: '1',
-          status: 'pending',
-          message: 'تم استلام الطلب',
-          timestamp: baseTime,
-          createdByType: 'system'
-        });
-      }
-      
-      if (order.status === 'confirmed' || order.status === 'preparing' || order.status === 'on_way' || order.status === 'delivered') {
-        tracking.push({
-          id: '2',
-          status: 'confirmed',
-          message: 'تم تأكيد الطلب من المطعم',
-          timestamp: new Date(baseTime.getTime() + 5 * 60000),
-          createdByType: 'restaurant'
-        });
-      }
-      
-      if (order.status === 'preparing' || order.status === 'on_way' || order.status === 'delivered') {
-        tracking.push({
-          id: '3',
-          status: 'preparing',
-          message: 'جاري تحضير الطلب',
-          timestamp: new Date(baseTime.getTime() + 10 * 60000),
-          createdByType: 'restaurant'
-        });
-      }
-      
-      if (order.status === 'on_way' || order.status === 'delivered') {
-        tracking.push({
-          id: '4',
-          status: 'on_way',
-          message: 'الطلب في الطريق إليك',
-          timestamp: new Date(baseTime.getTime() + 20 * 60000),
-          createdByType: 'driver'
-        });
-      }
-      
-      if (order.status === 'delivered') {
-        tracking.push({
-          id: '5',
-          status: 'delivered',
-          message: 'تم تسليم الطلب بنجاح',
-          timestamp: new Date(baseTime.getTime() + 35 * 60000),
-          createdByType: 'driver'
-        });
+      // If no tracking entries exist, create a fallback based on status
+      let tracking = trackingEntries.map((t, index) => ({
+        id: t.id || String(index + 1),
+        status: t.status,
+        message: t.message,
+        timestamp: t.createdAt,
+        createdByType: t.createdByType
+      }));
+
+      if (tracking.length === 0) {
+        const baseTime = new Date(order.createdAt);
+        
+        if (order.status === 'pending' || order.status === 'confirmed' || order.status === 'preparing' || 
+            order.status === 'on_way' || order.status === 'delivered') {
+          tracking.push({
+            id: '1',
+            status: 'pending',
+            message: 'تم استلام الطلب',
+            timestamp: baseTime,
+            createdByType: 'system'
+          });
+        }
+        
+        if (order.status === 'confirmed' || order.status === 'preparing' || order.status === 'on_way' || order.status === 'delivered') {
+          tracking.push({
+            id: '2',
+            status: 'confirmed',
+            message: 'تم تأكيد الطلب من المطعم',
+            timestamp: new Date(baseTime.getTime() + 5 * 60000),
+            createdByType: 'restaurant'
+          });
+        }
+        
+        if (order.status === 'preparing' || order.status === 'on_way' || order.status === 'delivered') {
+          tracking.push({
+            id: '3',
+            status: 'preparing',
+            message: 'جاري تحضير الطلب',
+            timestamp: new Date(baseTime.getTime() + 10 * 60000),
+            createdByType: 'restaurant'
+          });
+        }
+        
+        if (order.status === 'on_way' || order.status === 'delivered') {
+          tracking.push({
+            id: '4',
+            status: 'on_way',
+            message: 'الطلب في الطريق إليك',
+            timestamp: new Date(baseTime.getTime() + 20 * 60000),
+            createdByType: 'driver'
+          });
+        }
+        
+        if (order.status === 'delivered') {
+          tracking.push({
+            id: '5',
+            status: 'delivered',
+            message: 'تم تسليم الطلب بنجاح',
+            timestamp: new Date(baseTime.getTime() + 35 * 60000),
+            createdByType: 'driver'
+          });
+        }
       }
       
       // Parse items if they're stored as JSON string
