@@ -147,6 +147,20 @@ export function UiControlPanel() {
             />
           </div>
 
+          <div className="flex items-center justify-between p-4 bg-orange-50/50 rounded-lg border border-orange-100">
+            <div className="space-y-0.5">
+              <Label htmlFor="allow_scheduled_orders_when_closed" className="text-base font-bold">السماح بالطلبات الآجلة عند الإغلاق</Label>
+              <p className="text-sm text-muted-foreground">
+                تمكين العملاء من جدولة طلباتهم حتى عندما يكون التطبيق مغلقاً إدارياً
+              </p>
+            </div>
+            <Switch
+              id="allow_scheduled_orders_when_closed"
+              checked={isFeatureEnabled('allow_scheduled_orders_when_closed')}
+              onCheckedChange={(checked) => handleToggle('allow_scheduled_orders_when_closed', checked)}
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>وقت الفتح (مثال: 08:00)</Label>
