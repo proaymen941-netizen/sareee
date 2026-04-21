@@ -8,6 +8,8 @@ interface Notification {
   title: string;
   message: string;
   duration?: number;
+  orderId?: string;
+  isWasalni?: boolean;
 }
 
 interface NotificationContextType {
@@ -83,7 +85,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               type: notif.type === 'offer' ? 'promotion' : 'info',
               title: notif.title,
               message: notif.message,
-              duration: 8000
+              duration: 8000,
+              orderId: notif.orderId,
+              isWasalni: notif.isWasalni
             });
             
             // Play sound if possible
@@ -92,13 +96,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               audio.play();
             } catch (e) {}
           } else if (data.type === 'order_status_changed') {
-            const { orderId, status, message } = data.payload;
+            const { orderId, status, message, isWasalni } = data.payload;
             // Show toast for order status change
             showNotification({
               type: 'info',
               title: 'تحديث حالة الطلب',
               message: message || `تغيرت حالة طلبك رقم ${orderId} إلى ${status}`,
-              duration: 10000
+              duration: 10000,
+              orderId,
+              isWasalni
             });
             
             try {
@@ -164,6 +170,8 @@ function NotificationItem({ notification, onRemove }: {
   notification: Notification; 
   onRemove: () => void; 
 }) {
+  const [, setLocation] = useLocation();
+
   const getIcon = () => {
     switch (notification.type) {
       case 'success':
@@ -186,10 +194,25 @@ function NotificationItem({ notification, onRemove }: {
     }
   };
 
+  const handleClick = () => {
+    if (notification.orderId) {
+      if (notification.isWasalni) {
+        // Wasalni tracking might be different, let's assume it's /orders/:id for now or dedicated page
+        // But the user said "وضهور طلب وصلي في صفحة طلباتي في تطبيق العميل للتتبع بدون مشاكل"
+        // So I will make sure it goes to the correct tracking page
+        setLocation(`/orders/${notification.orderId}`);
+      } else {
+        setLocation(`/orders/${notification.orderId}`);
+      }
+      onRemove();
+    }
+  };
+
   return (
     <div 
-      className={`relative p-4 rounded-xl border shadow-lg backdrop-blur-sm ${getColors()} animate-in slide-in-from-top duration-300`}
+      className={`relative p-4 rounded-xl border shadow-lg backdrop-blur-sm ${getColors()} animate-in slide-in-from-top duration-300 ${notification.orderId ? 'cursor-pointer' : ''}`}
       data-testid={`notification-${notification.type}-${notification.id}`}
+      onClick={handleClick}
     >
       <div className="flex items-start gap-3">
         {getIcon()}
@@ -204,7 +227,10 @@ function NotificationItem({ notification, onRemove }: {
           )}
         </div>
         <button
-          onClick={onRemove}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
           className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
           data-testid={`button-close-notification-${notification.id}`}
         >

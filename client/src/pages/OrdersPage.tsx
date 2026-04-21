@@ -58,6 +58,22 @@ const CANCEL_REASONS = [
   'سبب آخر',
 ];
 
+interface WasalniRequest {
+  id: string;
+  requestNumber: string;
+  customerName: string;
+  customerPhone: string;
+  fromAddress: string;
+  toAddress: string;
+  orderType: string;
+  notes?: string;
+  estimatedFee?: string;
+  status: string;
+  driverId?: string;
+  createdAt: string;
+  isWasalni?: boolean;
+}
+
 export default function OrdersPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -67,15 +83,10 @@ export default function OrdersPage() {
   const [showRatingDialog, setShowRatingDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // نافذة إلغاء الطلب
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
-  const [customCancelReason, setCustomCancelReason] = useState('');
-
   const customerPhone = user?.phone || localStorage.getItem('customer_phone');
+  const customerId = user?.id || '';
 
-  const { data: orders = [], isLoading, error } = useQuery<Order[]>({
+  const { data: orders = [], isLoading: ordersLoading, error: ordersError } = useQuery<Order[]>({
     queryKey: ['orders', customerPhone],
     enabled: !!customerPhone,
     queryFn: async () => {
@@ -106,6 +117,40 @@ export default function OrdersPage() {
     refetchInterval: 30000,
     retry: 1
   });
+
+  const { data: wasalniRequests = [], isLoading: wasalniLoading } = useQuery<WasalniRequest[]>({
+    queryKey: ['wasalni', customerPhone, customerId],
+    enabled: !!(customerPhone || customerId),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (customerPhone) params.set('phone', customerPhone);
+      if (customerId) params.set('customerId', customerId);
+      const res = await fetch(`/api/wasalni?${params.toString()}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.map((r: any) => ({ ...r, isWasalni: true }));
+    },
+    refetchInterval: 30000,
+  });
+
+  const isLoading = ordersLoading || wasalniLoading;
+  const error = ordersError;
+
+  // Combining and sorting orders
+  const allOrders = [
+    ...orders.map(o => ({ ...o, type: 'regular' })),
+    ...wasalniRequests.map(w => ({
+      id: w.id,
+      orderNumber: w.requestNumber,
+      restaurantName: 'خدمة وصل لي',
+      status: w.status,
+      totalAmount: w.estimatedFee || '0',
+      createdAt: w.createdAt,
+      type: 'wasalni',
+      deliveryAddress: `من: ${w.fromAddress} - إلى: ${w.toAddress}`,
+      parsedItems: [{ name: w.orderType || 'طرد/غرض', quantity: 1, price: 0 }]
+    }))
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // طلب الإلغاء
   const cancelOrderMutation = useMutation({
