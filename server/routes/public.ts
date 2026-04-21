@@ -301,29 +301,81 @@ router.get("/orders/:id/track", async (req, res) => {
     const { id } = req.params;
     const db = (storage as any).db;
     
-    const order = await db.query.orders.findFirst({
+    // 1. البحث في الطلبات العادية
+    let order = await db.query.orders.findFirst({
       where: eq(schema.orders.id, id),
     });
 
-    if (!order) {
-      return res.status(404).json({ error: "الطلب غير موجود" });
+    if (order) {
+      const tracking = await db.query.orderTracking.findMany({
+        where: eq(schema.orderTracking.orderId, id),
+        orderBy: desc(schema.orderTracking.timestamp!)
+      });
+
+      return res.json({
+        order,
+        tracking
+      });
     }
 
-    // جلب تتبع الطلب
-    const tracking = await db.query.orderTracking.findMany({
-      where: eq(schema.orderTracking.orderId, id),
-      orderBy: desc(schema.orderTracking.timestamp!)
+    // 2. البحث في طلبات "وصلي" إذا لم يتم العثور على طلب عادي
+    const wasalniRequest = await db.query.wasalniRequests.findFirst({
+      where: eq(schema.wasalniRequests.id, id),
     });
 
-    res.json({
-      order,
-      tracking
-    });
+    if (wasalniRequest) {
+      // تحويل طلب "وصلي" إلى هيكل متوافق مع الطلبات العادية للعرض
+      const compatibleOrder = {
+        ...wasalniRequest,
+        id: wasalniRequest.id,
+        orderNumber: wasalniRequest.requestNumber,
+        customerName: wasalniRequest.customerName,
+        deliveryAddress: wasalniRequest.toAddress,
+        totalAmount: wasalniRequest.estimatedFee || "0",
+        status: wasalniRequest.status,
+        items: [
+          { name: `خدمة وصلي - ${wasalniRequest.orderType}`, quantity: 1, price: parseFloat(wasalniRequest.estimatedFee || "0") }
+        ],
+        isWasalni: true,
+        restaurantName: "خدمة وصلي"
+      };
+
+      // إنشاء تتبع افتراضي بناءً على الحالة الحالية لطلبات "وصلي"
+      // بما أنها لا تملك جدول تتبع حالياً
+      const tracking = [
+        {
+          id: "current-status",
+          status: wasalniRequest.status,
+          message: getWasalniStatusMessage(wasalniRequest.status),
+          timestamp: wasalniRequest.updatedAt || wasalniRequest.createdAt,
+          createdByType: 'system'
+        }
+      ];
+
+      return res.json({
+        order: compatibleOrder,
+        tracking
+      });
+    }
+
+    return res.status(404).json({ error: "الطلب غير موجود" });
   } catch (error) {
     console.error("خطأ في تتبع الطلب:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
+
+// دالة مساعدة للحصول على رسائل تتبع "وصلي"
+function getWasalniStatusMessage(status: string) {
+  const statusMessages: Record<string, string> = {
+    pending: "تم استلام طلب وصل لي وهو قيد المراجعة",
+    confirmed: "تم قبول طلبك وجاري البحث عن سائق",
+    on_way: "السائق في طريقه لاستلام الأغراض",
+    delivered: "تم توصيل الطلب بنجاح",
+    cancelled: "تم إلغاء الطلب",
+  };
+  return statusMessages[status] || "تحديث حالة الطلب";
+}
 
 // جلب إعدادات النظام العامة
 router.get("/settings", async (req, res) => {
