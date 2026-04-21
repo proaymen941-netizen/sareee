@@ -1,18 +1,25 @@
 import { useState } from 'react';
-import { Clock, Store, Calendar, Send, X } from 'lucide-react';
+import { Clock, Calendar, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface AppClosedOverlayProps {
   openingTime: string;
-  closingTime: string;
+  closingTime?: string;
   message: string;
   onScheduleOrder?: (scheduledDate: string, scheduledTimeSlot: string) => void;
   onClose?: () => void;
+  scheduledOrdersEnabled?: boolean;
 }
 
-export default function AppClosedOverlay({ openingTime, message, onScheduleOrder, onClose }: AppClosedOverlayProps) {
+export default function AppClosedOverlay({
+  openingTime,
+  message,
+  onScheduleOrder,
+  onClose,
+  scheduledOrdersEnabled = true,
+}: AppClosedOverlayProps) {
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
   const [scheduledTime, setScheduledTime] = useState(openingTime || '08:00');
@@ -27,104 +34,118 @@ export default function AppClosedOverlay({ openingTime, message, onScheduleOrder
   };
 
   return (
-    <div className="fixed inset-0 z-[9990] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
-        {/* Header */}
-        <div className="relative bg-gradient-to-br from-red-500 to-orange-500 p-8 text-center">
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="absolute top-4 left-4 text-white/80 hover:text-white transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          )}
-          <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4">
-            <Store className="h-10 w-10 text-white" />
-          </div>
-          <h2 className="text-2xl font-black text-white mb-1">التطبيق مغلق حالياً</h2>
-          <p className="text-white/80 text-sm leading-relaxed">{message}</p>
-        </div>
-
-        {/* Opening time banner */}
-        <div className="px-6 py-4 bg-orange-50 border-b border-orange-100 flex items-center justify-center gap-2">
-          <Clock className="h-5 w-5 text-orange-500 shrink-0" />
-          <span className="text-orange-700 font-bold text-sm">
-            يفتح الساعة <span className="text-orange-600 font-black">{openingTime}</span>
-          </span>
-        </div>
-
+    <div className="fixed inset-0 z-[9990] bg-black/60 flex items-center justify-center p-4" dir="rtl">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
         {!showScheduleForm ? (
-          <div className="p-6 space-y-3 text-center">
-            <p className="text-gray-600 text-sm font-bold mb-4">
-              هل تريد أن نقوم بتسجيل طلبك إلى وقت فتح التطبيق وهو ({openingTime})؟
-            </p>
-            {onScheduleOrder && (
-              <div className="space-y-2">
-                <Button
+          <>
+            {/* Body */}
+            <div className="flex flex-col items-center px-6 pt-8 pb-6 text-center">
+              {/* Smiley icon */}
+              <div className="w-20 h-20 rounded-full border-4 border-red-400 flex items-center justify-center mb-5">
+                <svg viewBox="0 0 100 100" className="w-14 h-14 text-red-400" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="50" cy="50" r="45" />
+                  <circle cx="35" cy="40" r="4" fill="currentColor" stroke="none" />
+                  <circle cx="65" cy="40" r="4" fill="currentColor" stroke="none" />
+                  <path d="M 30 62 Q 50 75 70 62" />
+                </svg>
+              </div>
+
+              {/* Message */}
+              <p className="text-gray-800 text-base font-semibold leading-relaxed mb-1">
+                {message || 'عذراً، لا يمكنك الطلب حالياً؛ المتجر مغلق.'}
+              </p>
+              {scheduledOrdersEnabled && onScheduleOrder && (
+                <p className="text-gray-600 text-sm mt-1">
+                  يمكنك جدولة طلبك.
+                </p>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex border-t border-gray-100">
+              {scheduledOrdersEnabled && onScheduleOrder ? (
+                <button
                   onClick={() => setShowScheduleForm(true)}
-                  className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl hover:opacity-90 shadow-md"
+                  className="flex-1 py-4 text-red-500 font-bold text-sm border-l border-gray-100 hover:bg-red-50 transition-colors"
                 >
-                  <Calendar className="h-5 w-5 ml-2" />
-                  نعم، أريد جدولة طلبي
+                  موافق
+                </button>
+              ) : null}
+              <button
+                onClick={onClose}
+                className="flex-1 py-4 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition-colors"
+              >
+                اغلاق
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Schedule form header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-800 text-base">جدولة الطلب</h3>
+              <button
+                onClick={() => setShowScheduleForm(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-gray-500 text-center">
+                سيُرسل طلبك إلى لوحة التحكم قبل 30 دقيقة من موعدك
+              </p>
+
+              {/* Opening time note */}
+              <div className="flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2">
+                <Clock className="h-4 w-4 text-orange-500 shrink-0" />
+                <span className="text-orange-700 text-sm font-medium">
+                  يفتح التطبيق الساعة <span className="font-bold">{openingTime}</span>
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-gray-700">التاريخ</Label>
+                  <Input
+                    type="date"
+                    value={scheduledDate}
+                    min={today}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className="h-11 text-center font-bold text-gray-800 border-2 border-gray-200 focus:border-primary rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-gray-700">الوقت المطلوب</Label>
+                  <Input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    className="h-11 text-center font-bold text-gray-800 border-2 border-gray-200 focus:border-primary rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowScheduleForm(false)}
+                  className="flex-1 h-11 rounded-xl border-2"
+                >
+                  رجوع
                 </Button>
                 <Button
-                  variant="ghost"
-                  onClick={onClose}
-                  className="w-full text-gray-500 text-xs"
+                  onClick={handleScheduleSubmit}
+                  className="flex-1 h-11 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl hover:opacity-90"
                 >
-                  لا شكراً، سأعود لاحقاً
+                  <Send className="h-4 w-4 ml-1" />
+                  إرسال الطلب
                 </Button>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-6 space-y-4">
-            <h3 className="font-bold text-gray-800 text-center">حدد موعد استلام طلبك</h3>
-            <p className="text-xs text-gray-500 text-center">
-              سيُرسل طلبك إلى لوحة التحكم قبل 30 دقيقة من موعدك
-            </p>
-
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label className="text-sm font-semibold text-gray-700">التاريخ</Label>
-                <Input
-                  type="date"
-                  value={scheduledDate}
-                  min={today}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                  className="h-11 text-center font-bold text-gray-800 border-2 border-gray-200 focus:border-primary rounded-xl"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-sm font-semibold text-gray-700">الوقت المطلوب</Label>
-                <Input
-                  type="time"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                  className="h-11 text-center font-bold text-gray-800 border-2 border-gray-200 focus:border-primary rounded-xl"
-                />
-              </div>
             </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowScheduleForm(false)}
-                className="flex-1 h-11 rounded-xl border-2"
-              >
-                رجوع
-              </Button>
-              <Button
-                onClick={handleScheduleSubmit}
-                className="flex-1 h-11 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl hover:opacity-90"
-              >
-                <Send className="h-4 w-4 ml-1" />
-                إرسال الطلب
-              </Button>
-            </div>
-          </div>
+          </>
         )}
       </div>
     </div>
