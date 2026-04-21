@@ -222,31 +222,6 @@ router.post("/orders/:id/accept", requireDriverAuth, async (req: AuthenticatedRe
     const ws = req.app.get('ws');
     if (ws) ws.broadcast('order_update', { orderId: id, status: 'ready', driverId });
 
-    // إشعار للعميل عند قبول الطلب
-    try {
-      const notification = await storage.createNotification({
-        type: 'order_status_update',
-        title: 'تم قبول طلبك',
-        message: `تم قبول طلبك من قبل السائق ${driver.name} وهو الآن بانتظار استلامه`,
-        recipientType: 'customer',
-        recipientId: order.customerId || order.customerPhone,
-        orderId: order.id,
-        isRead: false
-      });
-
-      if (ws && typeof ws.sendToUser === 'function') {
-        ws.sendToUser(order.customerId || order.customerPhone, 'NEW_NOTIFICATION', {
-          type: 'order_status_update',
-          title: 'تم قبول طلبك',
-          message: `تم قبول طلبك من قبل السائق ${driver.name} وهو الآن بانتظار استلامه`,
-          orderId: order.id,
-          notificationId: notification.id
-        });
-      }
-    } catch (notifError) {
-      console.error("خطأ في إنشاء إشعار قبول الطلب:", notifError);
-    }
-
     res.json({ success: true, order: updatedOrder });
   } catch (error) {
     console.error("خطأ في قبول الطلب:", error);
@@ -281,49 +256,6 @@ router.put("/orders/:id/status", requireDriverAuth, async (req: AuthenticatedReq
 
     const ws = req.app.get('ws');
     if (ws) ws.broadcast('order_update', { orderId: id, status, driverId });
-
-    // إنشاء إشعار للعميل عند تحديث الحالة
-    try {
-      const statusMessages: Record<string, string> = {
-        'preparing': 'طلبك الآن قيد التحضير في المطعم',
-        'ready': 'طلبك جاهز تماماً وبانتظار استلامه من السائق',
-        'picked_up': 'استلم السائق طلبك وهو في الطريق إليك',
-        'on_way': 'السائق يقترب من موقعك الآن',
-        'delivered': 'تم توصيل طلبك بنجاح، شكراً لتعاملك معنا'
-      };
-
-      const statusTitles: Record<string, string> = {
-        'preparing': 'جاري التحضير',
-        'ready': 'الطلب جاهز',
-        'picked_up': 'تم استلام الطلب',
-        'on_way': 'في الطريق إليك',
-        'delivered': 'تم التوصيل'
-      };
-
-      if (statusMessages[status]) {
-        const notification = await storage.createNotification({
-          type: 'order_status_update',
-          title: statusTitles[status],
-          message: statusMessages[status],
-          recipientType: 'customer',
-          recipientId: order.customerId || order.customerPhone,
-          orderId: order.id,
-          isRead: false
-        });
-
-        if (ws && typeof ws.sendToUser === 'function') {
-          ws.sendToUser(order.customerId || order.customerPhone, 'NEW_NOTIFICATION', {
-            type: 'order_status_update',
-            title: statusTitles[status],
-            message: statusMessages[status],
-            orderId: order.id,
-            notificationId: notification.id
-          });
-        }
-      }
-    } catch (notifError) {
-      console.error("خطأ في إنشاء إشعار تحديث الحالة:", notifError);
-    }
 
     res.json({ success: true, order: updatedOrder });
   } catch (error) {

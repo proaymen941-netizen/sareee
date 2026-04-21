@@ -510,30 +510,6 @@ router.put("/:id/assign-driver", async (req, res) => {
         createdBy: 'admin',
         createdByType: 'admin'
       });
-
-      // إشعار للعميل عند تعيين سائق
-      const customerNotifTitle = 'تم تعيين سائق لطلبك';
-      const customerNotifMsg = `تم تعيين السائق ${driver.name} لتوصيل طلبك رقم ${order.orderNumber}. سيقوم السائق باستلام الطلب قريباً.`;
-      
-      await storage.createNotification({
-        type: 'order_status_update',
-        title: customerNotifTitle,
-        message: customerNotifMsg,
-        recipientType: 'customer',
-        recipientId: order.customerId || order.customerPhone,
-        orderId: id,
-        isRead: false
-      });
-
-      if (ws && typeof ws.sendToUser === 'function') {
-        ws.sendToUser(order.customerId || order.customerPhone, 'NEW_NOTIFICATION', {
-          type: 'order_status_update',
-          title: customerNotifTitle,
-          message: customerNotifMsg,
-          orderId: id,
-          orderNumber: order.orderNumber
-        });
-      }
     } catch (notificationError) {
       console.error('خطأ في إنشاء الإشعارات:', notificationError);
     }

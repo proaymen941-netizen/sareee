@@ -8,17 +8,17 @@ const router = express.Router();
 // التحقق من حالة التطبيق
 router.get("/app-status", async (req, res) => {
   try {
-    // جلب الإعدادات من قاعدة البيانات
-    const storeStatusSetting = await storage.getUiSetting('store_status');
-    const openingTimeSetting = await storage.getUiSetting('opening_time');
-    const closingTimeSetting = await storage.getUiSetting('closing_time');
+    const { opening, closing, status } = req.query;
+    const openingTime = opening as string || '08:00';
+    const closingTime = closing as string || '23:00';
+    const storeStatus = status as string || 'open';
 
-    const storeStatus = storeStatusSetting?.value || 'open';
-    const openingTime = openingTimeSetting?.value || '08:00';
-    const closingTime = closingTimeSetting?.value || '23:00';
+    if (storeStatus === 'closed') {
+      return res.json({ isOpen: false, message: "التطبيق مغلق حالياً من قِبل الإدارة", openingTime });
+    }
 
-    if (storeStatus === 'false' || storeStatus === 'closed') {
-      return res.json({ isOpen: false, message: "عذراً لا تستطيع الطلب الآن لأن التطبيق مغلق حالياً من قِبل الإدارة", openingTime });
+    if (storeStatus === 'open') {
+      return res.json({ isOpen: true });
     }
 
     const now = new Date();
@@ -44,14 +44,13 @@ router.get("/app-status", async (req, res) => {
       const whenOpen = isBeforeOpen ? `يفتح اليوم الساعة ${openingTime}` : `يفتح غداً الساعة ${openingTime}`;
       return res.json({ 
         isOpen: false, 
-        message: `عذراً لا تستطيع الطلب الآن لأن التطبيق مغلق حالياً. ${whenOpen}`,
+        message: `التطبيق مغلق حالياً. ${whenOpen}`,
         openingTime 
       });
     }
 
     res.json({ isOpen: true });
   } catch (error) {
-    console.error("Error in /app-status:", error);
     res.status(500).json({ isOpen: false, message: "خطأ في التحقق من حالة التطبيق" });
   }
 });
@@ -205,59 +204,7 @@ router.get("/special-offers", async (req, res) => {
 router.post("/orders", async (req, res) => {
   try {
     const orderData = req.body;
-    const db = (storage as any).db;
     
-    // 1. التحقق من حالة التطبيق العامة
-    const storeStatusSetting = await storage.getUiSetting('store_status');
-    const openingTimeSetting = await storage.getUiSetting('opening_time');
-    const closingTimeSetting = await storage.getUiSetting('closing_time');
-
-    const storeStatus = storeStatusSetting?.value || 'open';
-    const openingTime = openingTimeSetting?.value || '08:00';
-    const closingTime = closingTimeSetting?.value || '23:00';
-
-    if (storeStatus === 'false' || storeStatus === 'closed') {
-      return res.status(403).json({ 
-        success: false, 
-        message: "عذراً لا تستطيع الطلب الآن لأن التطبيق مغلق حالياً من قِبل الإدارة" 
-      });
-    }
-
-    const now = new Date();
-    const yemenTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
-    const currentTime = yemenTime.toISOString().split('T')[1].slice(0, 5);
-    
-    const timeToMinutes = (t: string) => { 
-      const [h, m] = t.split(':').map(Number); 
-      return h * 60 + m; 
-    };
-    
-    const current = timeToMinutes(currentTime);
-    const open = timeToMinutes(openingTime);
-    const close = timeToMinutes(closingTime);
-    
-    let appIsOpen = close > open 
-      ? (current >= open && current < close) 
-      : (current >= open || current < close);
-
-    if (!appIsOpen) {
-      return res.status(403).json({ 
-        success: false, 
-        message: `عذراً لا تستطيع الطلب الآن لأن التطبيق مغلق حالياً. يفتح الساعة ${openingTime}` 
-      });
-    }
-
-    // 2. التحقق من حالة المتجر الفردي (إذا كان هناك restaurantId)
-    if (orderData.restaurantId) {
-      const restaurant = await storage.getRestaurant(orderData.restaurantId);
-      if (restaurant && (!restaurant.isOpen || restaurant.isTemporarilyClosed)) {
-        return res.status(403).json({ 
-          success: false, 
-          message: "عذراً، هذا المتجر مغلق حالياً ولا يستقبل طلبات" 
-        });
-      }
-    }
-
     // توليد رقم طلب فريد
     const orderNumber = `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
     
@@ -280,13 +227,7 @@ router.post("/orders", async (req, res) => {
       createdByType: 'system'
     });
 
-    // إرسال إشعار للمدير عبر WebSocket إذا توفر
-    if (global.WS_MANAGER) {
-      global.WS_MANAGER.broadcast({
-        type: 'NEW_ORDER',
-        payload: newOrder
-      });
-    }
+    // إشعار المطعم (يمكن إضافة WebSocket هنا)
     
     res.json(newOrder);
   } catch (error) {
@@ -299,88 +240,34 @@ router.post("/orders", async (req, res) => {
 router.get("/orders/:id/track", async (req, res) => {
   try {
     const { id } = req.params;
-    const db = (storage as any).db;
     
-    // 1. البحث في الطلبات العادية
-    let order = await db.query.orders.findFirst({
+    const order = await db.query.orders.findFirst({
       where: eq(schema.orders.id, id),
     });
 
-    if (order) {
-      const tracking = await db.query.orderTracking.findMany({
-        where: eq(schema.orderTracking.orderId, id),
-        orderBy: desc(schema.orderTracking.timestamp!)
-      });
-
-      return res.json({
-        order,
-        tracking
-      });
+    if (!order) {
+      return res.status(404).json({ error: "الطلب غير موجود" });
     }
 
-    // 2. البحث في طلبات "وصلي" إذا لم يتم العثور على طلب عادي
-    const wasalniRequest = await db.query.wasalniRequests.findFirst({
-      where: eq(schema.wasalniRequests.id, id),
+    // جلب تتبع الطلب
+    const tracking = await db.query.orderTracking.findMany({
+      where: eq(schema.orderTracking.orderId, id),
+      orderBy: desc(schema.orderTracking.timestamp!)
     });
 
-    if (wasalniRequest) {
-      // تحويل طلب "وصلي" إلى هيكل متوافق مع الطلبات العادية للعرض
-      const compatibleOrder = {
-        ...wasalniRequest,
-        id: wasalniRequest.id,
-        orderNumber: wasalniRequest.requestNumber,
-        customerName: wasalniRequest.customerName,
-        deliveryAddress: wasalniRequest.toAddress,
-        totalAmount: wasalniRequest.estimatedFee || "0",
-        status: wasalniRequest.status,
-        items: [
-          { name: `خدمة وصلي - ${wasalniRequest.orderType}`, quantity: 1, price: parseFloat(wasalniRequest.estimatedFee || "0") }
-        ],
-        isWasalni: true,
-        restaurantName: "خدمة وصلي"
-      };
-
-      // إنشاء تتبع افتراضي بناءً على الحالة الحالية لطلبات "وصلي"
-      // بما أنها لا تملك جدول تتبع حالياً
-      const tracking = [
-        {
-          id: "current-status",
-          status: wasalniRequest.status,
-          message: getWasalniStatusMessage(wasalniRequest.status),
-          timestamp: wasalniRequest.updatedAt || wasalniRequest.createdAt,
-          createdByType: 'system'
-        }
-      ];
-
-      return res.json({
-        order: compatibleOrder,
-        tracking
-      });
-    }
-
-    return res.status(404).json({ error: "الطلب غير موجود" });
+    res.json({
+      order,
+      tracking
+    });
   } catch (error) {
     console.error("خطأ في تتبع الطلب:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
 
-// دالة مساعدة للحصول على رسائل تتبع "وصلي"
-function getWasalniStatusMessage(status: string) {
-  const statusMessages: Record<string, string> = {
-    pending: "تم استلام طلب وصل لي وهو قيد المراجعة",
-    confirmed: "تم قبول طلبك وجاري البحث عن سائق",
-    on_way: "السائق في طريقه لاستلام الأغراض",
-    delivered: "تم توصيل الطلب بنجاح",
-    cancelled: "تم إلغاء الطلب",
-  };
-  return statusMessages[status] || "تحديث حالة الطلب";
-}
-
 // جلب إعدادات النظام العامة
 router.get("/settings", async (req, res) => {
   try {
-    const db = (storage as any).db;
     const settings = await db.query.systemSettings.findMany({
       where: eq(schema.systemSettings.isPublic, true)
     });
