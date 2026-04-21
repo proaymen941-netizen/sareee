@@ -18,22 +18,40 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '../context/CartContext';
-import { useToast } from '@/hooks/use-toast';
-import type { MenuItem } from '@shared/schema';
-import MenuItemCard from '@/components/MenuItemCard';
+import { useUiSettings } from '@/context/UiSettingsContext';
+import { getAppStatus, canOrderFromRestaurant } from '@/utils/restaurantHours';
+import type { MenuItem, Restaurant } from '@shared/schema';
 
 export default function ProductDetails() {
   const [, params] = useRoute('/product/:id');
   const [, setLocation] = useLocation();
   const { addItem } = useCart();
   const { toast } = useToast();
+  const { getSetting } = useUiSettings();
   const [quantity, setQuantity] = useState(1);
+  
+  const appStatus = useMemo(() => {
+    const openingTime = getSetting('opening_time') || '08:00';
+    const closingTime = getSetting('closing_time') || '23:00';
+    const storeStatus = getSetting('store_status') || 'open';
+    return getAppStatus(openingTime, closingTime, storeStatus);
+  }, [getSetting]);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
 
   const { data: product, isLoading } = useQuery<MenuItem>({
     queryKey: [`/api/products/${params?.id}`],
   });
+
+  const { data: restaurant } = useQuery<Restaurant>({
+    queryKey: [`/api/restaurants/${product?.restaurantId}`],
+    enabled: !!product?.restaurantId,
+  });
+
+  const orderStatus = useMemo(() => {
+    if (!restaurant) return { canOrder: true };
+    return canOrderFromRestaurant(restaurant, appStatus.isOpen);
+  }, [restaurant, appStatus.isOpen]);
 
   // Get related products from the same category
   const { data: relatedProducts } = useQuery<MenuItem[]>({
@@ -73,9 +91,18 @@ export default function ProductDetails() {
     : 0;
 
   const handleAddToCart = () => {
+    if (!orderStatus.canOrder) {
+      toast({
+        title: "لا يمكن الطلب حالياً",
+        description: orderStatus.message || "عذراً، المتجر مغلق حالياً ولا يمكن استقبال طلبات جديدة",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Add to cart with quantity
     for (let i = 0; i < quantity; i++) {
-      addItem(product, product.restaurantId || 'unknown', 'متجر');
+      addItem(product, product.restaurantId || 'unknown', restaurant?.name || 'متجر');
     }
 
     toast({
@@ -189,10 +216,10 @@ export default function ProductDetails() {
               <Button 
                 className="w-full h-14 rounded-none bg-black text-white hover:bg-gray-900 font-black text-lg gap-3"
                 onClick={handleAddToCart}
-                disabled={!product.isAvailable}
+                disabled={!product.isAvailable || !orderStatus.canOrder}
               >
                 <ShoppingBag className="h-6 w-6" />
-                {product.isAvailable ? 'إضافة إلى الحقيبة' : 'غير متوفر حالياً'}
+                {!product.isAvailable ? 'غير متوفر حالياً' : !orderStatus.canOrder ? 'المتجر مغلق' : 'إضافة إلى الحقيبة'}
               </Button>
             </div>
 
@@ -269,9 +296,9 @@ export default function ProductDetails() {
         <Button 
           className="flex-1 h-12 rounded-none bg-black text-white hover:bg-gray-900 font-black text-sm"
           onClick={handleAddToCart}
-          disabled={!product.isAvailable}
+          disabled={!product.isAvailable || !orderStatus.canOrder}
         >
-          {product.isAvailable ? 'إضافة إلى الحقيبة' : 'غير متوفر'}
+          {!product.isAvailable ? 'غير متوفر' : !orderStatus.canOrder ? 'المتجر مغلق' : 'إضافة إلى الحقيبة'}
         </Button>
       </div>
     </div>
