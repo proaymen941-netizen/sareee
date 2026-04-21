@@ -180,6 +180,8 @@ export default function Cart() {
     onError: (error: any) => {
       const raw = error?.message || '';
       let displayMsg = 'يرجى المحاولة مرة أخرى';
+      let serverCode = '';
+
       if (raw.includes('لا يوجد اتصال')) {
         displayMsg = raw;
       } else if (raw.includes(':')) {
@@ -187,10 +189,22 @@ export default function Cart() {
         try {
           const parsed = JSON.parse(serverPart);
           displayMsg = parsed.error || parsed.message || serverPart || displayMsg;
+          serverCode = parsed.code || '';
         } catch {
           if (serverPart) displayMsg = serverPart;
         }
       }
+
+      // If server says app is closed, show the overlay instead of a toast
+      if (
+        serverCode === 'APP_CLOSED' ||
+        displayMsg.includes('التطبيق مغلق') ||
+        displayMsg.includes('مغلق حالياً')
+      ) {
+        setShowAppClosedOverlay(true);
+        return;
+      }
+
       toast({
         title: "خطأ في تأكيد الطلب",
         description: displayMsg,
@@ -323,8 +337,9 @@ export default function Cart() {
           openingTime={effectiveOpeningTime}
           closingTime={appClosingTime}
           message={effectiveMessage}
-          onScheduleOrder={handleScheduleFromClosedOverlay}
+          onScheduleOrder={driverHours.scheduledOrdersEnabled ? handleScheduleFromClosedOverlay : undefined}
           onClose={() => setShowAppClosedOverlay(false)}
+          scheduledOrdersEnabled={driverHours.scheduledOrdersEnabled}
         />
       )}
 

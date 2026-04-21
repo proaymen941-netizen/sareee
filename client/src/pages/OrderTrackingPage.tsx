@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { Skeleton } from '@/components/ui/skeleton';
 import RatingDialog from '@/components/RatingDialog';
 import { DriverCommunication } from '@/components/DriverCommunication';
