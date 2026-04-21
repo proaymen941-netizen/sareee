@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bell, X, CheckCheck, Package, Clock, Info } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { useLocation } from 'wouter';
 
 interface CustomerNotification {
   id: string;
@@ -20,6 +21,7 @@ export function CustomerNotificationsPanel() {
   const panelRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const phone = user?.phone || localStorage.getItem('customer_phone') || '';
   const customerId = user?.id || '';
@@ -173,6 +175,10 @@ export function CustomerNotificationsPanel() {
                     key={notif.id}
                     onClick={() => {
                       if (!notif.isRead) markOneReadMutation.mutate(notif.id);
+                      if (notif.orderId) {
+                        setLocation(`/orders/${notif.orderId}`);
+                        setIsOpen(false);
+                      }
                     }}
                     className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 cursor-pointer transition-colors ${
                       !notif.isRead ? 'bg-blue-50/60 hover:bg-blue-50' : 'hover:bg-gray-50'

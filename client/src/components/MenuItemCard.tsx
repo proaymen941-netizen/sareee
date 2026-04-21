@@ -10,6 +10,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useUiSettings } from '@/context/UiSettingsContext';
+import { getAppStatus } from '@/utils/restaurantHours';
+import { useMemo } from 'react';
 
 interface MenuItemCardProps {
   item: any; // Using any to support both MenuItem and Mapped SpecialOffer
@@ -32,6 +35,14 @@ export default function MenuItemCard({
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const { isOnline } = useNetworkStatus();
+  const { getSetting } = useUiSettings();
+
+  const appStatus = useMemo(() => {
+    const openingTime = getSetting('opening_time') || '08:00';
+    const closingTime = getSetting('closing_time') || '23:00';
+    const storeStatus = getSetting('store_status') || 'open';
+    return getAppStatus(openingTime, closingTime, storeStatus);
+  }, [getSetting]);
 
   // Check if item is in favorites
   const { data: favoriteStatus } = useQuery<{ isFavorite: boolean }>({
@@ -99,6 +110,23 @@ export default function MenuItemCard({
     },
   });
 
+  const { data: restaurant } = useQuery<Restaurant>({
+    queryKey: ['/api/restaurants', restaurantId],
+    enabled: !!restaurantId && restaurantId !== 'unknown' && !disabled,
+  });
+
+  const isStoreClosed = useMemo(() => {
+    if (disabled) return true;
+    if (!restaurant) return false;
+    return !restaurant.isOpen || restaurant.isTemporarilyClosed;
+  }, [disabled, restaurant]);
+
+  const finalDisabledMessage = useMemo(() => {
+    if (disabled && disabledMessage) return disabledMessage;
+    if (isStoreClosed) return "عذراً، هذا المتجر مغلق حالياً ولا يستقبل طلبات";
+    return "";
+  }, [disabled, disabledMessage, isStoreClosed]);
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -118,10 +146,19 @@ export default function MenuItemCard({
       return;
     }
 
-    if (disabled && disabledMessage) {
+    if (!appStatus.isOpen && !item.isBannerOffer) {
+      toast({
+        title: "التطبيق مغلق",
+        description: appStatus.message || "عذراً، التطبيق مغلق حالياً",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if ((disabled || isStoreClosed) && finalDisabledMessage) {
       toast({
         title: "لا يمكن الطلب",
-        description: disabledMessage,
+        description: finalDisabledMessage,
         variant: "destructive",
       });
       return;
@@ -192,7 +229,7 @@ export default function MenuItemCard({
             size="icon"
             className="h-8 w-8 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg"
             onClick={handleAddToCart}
-            disabled={(!item.isAvailable && !item.isBannerOffer) || disabled}
+            disabled={(!item.isAvailable && !item.isBannerOffer) || disabled || (!appStatus.isOpen && !item.isBannerOffer)}
           >
             {item.isBannerOffer ? <ShoppingBag className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
           </Button>
