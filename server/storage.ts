@@ -27,7 +27,8 @@ import {
   type DeliveryDiscount, type InsertDeliveryDiscount,
   type Message, type InsertMessage,
   type AuditLog, type InsertAuditLog,
-  type PaymentGateway, type InsertPaymentGateway
+  type PaymentGateway, type InsertPaymentGateway,
+  type WasalniRequest, type InsertWasalniRequest
 } from "../shared/schema";
 import { randomUUID } from "crypto";
 
@@ -77,6 +78,11 @@ export interface IStorage {
   getOrdersByCustomer(phone: string): Promise<Order[]>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined>;
+
+  // Wasalni Requests
+  getWasalniRequests(): Promise<WasalniRequest[]>;
+  getWasalniRequestsByCustomer(phone: string): Promise<WasalniRequest[]>;
+  getWasalniRequest(id: string): Promise<WasalniRequest | undefined>;
 
   // Drivers
   getDrivers(): Promise<Driver[]>;
@@ -304,6 +310,7 @@ export class MemStorage implements IStorage {
   private deliveryRulesMap: Map<string, DeliveryRule>;
   private deliveryDiscountsMap: Map<string, DeliveryDiscount>;
   private withdrawalRequestsMap: Map<string, WithdrawalRequest>;
+  private wasalniRequestsMap: Map<string, WasalniRequest>;
 
   // Add db property for compatibility with routes that access it directly
   get db() {
@@ -341,6 +348,7 @@ export class MemStorage implements IStorage {
     this.deliveryRulesMap = new Map();
     this.deliveryDiscountsMap = new Map();
     this.withdrawalRequestsMap = new Map();
+    this.wasalniRequestsMap = new Map();
     
     this.initializeData();
   }
@@ -1026,6 +1034,24 @@ export class MemStorage implements IStorage {
     const updated = { ...existing, ...order };
     this.orders.set(id, updated);
     return updated;
+  }
+
+  // Wasalni Requests
+  async getWasalniRequests(): Promise<WasalniRequest[]> {
+    return Array.from(this.wasalniRequestsMap.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getWasalniRequestsByCustomer(phone: string): Promise<WasalniRequest[]> {
+    const cleanPhone = phone.trim().replace(/\s+/g, '');
+    return Array.from(this.wasalniRequestsMap.values())
+      .filter(req => req.customerPhone.replace(/\s+/g, '') === cleanPhone)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getWasalniRequest(id: string): Promise<WasalniRequest | undefined> {
+    return this.wasalniRequestsMap.get(id);
   }
 
   // Drivers مع الحقول الجديدة

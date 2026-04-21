@@ -12,6 +12,7 @@ import {
   geoZones, deliveryRules, deliveryDiscounts,
   messages, auditLogs, paymentGateways,
   paymentMethods, paymentMethodDocuments, coupons, couponUsages,
+  wasalniRequests,
   type AdminUser, type InsertAdminUser,
   type Category, type InsertCategory,
   type Restaurant, type InsertRestaurant,
@@ -43,7 +44,8 @@ import {
   type PaymentMethod, type InsertPaymentMethod,
   type PaymentMethodDocument, type InsertPaymentMethodDocument,
   type Coupon, type InsertCoupon,
-  type CouponUsage, type InsertCouponUsage
+  type CouponUsage, type InsertCouponUsage,
+  type WasalniRequest, type InsertWasalniRequest
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { eq, and, desc, sql, or, like, asc, inArray, isNull } from "drizzle-orm";
@@ -113,7 +115,8 @@ function getDb() {
       leaveRequests,
       geoZones,
       deliveryRules,
-      deliveryDiscounts
+      deliveryDiscounts,
+      wasalniRequests
     };
     
     db = drizzle(sqlClient, { schema });
@@ -575,6 +578,34 @@ export class DatabaseStorage {
   async updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined> {
     const [updated] = await this.db.update(orders).set(order).where(eq(orders.id, id)).returning();
     return updated;
+  }
+
+  // Wasalni Requests
+  async getWasalniRequests(): Promise<WasalniRequest[]> {
+    try {
+      return await this.db.select().from(wasalniRequests).orderBy(desc(wasalniRequests.createdAt));
+    } catch (error) {
+      console.error('Error fetching wasalni requests:', error);
+      return [];
+    }
+  }
+
+  async getWasalniRequestsByCustomer(phone: string): Promise<WasalniRequest[]> {
+    try {
+      const cleanPhone = phone.trim().replace(/\s+/g, '');
+      return await this.db.select()
+        .from(wasalniRequests)
+        .where(sql`REPLACE(${wasalniRequests.customerPhone}, ' ', '') = ${cleanPhone}`)
+        .orderBy(desc(wasalniRequests.createdAt));
+    } catch (error) {
+      console.error('Error fetching customer wasalni requests:', error);
+      return [];
+    }
+  }
+
+  async getWasalniRequest(id: string): Promise<WasalniRequest | undefined> {
+    const [request] = await this.db.select().from(wasalniRequests).where(eq(wasalniRequests.id, id));
+    return request;
   }
 
   // Drivers

@@ -198,15 +198,25 @@ router.get("/orders/by-phone/:phone", async (req, res) => {
     const { phone } = req.params;
     const { page = 1, limit = 10 } = req.query;
     
-    // جلب طلبات العميل باستخدام رقم الهاتف من التخزين مباشرة
-    const customerOrders = await storage.getCustomerOrders(phone);
+    // جلب طلبات المطاعم
+    const restaurantOrders = await storage.getOrdersByCustomer(phone);
     
-    // الترتيب تم بالفعل في getCustomerOrders (desc createdAt)
+    // جلب طلبات وصل لي
+    const wasalniRequests = await storage.getWasalniRequestsByCustomer(phone);
+    
+    // دمج الطلبات مع إضافة نوع الطلب
+    const allOrders = [
+      ...restaurantOrders.map(o => ({ ...o, type: 'store' })),
+      ...wasalniRequests.map(w => ({ ...w, type: 'wasalni' }))
+    ];
+    
+    // ترتيب الكل حسب التاريخ (الأحدث أولاً)
+    allOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     // تطبيق الترقيم
     const startIndex = (Number(page) - 1) * Number(limit);
     const endIndex = startIndex + Number(limit);
-    const paginatedOrders = customerOrders.slice(startIndex, endIndex);
+    const paginatedOrders = allOrders.slice(startIndex, endIndex);
 
     res.json(paginatedOrders);
   } catch (error) {
@@ -221,19 +231,30 @@ router.get("/:id/orders", async (req, res) => {
     const { id } = req.params;
     const { page = 1, limit = 10 } = req.query;
     
-    // جلب جميع الطلبات
-    const allOrders = await storage.getOrders();
+    // جلب بيانات العميل للحصول على رقم الهاتف
+    const customer = await storage.getUser(id);
+    if (!customer) {
+      return res.status(404).json({ error: "العميل غير موجود" });
+    }
+
+    // جلب طلبات المطاعم لهذا العميل
+    const allStoreOrders = await storage.getOrders();
+    const customerStoreOrders = allStoreOrders
+      .filter(order => order.customerId === id)
+      .map(o => ({ ...o, type: 'store' }));
     
-    // فلترة طلبات العميل
-    const customerOrders = allOrders.filter(order => order.customerId === id);
-    
-    // ترتيب حسب التاريخ (الأحدث أولاً)
-    customerOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // جلب طلبات وصل لي باستخدام رقم الهاتف
+    const wasalniRequests = await storage.getWasalniRequestsByCustomer(customer.phone);
+    const customerWasalniOrders = wasalniRequests.map(w => ({ ...w, type: 'wasalni' }));
+
+    // دمج وترتيب
+    const allOrders = [...customerStoreOrders, ...customerWasalniOrders];
+    allOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     // تطبيق الترقيم
     const startIndex = (Number(page) - 1) * Number(limit);
     const endIndex = startIndex + Number(limit);
-    const paginatedOrders = customerOrders.slice(startIndex, endIndex);
+    const paginatedOrders = allOrders.slice(startIndex, endIndex);
 
     res.json(paginatedOrders);
   } catch (error) {
