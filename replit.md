@@ -56,12 +56,6 @@ A comprehensive food delivery system supporting three user roles: Customers, Dri
   - Toggle: `show_wasalni_service` UI setting in admin panel
 - **Notifications fix**: Customer notifications now correctly fetched from server
 - **Scheduled orders bypass closure**: Scheduled orders allowed even when store is closed
-- **Real-time notifications**: Order status changes now broadcast `order_status_changed` + `NEW_NOTIFICATION` via WebSocket to specific customer (by userId and phone)
-- **enable_scheduled_orders enforcement**: Server checks `enable_scheduled_orders` UI setting before accepting scheduled orders (returns `SCHEDULED_DISABLED` code if off)
-- **Yemen timezone fix**: Opening/closing time checks use UTC+3 correctly
-- **APP_CLOSED code on time-based closure**: Time-based closed errors now include `code: "APP_CLOSED"` so the Cart can show AppClosedOverlay
-- **Fixed duplicate wsServer variable**: Renamed conflicting variable to `wsServerForAdmin` in orders.ts
-- **Admin settings → driver/customer apps**: UiSettingsContext listens for `settings_changed` WS event and re-fetches, so admin panel UI setting changes take effect immediately in all apps
 
 ## Environment Variables
 - `DATABASE_URL` - PostgreSQL connection (managed by Replit)
