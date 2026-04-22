@@ -453,6 +453,17 @@ router.put("/:id/assign-driver", async (req, res) => {
         isRead: false
       });
 
+      // إشعار للعميل عند تعيين السائق
+      await storage.createNotification({
+        type: 'order_status_update',
+        title: 'تم تعيين سائق لطلبك',
+        message: `تم تعيين السائق ${driver.name} لتوصيل طلبك رقم ${order.orderNumber}. السائق في الطريق الآن.`,
+        recipientType: 'customer',
+        recipientId: order.customerId || order.customerPhone,
+        orderId: id,
+        isRead: false
+      });
+
       // تتبع الطلب
       await storage.createOrderTracking({
         orderId: id,
