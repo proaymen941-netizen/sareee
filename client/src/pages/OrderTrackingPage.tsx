@@ -41,6 +41,12 @@ interface OrderDetails {
   createdAt: Date;
   scheduledDate?: string;
   scheduledTimeSlot?: string;
+  // Wasalni fields
+  isWaselLi?: boolean;
+  pickupAddress?: string;
+  pickupPhone?: string;
+  pickupName?: string;
+  waselLiItemType?: string;
 }
 
 // الحالات التي يُسمح فيها بالإلغاء (قبل الإرسال للمطعم أو التوصيل)
@@ -314,6 +320,34 @@ export default function OrderTrackingPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Wasalni Pickup Info */}
+        {order.isWaselLi && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Package className="h-5 w-5 text-primary mt-1" />
+                <div>
+                  <h4 className="font-bold text-primary mb-1">بيانات الاستلام (وصل لي)</h4>
+                  <p className="text-sm font-bold text-gray-800 mb-1">
+                    {order.pickupAddress}
+                  </p>
+                  {order.pickupName && (
+                    <p className="text-xs text-gray-600">الاسم: {order.pickupName}</p>
+                  )}
+                  {order.pickupPhone && (
+                    <p className="text-xs text-gray-600">الهاتف: {order.pickupPhone}</p>
+                  )}
+                  {order.waselLiItemType && (
+                    <Badge variant="outline" className="mt-2 bg-white text-[10px]">
+                      نوع الغرض: {order.waselLiItemType}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Driver Info & Map */}
         {(['confirmed', 'preparing', 'ready', 'picked_up', 'on_way'].includes(order.status)) && order.driverId && (

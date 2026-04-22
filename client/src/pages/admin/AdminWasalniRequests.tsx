@@ -220,39 +220,44 @@ export default function AdminWasalniRequests() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className="font-black text-sm text-primary">{request.requestNumber}</span>
-                      <Badge className={`text-xs border ${STATUS_COLORS[request.status] || 'bg-gray-100 text-gray-600'}`}>
+                      <span className="font-black text-base text-primary">{request.requestNumber}</span>
+                      <Badge className={`text-[10px] px-1.5 py-0 border ${STATUS_COLORS[request.status] || 'bg-gray-100 text-gray-600'}`}>
                         {STATUS_LABELS[request.status] || request.status}
                       </Badge>
-                      <Badge variant="outline" className="text-xs">{request.orderType}</Badge>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-white">{request.orderType}</Badge>
                     </div>
 
-                    <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
-                      <User className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="font-semibold">{request.customerName}</span>
-                      <span className="text-gray-400">•</span>
-                      <Phone className="h-3.5 w-3.5 text-gray-400" />
-                      <span>{request.customerPhone}</span>
-                    </div>
-
-                    <div className="space-y-1 text-xs text-gray-600">
-                      <div className="flex items-start gap-1.5">
-                        <MapPin className="h-3 w-3 text-green-500 mt-0.5 shrink-0" />
-                        <span className="truncate">من: {request.fromAddress}</span>
+                    <div className="grid grid-cols-1 gap-1 text-sm text-gray-700 mb-2">
+                      <div className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                        <span className="font-bold truncate">{request.customerName}</span>
                       </div>
-                      <div className="flex items-start gap-1.5">
-                        <MapPin className="h-3 w-3 text-red-500 mt-0.5 shrink-0" />
-                        <span className="truncate">إلى: {request.toAddress}</span>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                        <span className="font-medium text-xs bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-100">{request.customerPhone}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
+                    <div className="bg-gray-50/50 rounded-xl p-2.5 border border-gray-100 space-y-1.5 text-xs text-gray-600 mb-2">
+                      <div className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1 shrink-0" />
+                        <span className="leading-tight"><span className="text-gray-400">من:</span> {request.fromAddress}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1 shrink-0" />
+                        <span className="leading-tight"><span className="text-gray-400">إلى:</span> {request.toAddress}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100/50">
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold">
                         <Clock className="h-3 w-3" />
                         {request.scheduledDate} {request.scheduledTime}
                       </div>
                       {request.estimatedFee && (
-                        <span className="font-bold text-orange-600">{parseFloat(request.estimatedFee).toLocaleString()} ر.ي</span>
+                        <div className="bg-orange-50 text-orange-700 px-2 py-1 rounded-lg font-black text-xs">
+                          {parseFloat(request.estimatedFee).toLocaleString()} ر.ي
+                        </div>
                       )}
                     </div>
                   </div>
