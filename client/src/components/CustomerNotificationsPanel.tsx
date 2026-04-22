@@ -176,11 +176,8 @@ export function CustomerNotificationsPanel() {
                     onClick={() => {
                       if (!notif.isRead) markOneReadMutation.mutate(notif.id);
                       if (notif.orderId) {
-                        if (notif.type?.includes('wasalni')) {
-                          setLocation(`/wasalni-tracking/${notif.orderId}`);
-                        } else {
-                          setLocation(`/orders/${notif.orderId}`);
-                        }
+                        // تتبع طلبات الطعام ووصلي في نفس المسار الموحد
+                        setLocation(`/orders/${notif.orderId}`);
                         setIsOpen(false);
                       }
                     }}
