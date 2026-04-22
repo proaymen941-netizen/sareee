@@ -308,6 +308,39 @@ router.put("/orders/:id/status", requireDriverAuth, async (req: AuthenticatedReq
   }
 });
 
+// تحديث الموقع الجغرافي للسائق بشكل دوري
+router.post("/location", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const driverId = req.driverId!;
+    const { latitude, longitude, currentLocation } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ error: "الإحداثيات مطلوبة" });
+    }
+
+    await storage.updateDriver(driverId, {
+      latitude: latitude.toString(),
+      longitude: longitude.toString(),
+      currentLocation: currentLocation || undefined
+    });
+
+    const ws = req.app.get('ws');
+    if (ws) {
+      ws.broadcast('driver_location_update', {
+        driverId,
+        latitude,
+        longitude,
+        timestamp: new Date()
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("خطأ في تحديث الموقع:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
 // جلب تفاصيل طلب محدد
 router.get("/orders/:id", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
