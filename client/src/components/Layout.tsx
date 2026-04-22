@@ -27,6 +27,8 @@ import { useUiSettings } from '@/context/UiSettingsContext';
 import { useLanguage } from '../context/LanguageContext';
 import TopBar from './TopBar';
 import Navbar from './Navbar';
+import AppClosedOverlay from './AppClosedOverlay';
+import { getAppStatus } from '../utils/restaurantHours';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -42,6 +44,13 @@ export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const { getSetting } = useUiSettings();
+
+  const appStatus = (() => {
+    const openingTime = getSetting('opening_time') || '08:00';
+    const closingTime = getSetting('closing_time') || '23:00';
+    const storeStatus = getSetting('store_status') || 'open';
+    return getAppStatus(openingTime, closingTime, storeStatus);
+  })();
 
   const getS = (key: string, defaultValue: string) => getSetting(key) || defaultValue;
 
@@ -105,6 +114,16 @@ export default function Layout({ children }: LayoutProps) {
     <div className="bg-background min-h-screen flex flex-col pb-16 md:pb-0" dir={dir}>
       <TopBar />
       {location !== '/' && !location.startsWith('/restaurant/') && <Navbar />}
+
+      {/* App Closed Overlay */}
+      {!appStatus.isOpen && (
+        <AppClosedOverlay
+          openingTime={appStatus.openingTime}
+          message="عذراً لا تستطيع الطلب الآن لأن التطبيق مغلق"
+          onClose={() => {}}
+          scheduledOrdersEnabled={getSetting('allow_scheduled_orders_when_closed') !== 'false'}
+        />
+      )}
 
       {/* Sidebar Sheet */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
