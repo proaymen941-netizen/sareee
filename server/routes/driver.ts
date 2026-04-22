@@ -254,6 +254,50 @@ router.put("/orders/:id/status", requireDriverAuth, async (req: AuthenticatedReq
       updatedOrder = await storage.updateOrder(id, { status });
     }
 
+    // إنشاء إشعار للعميل وإدارة وتتبع الطلب
+    try {
+      const statusMessages: Record<string, string> = {
+        preparing: 'جاري تحضير الطلب',
+        ready: 'الطلب جاهز للاستلام',
+        picked_up: 'تم استلام الطلب من المطعم',
+        on_way: 'السائق في الطريق إليك',
+        delivered: 'تم تسليم الطلب بنجاح',
+      };
+      const statusMessage = statusMessages[status] || `تم تحديث حالة الطلب إلى ${status}`;
+
+      if (order.customerId || order.customerPhone) {
+        await storage.createNotification({
+          type: 'order_status_update',
+          title: 'تحديث حالة الطلب',
+          message: `طلبك رقم ${order.orderNumber}: ${statusMessage}`,
+          recipientType: 'customer',
+          recipientId: order.customerId || order.customerPhone,
+          orderId: id,
+          isRead: false,
+        });
+      }
+
+      await storage.createNotification({
+        type: 'order_status_update',
+        title: 'تحديث حالة الطلب من السائق',
+        message: `الطلب ${order.orderNumber}: ${statusMessage}`,
+        recipientType: 'admin',
+        recipientId: null,
+        orderId: id,
+        isRead: false,
+      });
+
+      await storage.createOrderTracking({
+        orderId: id,
+        status,
+        message: statusMessage,
+        createdBy: driverId,
+        createdByType: 'driver',
+      });
+    } catch (notifErr) {
+      console.error('خطأ في إنشاء إشعارات السائق:', notifErr);
+    }
+
     const ws = req.app.get('ws');
     if (ws) ws.broadcast('order_update', { orderId: id, status, driverId });
 
