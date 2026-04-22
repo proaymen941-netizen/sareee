@@ -33,22 +33,12 @@ import SearchPage from "./pages/SearchPage";
 import NotFound from "@/pages/not-found";
 
 import SplashScreen from "./components/SplashScreen";
-import AppClosedOverlay from "./components/AppClosedOverlay";
-import { getAppStatus } from "./utils/restaurantHours";
 
 function MainApp() {
   useSettingsSync();
   const { location: userLocation } = useUserLocation();
   const [currentLocation, setLocation] = useWouterLocation();
-  const { getSetting } = useUiSettings();
   const [showLocationModal, setShowLocationModal] = useState(true);
-  
-  const appStatus = useMemo(() => {
-    const openingTime = getSetting('opening_time') || '08:00';
-    const closingTime = getSetting('closing_time') || '23:00';
-    const storeStatus = getSetting('store_status') || 'open';
-    return getAppStatus(openingTime, closingTime, storeStatus);
-  }, [getSetting]);
   const [showSplash, setShowSplash] = useState(() => {
     return !sessionStorage.getItem('splash_seen');
   });
@@ -113,15 +103,6 @@ function MainApp() {
         <Router />
       </Layout>
       <FloatingCartNotification />
-
-      {!appStatus.isOpen && !isAdminRoute && !isDriverRoute && (
-        <AppClosedOverlay 
-          openingTime={appStatus.openingTime}
-          message={appStatus.message}
-          onClose={() => {}} // Could add logic to allow browsing but disable ordering
-          scheduledOrdersEnabled={getSetting('enable_scheduled_orders') !== 'false'}
-        />
-      )}
       
       {showLocationModal && !userLocation.hasPermission && (
         <LocationPermissionModal
