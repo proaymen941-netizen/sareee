@@ -48,9 +48,7 @@ export default function Restaurant() {
 
   const openingTime = uiSettings?.find((s: any) => s.key === 'opening_time')?.value || '11:00';
   const closingTime = uiSettings?.find((s: any) => s.key === 'closing_time')?.value || '23:00';
-  const storeStatus = uiSettings?.find((s: any) => s.key === 'store_status')?.value || 'open';
-  
-  const companyOpen = storeStatus !== 'false' && storeStatus !== 'closed' && isCompanyOpen(openingTime, closingTime);
+  const companyOpen = isCompanyOpen(openingTime, closingTime);
 
   const menuCategories = menuItems
     ? Array.from(new Set(menuItems.map(item => item.category).filter(Boolean)))
@@ -82,11 +80,7 @@ export default function Restaurant() {
   const orderBlocked = !companyOpen || !restaurantStatus.isOpen;
   let blockMessage = '';
   if (!companyOpen) {
-    if (storeStatus === 'false' || storeStatus === 'closed') {
-      blockMessage = `عذراً، السريع ون مغلق حالياً من قِبل الإدارة.`;
-    } else {
-      blockMessage = `السريع ون مغلق حالياً. أوقات الدوام من ${openingTime} حتى ${closingTime}`;
-    }
+    blockMessage = `السريع ون مغلق حالياً. أوقات الدوام من ${openingTime} حتى ${closingTime}`;
   } else if (!restaurantStatus.isOpen) {
     blockMessage = `هذا المتجر مغلق حالياً. ${restaurantStatus.message}`;
   }
