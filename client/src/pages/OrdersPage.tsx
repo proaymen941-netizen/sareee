@@ -79,29 +79,74 @@ export default function OrdersPage() {
     queryKey: ['orders', customerPhone],
     enabled: !!customerPhone,
     queryFn: async () => {
-      const response = await fetch(`/api/orders/customer/${customerPhone}`);
-      if (!response.ok) {
+      const [ordersRes, wasalniRes] = await Promise.all([
+        fetch(`/api/orders/customer/${customerPhone}`),
+        fetch(`/api/wasalni?phone=${encodeURIComponent(customerPhone || '')}`),
+      ]);
+      if (!ordersRes.ok) {
         throw new Error('فشل في جلب الطلبات');
       }
-      const data = await response.json();
-      
-      return data.map((order: Order) => {
+      const data: Order[] = await ordersRes.json();
+
+      const foodOrders: Order[] = data.map((order: Order) => {
         let parsedItems: OrderItem[] = [];
         try {
-          parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+          parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items as any);
         } catch (e) {
           console.error('خطأ في تحليل عناصر الطلب:', e);
         }
-        
+
         let restaurantName = order.restaurantName;
         if (!restaurantName && parsedItems.length > 0 && parsedItems[0].restaurantName) {
           restaurantName = parsedItems[0].restaurantName;
         } else if (!restaurantName) {
           restaurantName = 'مطعم غير معروف';
         }
-        
+
         return { ...order, restaurantName, parsedItems };
       });
+
+      // دمج طلبات وصل لي
+      let wasalniOrders: Order[] = [];
+      if (wasalniRes.ok) {
+        try {
+          const wasalniData: any[] = await wasalniRes.json();
+          wasalniOrders = (wasalniData || [])
+            .filter((w) => w.customerPhone === customerPhone)
+            .map((w) => ({
+              id: w.id,
+              orderNumber: w.requestNumber,
+              customerName: w.customerName,
+              customerPhone: w.customerPhone,
+              deliveryAddress: w.toAddress,
+              notes: w.notes || '',
+              paymentMethod: 'cash',
+              items: '[]',
+              subtotal: w.estimatedFee || '0',
+              deliveryFee: w.estimatedFee || '0',
+              total: w.estimatedFee || '0',
+              totalAmount: w.estimatedFee || '0',
+              restaurantId: '',
+              restaurantName: `وصل لي - ${w.orderType || 'توصيل'}`,
+              status: w.status,
+              createdAt: w.createdAt,
+              updatedAt: w.updatedAt,
+              driverEarnings: '0',
+              parsedItems: [
+                { name: `من: ${w.fromAddress}`, quantity: 1, price: 0 },
+                { name: `إلى: ${w.toAddress}`, quantity: 1, price: 0 },
+              ],
+            } as Order));
+        } catch (e) {
+          console.error('خطأ في تحميل طلبات وصل لي:', e);
+        }
+      }
+
+      const merged = [...foodOrders, ...wasalniOrders];
+      merged.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      return merged;
     },
     refetchInterval: 30000,
     retry: 1

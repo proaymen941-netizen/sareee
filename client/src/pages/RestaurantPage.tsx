@@ -16,6 +16,7 @@ import type { Restaurant, MenuItem, RestaurantSection } from '@shared/schema';
 import { getRestaurantStatus, canOrderFromRestaurant, getAppStatus } from '../utils/restaurantHours';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import StoreClosedDialog from '@/components/StoreClosedDialog';
 import { useUiSettings } from '@/context/UiSettingsContext';
 
 const MEAL_FAV_KEY = 'meal_favorites';
@@ -149,6 +150,8 @@ export default function RestaurantPage() {
   const [mealFavs, setMealFavs] = useState<Set<string>>(loadMealFavorites);
   const [restFavs, setRestFavs] = useState<Set<string>>(loadRestFavorites);
   const [ratingOpen, setRatingOpen] = useState(false);
+  const [showStoreClosed, setShowStoreClosed] = useState(false);
+  const [storeClosedMsg, setStoreClosedMsg] = useState('');
 
   const { addItem, removeItem, getItemQuantity } = useCart();
   const { toast } = useToast();
@@ -243,12 +246,8 @@ export default function RestaurantPage() {
 
   const handleAddItem = (item: MenuItem) => {
     if (!orderStatus.canOrder) {
-      toast({
-        title: '🔴 المتجر مغلق حالياً',
-        description: orderStatus.message || 'لا يمكن إضافة منتجات في وقت الإغلاق',
-        variant: 'destructive',
-        duration: 4000,
-      });
+      setStoreClosedMsg(orderStatus.message || 'عذراً، المتجر مغلق حالياً');
+      setShowStoreClosed(true);
       return;
     }
     addItem(item, item.restaurantId, restaurant.name);
@@ -505,6 +504,12 @@ export default function RestaurantPage() {
           onClose={() => setRatingOpen(false)}
         />
       )}
+
+      <StoreClosedDialog
+        open={showStoreClosed}
+        message={storeClosedMsg}
+        onClose={() => setShowStoreClosed(false)}
+      />
     </div>
   );
 }

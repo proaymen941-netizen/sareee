@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Package, CheckCircle, XCircle, Phone, MapPin, Filter, Navigation, Search, Truck, AlertCircle, Clock, User, Edit, DollarSign, Plus, Minus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ interface EditableItem {
 }
 
 export default function AdminOrders() {
+  const [, setAdminLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -264,10 +266,19 @@ export default function AdminOrders() {
       <div className="sticky top-0 z-20 bg-white border-b shadow-sm px-6 py-4">
         <div className="flex items-center gap-3">
           <Package className="h-7 w-7 text-primary" />
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold text-foreground">إدارة الطلبات</h1>
             <p className="text-sm text-muted-foreground">متابعة وإدارة جميع الطلبات</p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAdminLocation('/admin/driver-tracking')}
+            className="gap-2"
+          >
+            <Navigation className="h-4 w-4" />
+            تتبع السائقين المباشر
+          </Button>
         </div>
       </div>
 

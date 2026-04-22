@@ -12,8 +12,6 @@ import AdminUiSettings from "./admin/AdminUiSettings";
 import AdminFinancialReports from "./AdminFinancialReports";
 import AdminHRManagement from "./AdminHRManagement";
 import AdminSecurity from "./AdminSecurity";
-import AdminDriversAdvanced from "./AdminDriversAdvanced";
-import AdminRestaurantsAdvanced from "./AdminRestaurantsAdvanced";
 import AdminDashboard from "./admin/AdminDashboard";
 import AdminDeliveryFees from "./admin/AdminDeliveryFees";
 import AdminBackup from "./admin/AdminBackup";
@@ -26,7 +24,6 @@ import AdminRestaurantAccounts from "./admin/AdminRestaurantAccounts";
 import AdminFlutterNotifications from "./admin/AdminFlutterNotifications";
 import AdminWasalniRequests from "./admin/AdminWasalniRequests";
 import AdminDriverTracking from "./admin/AdminDriverTracking";
-import AdminDashboardAdvanced from "./AdminDashboardAdvanced";
 import AdminBusinessHours from "./AdminBusinessHours";
 import AdminSpecialOffers from "./AdminSpecialOffers";
 import AdminSettings from "./AdminSettings";
@@ -46,12 +43,10 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
       <Switch>
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
-        <Route path="/admin/dashboard-advanced" component={AdminDashboardAdvanced} />
         <Route path="/admin/orders" component={AdminOrders} />
         <Route path="/admin/restaurants" component={AdminRestaurants} />
         <Route path="/admin/menu-items" component={AdminMenuItems} />
         <Route path="/admin/drivers" component={AdminDrivers} />
-        <Route path="/admin/drivers-advanced" component={AdminDriversAdvanced} />
         <Route path="/admin/driver-tracking" component={AdminDriverTracking} />
         <Route path="/admin/delivery-fees" component={AdminDeliveryFees} />
         <Route path="/admin/offers" component={AdminOffers} />
@@ -72,7 +67,6 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/detailed-reports" component={AdminDetailedReports} />
         <Route path="/admin/advanced-reports" component={AdvancedReports} />
         <Route path="/admin/restaurant-reports" component={RestaurantReports} />
-        <Route path="/admin/restaurants-advanced" component={AdminRestaurantsAdvanced} />
         <Route path="/admin/restaurant-accounts" component={AdminRestaurantAccounts} />
         <Route path="/admin/restaurant-sections" component={RestaurantSections} />
         <Route path="/admin/business-hours" component={AdminBusinessHours} />
