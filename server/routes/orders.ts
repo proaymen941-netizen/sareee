@@ -71,15 +71,6 @@ router.post("/", async (req, res) => {
       const openingTime = settingsMap.get('opening_time') || '08:00';
       const closingTime = settingsMap.get('closing_time') || '23:00';
       const allowScheduledWhenClosed = settingsMap.get('allow_scheduled_orders_when_closed') !== 'false';
-      const scheduledOrdersEnabled = settingsMap.get('enable_scheduled_orders') !== 'false';
-
-      // التحقق من تفعيل الطلبات المجدولة
-      if (isScheduledOrder && !scheduledOrdersEnabled) {
-        return res.status(400).json({ 
-          error: "الطلبات المجدولة غير متاحة حالياً",
-          code: "SCHEDULED_DISABLED"
-        });
-      }
 
       if (storeStatus === 'closed') {
         // التحقق من الإعداد إذا كان مسموحاً بالطلبات المجدولة عند إغلاق التطبيق
@@ -98,10 +89,8 @@ router.post("/", async (req, res) => {
         // المتجر مفتوح يدوياً - لا فحص للوقت
       } else if (!isScheduledOrder) {
         // الطلبات المؤجلة لا تحتاج فحص ساعات العمل الحالية
-        // استخدام توقيت اليمن (UTC+3)
         const now = new Date();
-        const yemenTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
-        const currentTime = yemenTime.toISOString().split('T')[1].slice(0, 5);
+        const currentTime = now.toTimeString().slice(0, 5);
         const timeToMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
         const current = timeToMinutes(currentTime);
         const open = timeToMinutes(openingTime);
@@ -112,9 +101,7 @@ router.post("/", async (req, res) => {
           const isBeforeOpen = current < open;
           const whenOpen = isBeforeOpen ? `يفتح اليوم الساعة ${openingTime}` : `يفتح غداً الساعة ${openingTime}`;
           return res.status(400).json({ 
-            error: `التطبيق مغلق حالياً. ${whenOpen}`,
-            code: "APP_CLOSED",
-            openingTime,
+            error: `التطبيق مغلق حالياً. ${whenOpen}`
           });
         }
       }
@@ -255,54 +242,18 @@ router.post("/", async (req, res) => {
         isRead: false
       });
 
-      // إشعار للعميل بتأكيد استلام الطلب + إرسال فوري عبر WebSocket
+      // إشعار للعميل بتأكيد استلام الطلب
       if (customerId || customerPhone) {
-        const customerNotifTitle = isScheduledOrder ? 'تم جدولة طلبك' : 'تم استلام طلبك';
-        const customerNotifMsg = isScheduledOrder 
-          ? `تم جدولة طلبك رقم ${orderNumber} للتوصيل في ${req.body.scheduledDate} ${req.body.scheduledTimeSlot}`
-          : `تم استلام طلبك رقم ${orderNumber} وهو قيد المراجعة حالياً`;
-
         await storage.createNotification({
           type: 'order_status_update',
-          title: customerNotifTitle,
-          message: customerNotifMsg,
+          title: isScheduledOrder ? 'تم جدولة طلبك' : 'تم استلام طلبك',
+          message: isScheduledOrder 
+            ? `تم جدولة طلبك رقم ${orderNumber} للتوصيل في ${req.body.scheduledDate} ${req.body.scheduledTimeSlot}`
+            : `تم استلام طلبك رقم ${orderNumber} وهو قيد المراجعة حالياً`,
           recipientType: 'customer',
           recipientId: customerId || customerPhone,
           orderId: order.id,
           isRead: false
-        });
-
-        // إرسال إشعار فوري عبر WebSocket للعميل المتصل
-        const wsServer = req.app.get('ws');
-        if (wsServer) {
-          const notifPayload = {
-            type: 'order_status_update',
-            title: customerNotifTitle,
-            message: customerNotifMsg,
-            orderId: order.id,
-            orderNumber,
-          };
-          // إرسال للعميل المسجل بالمعرف
-          if (customerId && wsServer.sendToUser) {
-            wsServer.sendToUser(customerId, 'NEW_NOTIFICATION', notifPayload);
-          }
-          // إرسال للعميل المسجل برقم الهاتف (الزوار)
-          if (customerPhone && wsServer.sendToUser) {
-            wsServer.sendToUser(customerPhone, 'NEW_NOTIFICATION', notifPayload);
-          }
-          // بث عام لتحديث قائمة الإشعارات
-          wsServer.broadcast('order_update', { orderId: order.id, status: orderStatus, customerPhone, customerId });
-        }
-      }
-
-      // إرسال بث لإشعار الإدارة عبر WebSocket
-      const wsServerForAdmin = req.app.get('ws');
-      if (wsServerForAdmin && wsServerForAdmin.sendToAdmin) {
-        wsServerForAdmin.sendToAdmin('NEW_NOTIFICATION', {
-          type: isScheduledOrder ? 'new_scheduled_order' : 'new_order_pending_assignment',
-          title: adminNotifTitle,
-          message: adminNotifMsg,
-          orderId: order.id,
         });
       }
 
@@ -585,10 +536,7 @@ router.put("/:id", async (req, res) => {
     // Broadcast update via WebSocket
     const ws = req.app.get('ws');
     if (ws) {
-      // بث عام لتحديث لوحة التحكم وتطبيق السائق
       ws.broadcast('order_update', { orderId: id, status });
-      // بث حدث تغيير الحالة ليتلقاه تطبيق العميل في NotificationContext
-      ws.broadcast('order_status_changed', { orderId: id, status });
     }
 
     // إنشاء رسالة الحالة
@@ -627,45 +575,16 @@ router.put("/:id", async (req, res) => {
 
     // إنشاء إشعارات وتتبع
     try {
-      const customerNotifTitle = 'تحديث حالة الطلب';
-      const customerNotifMsg = `طلبك رقم ${order.orderNumber}: ${statusMessage}`;
-
-      // إشعار للعميل في قاعدة البيانات
+      // إشعار للعميل
       await storage.createNotification({
         type: 'order_status_update',
-        title: customerNotifTitle,
-        message: customerNotifMsg,
+        title: 'تحديث حالة الطلب',
+        message: `طلبك رقم ${order.orderNumber}: ${statusMessage}`,
         recipientType: 'customer',
         recipientId: order.customerId || order.customerPhone,
         orderId: id,
         isRead: false
       });
-
-      // إرسال إشعار فوري عبر WebSocket للعميل المتصل
-      const wsForNotif = req.app.get('ws');
-      if (wsForNotif) {
-        const notifPayload = {
-          type: 'order_status_update',
-          title: customerNotifTitle,
-          message: customerNotifMsg,
-          orderId: id,
-          orderNumber: order.orderNumber,
-          status,
-        };
-        if (order.customerId && wsForNotif.sendToUser) {
-          wsForNotif.sendToUser(order.customerId, 'NEW_NOTIFICATION', notifPayload);
-        }
-        if (order.customerPhone && wsForNotif.sendToUser) {
-          wsForNotif.sendToUser(order.customerPhone, 'NEW_NOTIFICATION', notifPayload);
-        }
-        // بث order_status_changed ليتلقاه NotificationContext بشكل صحيح
-        wsForNotif.broadcast('order_status_changed', {
-          orderId: id,
-          status,
-          message: customerNotifMsg,
-          orderNumber: order.orderNumber,
-        });
-      }
 
       // إشعار للإدارة
       await storage.createNotification({
