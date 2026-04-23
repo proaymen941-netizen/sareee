@@ -416,13 +416,24 @@ router.put("/:id/assign-driver", async (req, res) => {
     // Broadcast update via WebSocket
     const ws = req.app.get('ws');
     if (ws) {
-      ws.broadcast('order_update', { orderId: id, status: 'assigned' });
-      // Also send direct notification to the driver
+      // إشعار للعميل بتحديث الحالة وتعيين السائق
+      ws.broadcast('order_update', { 
+        orderId: id, 
+        status: 'assigned',
+        driverId,
+        driverName: driver?.name,
+        type: 'regular',
+        orderNumber: order.orderNumber
+      });
+
+      // إشعار مباشر للسائق مع بيانات الطلب
       if (ws.sendToDriver) {
         ws.sendToDriver(driverId, 'new_order_assigned', { 
           orderId: id, 
           status: 'assigned',
-          message: `تم تعيين طلب جديد رقم ${order.orderNumber} لك`
+          message: `تم تعيين طلب جديد رقم ${order.orderNumber} لك`,
+          type: 'regular',
+          orderData: updatedOrder
         });
       }
     }
@@ -431,6 +442,17 @@ router.put("/:id/assign-driver", async (req, res) => {
 
     // إنشاء إشعارات
     try {
+      // إشعار للعميل
+      await storage.createNotification({
+        type: 'driver_assigned',
+        title: 'تم تحديد سائق لطلبك',
+        message: `تم تحديد السائق ${driver?.name || 'مندوبنا'} لتوصيل طلبك رقم ${order.orderNumber}`,
+        recipientType: 'customer',
+        recipientId: order.customerId || order.customerPhone,
+        orderId: id,
+        isRead: false
+      });
+
       // إشعار مباشر للسائق المعين
       await storage.createNotification({
         type: 'new_order_assigned',
@@ -547,7 +569,12 @@ router.put("/:id", async (req, res) => {
     // Broadcast update via WebSocket
     const ws = req.app.get('ws');
     if (ws) {
-      ws.broadcast('order_update', { orderId: id, status });
+      ws.broadcast('order_update', { 
+        orderId: id, 
+        status,
+        orderNumber: order.orderNumber,
+        type: 'regular'
+      });
     }
 
     // إنشاء رسالة الحالة
@@ -694,6 +721,24 @@ router.get("/:orderId/closest-drivers", async (req, res) => {
   }
 });
 
+// جلب طلب برقم الطلب
+router.get("/number/:orderNumber", async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const db = (storage as any).db;
+    if (!db) return res.status(500).json({ error: "Database not available" });
+    
+    const { orders } = await import("@shared/schema");
+    const { eq } = await import("drizzle-orm");
+    const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber));
+    
+    if (!order) return res.status(404).json({ error: "الطلب غير موجود" });
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في البحث" });
+  }
+});
+
 // جلب تفاصيل تتبع الطلب
 router.get("/:orderId/track", async (req, res) => {
   try {
@@ -752,7 +797,12 @@ router.get("/:orderId/track", async (req, res) => {
     }
 
     // جلب سجل تتبع الطلب
-    const trackingHistory = await storage.getOrderTracking(orderId);
+    let trackingHistory = [];
+    try {
+      trackingHistory = await storage.getOrderTracking(orderId);
+    } catch (err) {
+      console.error("Error fetching tracking history:", err);
+    }
     
     // تنسيق البيانات لتتوافق مع واجهة التتبع
     const formattedOrder = {
@@ -762,7 +812,7 @@ router.get("/:orderId/track", async (req, res) => {
       items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items
     };
 
-    let formattedTracking = trackingHistory.map(t => ({
+    let formattedTracking = trackingHistory.map((t: any) => ({
       id: t.id,
       status: t.status,
       timestamp: t.createdAt,
@@ -773,7 +823,7 @@ router.get("/:orderId/track", async (req, res) => {
       formattedTracking = [
         {
           id: "initial",
-          status: order.status,
+          status: order.status || 'pending',
           timestamp: order.createdAt,
           description: isWaselLi ? "تم استلام طلب وصل لي" : "تم استلام الطلب وجاري المراجعة"
         }
@@ -826,8 +876,30 @@ router.patch("/:orderId/cancel", async (req, res) => {
       await storage.updateDriver(order.driverId, { isAvailable: true });
     }
 
+    // Notify customer via WebSocket
+    const ws = req.app.get('ws');
+    if (ws) {
+      ws.broadcast('order_update', { 
+        orderId: id, 
+        status, 
+        orderNumber: order.orderNumber,
+        type: 'regular'
+      });
+    }
+
     // إنشاء إشعارات
     try {
+      // إشعار للعميل
+      await storage.createNotification({
+        type: 'order_status_update',
+        title: 'تحديث حالة الطلب',
+        message: `طلبك رقم ${order.orderNumber}: ${statusMessage}`,
+        recipientType: 'customer',
+        recipientId: order.customerId || order.customerPhone,
+        orderId: id,
+        isRead: false
+      });
+
       await storage.createNotification({
         type: 'order_cancelled',
         title: 'تم إلغاء الطلب',

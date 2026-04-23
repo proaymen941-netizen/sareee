@@ -42,6 +42,42 @@ router.get("/:id", async (req, res) => {
 // Create new wasalni request
 router.post("/", async (req, res) => {
   try {
+    // التحقق من ساعات عمل التطبيق وحالة الإغلاق
+    try {
+      const allSettings = await storage.getUiSettings();
+      const settingsMap = new Map(allSettings.map((s: any) => [s.key, s.value]));
+      const storeStatus = settingsMap.get('store_status');
+      const openingTime = settingsMap.get('opening_time') || '08:00';
+      const closingTime = settingsMap.get('closing_time') || '23:00';
+
+      if (storeStatus === 'closed') {
+        return res.status(400).json({ 
+          error: "عذراً، التطبيق مغلق حالياً ولا يمكن استقبال طلبات وصل لي",
+          code: "APP_CLOSED"
+        });
+      }
+
+      // التحقق من الوقت التلقائي إذا لم يكن مفتوحاً يدوياً
+      if (storeStatus !== 'open') {
+        const now = new Date();
+        const currentTime = now.toTimeString().slice(0, 5);
+        const timeToMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+        const current = timeToMinutes(currentTime);
+        const open = timeToMinutes(openingTime);
+        const close = timeToMinutes(closingTime);
+        let appIsOpen = close > open ? (current >= open && current < close) : (current >= open || current < close);
+
+        if (!appIsOpen) {
+          return res.status(400).json({ 
+            error: "التطبيق خارج ساعات العمل حالياً، يرجى الطلب لاحقاً",
+            code: "APP_CLOSED"
+          });
+        }
+      }
+    } catch (err) {
+      console.error("خطأ في التحقق من حالة التطبيق:", err);
+    }
+
     const {
       customerName, customerPhone, customerId,
       fromAddress, toAddress, fromLat, fromLng, toLat, toLng,
@@ -106,6 +142,20 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error("Error creating wasalni request:", error);
     res.status(500).json({ error: "فشل في إنشاء الطلب" });
+  }
+});
+
+// Get wasalni request by request number
+router.get("/number/:requestNumber", async (req, res) => {
+  try {
+    const { requestNumber } = req.params;
+    const db = (storage as any).db;
+    const { eq } = await import("drizzle-orm");
+    const [request] = await db.select().from(wasalniRequests).where(eq(wasalniRequests.requestNumber, requestNumber));
+    if (!request) return res.status(404).json({ error: "الطلب غير موجود" });
+    res.json(request);
+  } catch (error) {
+    res.status(500).json({ error: "فشل في جلب الطلب" });
   }
 });
 
@@ -195,16 +245,32 @@ router.post("/:id/assign-driver", async (req, res) => {
       .where(eq(wasalniRequests.id, req.params.id))
       .returning();
 
+    // تحديث حالة السائق ليكون مشغولاً
+    try {
+      await storage.updateDriver(driverId, { isAvailable: false });
+    } catch (driverErr) {
+      console.error("خطأ في تحديث حالة السائق:", driverErr);
+    }
+
     // Broadcast via WebSocket
     const ws = (req.app.get('ws') as any);
     if (ws) {
-      ws.broadcast('order_update', { orderId: updated.id, status: 'confirmed', type: 'wasalni' });
+      // إشعار للعميل بتحديث الحالة
+      ws.broadcast('order_update', { 
+        orderId: updated.id, 
+        status: 'confirmed', 
+        type: 'wasalni',
+        requestNumber: request.requestNumber
+      });
+
+      // إشعار مباشر للسائق
       if (ws.sendToDriver) {
         ws.sendToDriver(driverId, 'new_order_assigned', { 
           orderId: updated.id, 
           status: 'confirmed',
           message: `تم تعيين طلب وصل لي جديد لك رقم ${request.requestNumber}`,
-          type: 'wasalni'
+          type: 'wasalni',
+          orderData: updated
         });
       }
     }
