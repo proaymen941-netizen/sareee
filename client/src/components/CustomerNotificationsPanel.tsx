@@ -69,6 +69,43 @@ export function CustomerNotificationsPanel() {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  // WebSocket listener for real-time notification refresh
+  useEffect(() => {
+    if (!phone && !customerId) return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: any;
+
+    const connect = () => {
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        ws?.send(JSON.stringify({
+          type: 'auth',
+          payload: { userId: customerId || phone, userType: 'customer' }
+        }));
+      };
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'NEW_NOTIFICATION' || data.type === 'order_update' || data.type === 'order_status_changed') {
+            queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer', phone, customerId] });
+            refetch();
+          }
+        } catch (e) {}
+      };
+      ws.onclose = () => {
+        reconnectTimeout = setTimeout(connect, 5000);
+      };
+      ws.onerror = () => ws?.close();
+    };
+    connect();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      ws?.close();
+    };
+  }, [phone, customerId, refetch, queryClient]);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
@@ -176,8 +213,13 @@ export function CustomerNotificationsPanel() {
                     onClick={() => {
                       if (!notif.isRead) markOneReadMutation.mutate(notif.id);
                       if (notif.orderId) {
-                        // تتبع طلبات الطعام ووصلي في نفس المسار الموحد
-                        setLocation(`/orders/${notif.orderId}`);
+                        // تحقق من نوع الإشعار لتحديد الصفحة المناسبة
+                        const isWasalniNotif = notif.type?.includes('wasalni') || notif.type?.includes('wasal');
+                        if (isWasalniNotif) {
+                          setLocation(`/track-orders`);
+                        } else {
+                          setLocation(`/orders/${notif.orderId}`);
+                        }
                         setIsOpen(false);
                       }
                     }}
