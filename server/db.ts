@@ -2056,15 +2056,11 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
         const driverEarnings = parseFloat(order.driverEarnings?.toString() || order.driverCommissionAmount?.toString() || '0');
         
         if (driverEarnings > 0) {
-          // Update driver_balances
-          await this.updateDriverBalance(order.driverId, {
-            amount: driverEarnings,
-            type: 'commission',
-            description: `عمولة توصيل الطلب رقم: ${order.orderNumber}`,
-            orderId: order.id
-          });
+          // ملاحظة: createDriverCommission تستدعي createDriverTransaction داخلياً
+          // والتي بدورها تستدعي updateDriverBalance - لذا لا نستدعي updateDriverBalance مباشرة
+          // لتجنب مضاعفة الرصيد
 
-          // Create Driver Commission entry
+          // Create Driver Commission entry (تتولى تحديث الرصيد داخلياً عبر createDriverTransaction)
           await this.createDriverCommission({
             driverId: order.driverId,
             orderId: order.id,

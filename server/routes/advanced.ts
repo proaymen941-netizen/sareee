@@ -276,11 +276,7 @@ export function registerAdvancedRoutes(app: express.Express) {
         return res.status(400).json({ error: "Invalid amount" });
       }
 
-      const updatedBalance = await dbStorage.updateDriverBalance(driverId, { 
-        amount: parseFloat(amount), 
-        type: 'bonus' // Defaulting to bonus for manual add
-      });
-      
+      // createDriverTransaction تستدعي updateDriverBalance داخلياً - لا نستدعيه مرتين
       await dbStorage.createDriverTransaction({
         driverId,
         amount: amount.toString(),
@@ -288,11 +284,12 @@ export function registerAdvancedRoutes(app: express.Express) {
         description: description || "إضافة يدوية للرصيد"
       });
 
+      const updatedBalance = await dbStorage.getDriverBalance(driverId);
       res.json({
-        id: updatedBalance.id,
-        driverId: updatedBalance.driverId,
-        balance: updatedBalance.availableBalance,
-        totalEarned: updatedBalance.totalBalance
+        id: updatedBalance?.id,
+        driverId: updatedBalance?.driverId,
+        balance: updatedBalance?.availableBalance,
+        totalEarned: updatedBalance?.totalBalance
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -378,12 +375,7 @@ export function registerAdvancedRoutes(app: express.Express) {
       
       // Update wallet balance
       if (request.entityType === 'driver') {
-        const amount = parseFloat(request.amount.toString());
-        await dbStorage.updateDriverBalance(request.entityId, {
-          amount,
-          type: 'withdrawal'
-        });
-        
+        // createDriverTransaction تستدعي updateDriverBalance داخلياً - لا نستدعيه مرتين
         await dbStorage.createDriverTransaction({
           driverId: request.entityId,
           amount: request.amount.toString(),

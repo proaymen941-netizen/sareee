@@ -28,6 +28,25 @@ A comprehensive food delivery system supporting three user roles: Customers, Dri
 ## Recent Fixes Applied
 - Fixed `eq import` error in `server/index.ts` scheduled orders timer
 - Fixed admin/driver login routing in `AuthContext.tsx` and `LoginPage.tsx`
+
+## Driver Earnings Bug Fix (Critical)
+**Bug**: Driver wallet balance was being doubled on order completion (e.g., 3000 earned → 6000 added).
+**Root Cause**: In `server/db.ts` `completeOrder()`, both `updateDriverBalance()` AND `createDriverCommission()` (which internally calls `createDriverTransaction()` which calls `updateDriverBalance()` again) were called for the same amount.
+**Fix Applied**:
+1. `completeOrder()` (db.ts): Removed direct `updateDriverBalance()` call - now only `createDriverCommission()` handles the balance update chain
+2. `add-balance` route (advanced.ts): Removed extra `updateDriverBalance()` call - now only `createDriverTransaction()` updates the balance  
+3. Withdrawal approval route (advanced.ts): Same fix - removed duplicate `updateDriverBalance()` call
+
+## Restaurant Financial Statement
+- **API**: `GET /api/restaurant-accounts/:restaurantId/statement?from=&to=` - returns detailed order-by-order breakdown with commission, net earnings, and withdrawal history
+- **UI Page**: `client/src/pages/admin/RestaurantStatementPage.tsx` - full-featured statement with period filter, summary cards, detailed order table, withdrawal history, print, and PDF download (jsPDF + autoTable)
+- **Navigation**: Added "تقرير PDF" button in `AdminRestaurantAccounts.tsx` next to each restaurant
+- **Route**: `/admin/restaurant-accounts/:restaurantId/statement`
+
+## Real-time Dashboard Updates
+- Admin Dashboard (`AdminDashboard.tsx`): Added WebSocket listener for instant invalidation on order/notification events, reduced polling to 15 seconds
+- Driver Dashboard: Already had WebSocket + added wasalni query invalidation
+- Customer Notifications Panel: Added WebSocket for real-time notification refresh
 - Added GPS location auto-fill (Nominatim reverse geocoding) to WasalniPage steps 1 & 2
 - Added conditional coupon field in CartPage based on `coupon_min_order_value` setting
 - Added `coupon_min_order_value` to seed.ts and AdminUiSettings admin panel
