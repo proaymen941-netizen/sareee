@@ -661,38 +661,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analytics functionality temporarily disabled - would require additional database methods
 
   // ================= ADVANCED ORDER MANAGEMENT =================
-  app.put("/api/orders/:id/assign-driver", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { driverId } = req.body;
-      
-      // Update order with driver
-      const order = await storage.updateOrder(id, { 
-        driverId,
-        status: 'assigned',
-        updatedAt: new Date()
-      });
-      
-      if (!order) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-      
-      // Create notification for driver
-      await storage.createNotification({
-        type: 'order',
-        title: 'طلب جديد',
-        message: `تم تكليفك بطلب جديد رقم ${id.slice(0, 8)}`,
-        recipientType: 'driver',
-        recipientId: driverId,
-        orderId: id
-      });
-      
-      res.json(order);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to assign driver" });
-    }
-  });
-
   app.get("/api/orders/track/:id", async (req, res) => {
     try {
       const { id } = req.params;

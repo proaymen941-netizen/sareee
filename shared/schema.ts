@@ -265,7 +265,7 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   recipientType: varchar("recipient_type", { length: 50 }).notNull(),
   recipientId: text("recipient_id"), // تم التغيير من uuid إلى text لدعم الهوية بالهاتف للمستخدمين غير المسجلين
-  orderId: uuid("order_id").references(() => orders.id),
+  orderId: uuid("order_id"),
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
