@@ -92,9 +92,15 @@ router.post("/", async (req, res) => {
       message: `تم استلام طلبك رقم ${requestNumber} وهو قيد المراجعة`,
       recipientType: "customer",
       recipientId: customerId || customerPhone,
-      orderId: null,
+      orderId: newRequest.id, // ربط الطلب بالتتبع
       isRead: false,
     });
+
+    // بث التحديث عبر WebSocket للإدارة
+    const ws = (req.app.get('ws') as any);
+    if (ws) {
+      ws.broadcast('new_wasalni_request', { requestId: newRequest.id, requestNumber });
+    }
 
     res.status(201).json({ success: true, request: newRequest });
   } catch (error) {
@@ -122,6 +128,12 @@ router.put("/:id", async (req, res) => {
 
     // Notify customer on status change
     if (status) {
+      // بث التحديث عبر WebSocket
+      const ws = (req.app.get('ws') as any);
+      if (ws) {
+        ws.broadcast('order_update', { orderId: updated.id, status, type: 'wasalni' });
+      }
+
       const statusMessages: Record<string, string> = {
         confirmed: "تم قبول طلب وصل لي الخاص بك",
         on_way: "السائق في طريقه لاستلام طلبك",
@@ -135,7 +147,7 @@ router.put("/:id", async (req, res) => {
           message: `${statusMessages[status]} - رقم الطلب: ${updated.requestNumber}`,
           recipientType: "customer",
           recipientId: updated.customerId || updated.customerPhone,
-          orderId: null,
+          orderId: updated.id, // ربط الطلب بالتتبع
           isRead: false,
         });
       }
@@ -183,6 +195,20 @@ router.post("/:id/assign-driver", async (req, res) => {
       .where(eq(wasalniRequests.id, req.params.id))
       .returning();
 
+    // Broadcast via WebSocket
+    const ws = (req.app.get('ws') as any);
+    if (ws) {
+      ws.broadcast('order_update', { orderId: updated.id, status: 'confirmed', type: 'wasalni' });
+      if (ws.sendToDriver) {
+        ws.sendToDriver(driverId, 'new_order_assigned', { 
+          orderId: updated.id, 
+          status: 'confirmed',
+          message: `تم تعيين طلب وصل لي جديد لك رقم ${request.requestNumber}`,
+          type: 'wasalni'
+        });
+      }
+    }
+
     // Create notification for customer
     await storage.createNotification({
       type: "wasalni_driver_assigned",
@@ -190,7 +216,7 @@ router.post("/:id/assign-driver", async (req, res) => {
       message: `تم تعيين سائق لطلب وصل لي رقم ${request.requestNumber}. سيتواصل معك السائق قريباً.`,
       recipientType: "customer",
       recipientId: request.customerId || request.customerPhone,
-      orderId: null,
+      orderId: updated.id, // ربط الطلب بالتتبع
       isRead: false,
     });
 
@@ -201,7 +227,7 @@ router.post("/:id/assign-driver", async (req, res) => {
       message: `تم تعيين طلب وصل لي جديد لك رقم ${request.requestNumber}. من: ${request.fromAddress} إلى: ${request.toAddress}`,
       recipientType: "driver",
       recipientId: driverId,
-      orderId: null,
+      orderId: updated.id, // ربط الطلب بالتتبع
       isRead: false,
     });
 

@@ -84,6 +84,7 @@ export interface IStorage {
   getDriver(id: string): Promise<Driver | undefined>;
   getDriverById(id: string): Promise<Driver | undefined>;
   getAvailableDrivers(): Promise<Driver[]>;
+  getClosestDrivers(lat: number, lon: number, limit?: number): Promise<(Driver & { distance: number })[]>;
   createDriver(driver: InsertDriver): Promise<Driver>;
   updateDriver(id: string, driver: Partial<InsertDriver>): Promise<Driver | undefined>;
   deleteDriver(id: string): Promise<boolean>;

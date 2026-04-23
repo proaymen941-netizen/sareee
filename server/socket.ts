@@ -190,11 +190,22 @@ async function handleMessage(
       break;
       
     case "location_update":
-      const { driverId, latitude, longitude } = message.payload;
+      const { driverId, latitude, longitude, currentLocation } = message.payload;
       if (driverId && latitude && longitude) {
+        // تحديث قاعدة البيانات لضمان بقاء الموقع حتى لو انقطع الاتصال
+        try {
+          storage.updateDriver(driverId, {
+            latitude: latitude.toString(),
+            longitude: longitude.toString(),
+            currentLocation: currentLocation || undefined
+          }).catch(err => console.error('Error updating driver location in DB:', err));
+        } catch (e) {
+          console.error('Failed to update driver location:', e);
+        }
+
         const broadcastMsg = JSON.stringify({
           type: "driver_location",
-          payload: { driverId, latitude, longitude, timestamp: Date.now() }
+          payload: { driverId, latitude, longitude, currentLocation, timestamp: Date.now() }
         });
         
         wss.clients.forEach((client) => {
@@ -203,6 +214,21 @@ async function handleMessage(
           }
         });
       }
+      break;
+
+    case "settings_update":
+      // بث تغيير الإعدادات لجميع المتصلين (عملاء وسائقين)
+      const settingsPayload = message.payload;
+      const settingsMsg = JSON.stringify({
+        type: "settings_changed",
+        payload: settingsPayload
+      });
+      
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(settingsMsg);
+        }
+      });
       break;
       
     case "driver_assigned":

@@ -597,6 +597,26 @@ export class DatabaseStorage {
     );
   }
 
+  async getClosestDrivers(lat: number, lon: number, limit: number = 5): Promise<(Driver & { distance: number })[]> {
+    const availableDrivers = await this.getAvailableDrivers();
+    
+    const driversWithDistance = availableDrivers
+      .filter(driver => driver.latitude !== null && driver.longitude !== null)
+      .map(driver => {
+        const distance = this.calculateDistance(
+          lat,
+          lon,
+          parseFloat(driver.latitude!),
+          parseFloat(driver.longitude!)
+        );
+        return { ...driver, distance };
+      })
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limit);
+      
+    return driversWithDistance;
+  }
+
   async createDriver(driver: InsertDriver): Promise<Driver> {
     try {
       // التحقق من وجود سائق بنفس رقم الهاتف
@@ -658,6 +678,18 @@ export class DatabaseStorage {
       updateData.password = await bcrypt.hash(driver.password, salt);
     }
     const [updated] = await this.db.update(drivers).set(updateData).where(eq(drivers.id, id)).returning();
+    
+    // إرسال تحديث الموقع عبر WebSocket لضمان تتبع حي في لوحة التحكم
+    if (updated && (driver.latitude || driver.longitude) && global.WS_MANAGER) {
+      global.WS_MANAGER.broadcast('driver_location', {
+        driverId: id,
+        latitude: updated.latitude,
+        longitude: updated.longitude,
+        currentLocation: updated.currentLocation,
+        timestamp: Date.now()
+      });
+    }
+
     return updated;
   }
 

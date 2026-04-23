@@ -647,14 +647,96 @@ router.get("/customer/:phone", async (req, res) => {
   }
 });
 
+// جلب السائقين الأقرب للطلب
+router.get("/:orderId/closest-drivers", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const order = await storage.getOrder(orderId);
+    
+    let lat: number | null = null;
+    let lng: number | null = null;
+
+    if (order) {
+      if (order.restaurantId) {
+        const restaurant = await storage.getRestaurant(order.restaurantId);
+        if (restaurant && restaurant.latitude && restaurant.longitude) {
+          lat = parseFloat(restaurant.latitude);
+          lng = parseFloat(restaurant.longitude);
+        }
+      }
+      
+      if (lat === null && order.customerLocationLat && order.customerLocationLng) {
+        lat = parseFloat(order.customerLocationLat);
+        lng = parseFloat(order.customerLocationLng);
+      }
+    } else {
+      const db = (storage as any).db;
+      if (db) {
+        const { wasalniRequests } = await import("@shared/schema");
+        const { eq } = await import("drizzle-orm");
+        const [found] = await db.select().from(wasalniRequests).where(eq(wasalniRequests.id, orderId));
+        if (found && found.fromLat && found.fromLng) {
+          lat = parseFloat(found.fromLat);
+          lng = parseFloat(found.fromLng);
+        }
+      }
+    }
+
+    if (lat === null || lng === null) {
+      return res.status(400).json({ error: "لا يمكن تحديد موقع الانطلاق للطلب" });
+    }
+
+    const closestDrivers = await storage.getClosestDrivers(lat, lng, 10);
+    res.json(closestDrivers);
+  } catch (error) {
+    console.error("خطأ في جلب السائقين الأقرب:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
 // جلب تفاصيل تتبع الطلب
 router.get("/:orderId/track", async (req, res) => {
   try {
     const { orderId } = req.params;
     
-    const order = await storage.getOrder(orderId);
+    let order = await storage.getOrder(orderId);
+    let isWaselLi = false;
+    let wasalniRequest = null;
+
     if (!order) {
-      return res.status(404).json({ error: "الطلب غير موجود" });
+      // البحث في طلبات "وصلي" إذا لم يتم العثور عليه في الطلبات العادية
+      const db = (storage as any).db;
+      if (db) {
+        const { wasalniRequests } = await import("@shared/schema");
+        const { eq } = await import("drizzle-orm");
+        const [found] = await db.select().from(wasalniRequests).where(eq(wasalniRequests.id, orderId));
+        wasalniRequest = found;
+      }
+      
+      if (!wasalniRequest) {
+        return res.status(404).json({ error: "الطلب غير موجود" });
+      }
+
+      isWaselLi = true;
+      // تحويل بيانات "وصلي" إلى تنسيق متوافق مع صفحة التتبع
+      order = {
+        id: wasalniRequest.id,
+        orderNumber: wasalniRequest.requestNumber,
+        customerName: wasalniRequest.customerName,
+        customerPhone: wasalniRequest.customerPhone,
+        deliveryAddress: wasalniRequest.toAddress,
+        status: wasalniRequest.status,
+        estimatedTime: "جاري التحديد",
+        driverId: wasalniRequest.driverId,
+        isWaselLi: true,
+        pickupAddress: wasalniRequest.fromAddress,
+        pickupPhone: wasalniRequest.customerPhone,
+        pickupName: wasalniRequest.customerName,
+        waselLiItemType: wasalniRequest.orderType,
+        totalAmount: String(wasalniRequest.estimatedFee || "0"),
+        createdAt: wasalniRequest.createdAt,
+        items: JSON.stringify([])
+      } as any;
     }
 
     // جلب بيانات السائق إذا كانت موجودة
@@ -680,12 +762,23 @@ router.get("/:orderId/track", async (req, res) => {
       items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items
     };
 
-    const formattedTracking = trackingHistory.map(t => ({
+    let formattedTracking = trackingHistory.map(t => ({
       id: t.id,
       status: t.status,
       timestamp: t.createdAt,
       description: t.message
     }));
+
+    if (formattedTracking.length === 0) {
+      formattedTracking = [
+        {
+          id: "initial",
+          status: order.status,
+          timestamp: order.createdAt,
+          description: isWaselLi ? "تم استلام طلب وصل لي" : "تم استلام الطلب وجاري المراجعة"
+        }
+      ];
+    }
 
     res.json({
       order: formattedOrder,
