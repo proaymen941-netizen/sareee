@@ -1,0 +1,63 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development npx tsx server/index.ts
+
+[1G[0K[1G[0K⠙[1G[0K🗺️ Using PostgreSQL database connection...
+🔗 DATABASE_URL exists: [33mtrue[39m
+[dotenv@17.3.1] injecting env (2) from .env [2m-- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`[0m
+3:53:21 AM [express] 🌱 Seeding database with default data...
+🌱 Starting database seeding...
+Error fetching categories: PostgresError: relation "categories" does not exist
+    at ErrorResponse [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:815:30[90m)[39m
+    at handle [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:489:6[90m)[39m
+    at Socket.data [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:324:9[90m)[39m
+[90m    at Socket.emit (node:events:524:28)[39m
+[90m    at addChunk (node:internal/streams/readable:561:12)[39m
+[90m    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)[39m
+[90m    at Readable.push (node:internal/streams/readable:392:5)[39m
+[90m    at TCP.onStreamRead (node:internal/stream_base_commons:191:23)[39m {
+  severity_local: [32m'ERROR'[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'42P01'[39m,
+  position: [32m'106'[39m,
+  file: [32m'parse_relation.c'[39m,
+  line: [32m'1452'[39m,
+  routine: [32m'parserOpenTable'[39m
+}
+📂 Seeding categories...
+✅ Database connection verified successfully at 3:53:23 AM
+❌ Database seeding failed: PostgresError: relation "categories" does not exist
+    at ErrorResponse [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:815:30[90m)[39m
+    at handle [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:489:6[90m)[39m
+    at Socket.data [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:324:9[90m)[39m
+[90m    at Socket.emit (node:events:524:28)[39m
+[90m    at addChunk (node:internal/streams/readable:561:12)[39m
+[90m    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)[39m
+[90m    at Readable.push (node:internal/streams/readable:392:5)[39m
+[90m    at TCP.onStreamRead (node:internal/stream_base_commons:191:23)[39m {
+  severity_local: [32m'ERROR'[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'42P01'[39m,
+  position: [32m'13'[39m,
+  file: [32m'parse_relation.c'[39m,
+  line: [32m'1452'[39m,
+  routine: [32m'parserOpenTable'[39m
+}
+Failed to start server: PostgresError: relation "categories" does not exist
+    at ErrorResponse [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:815:30[90m)[39m
+    at handle [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:489:6[90m)[39m
+    at Socket.data [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:324:9[90m)[39m
+[90m    at Socket.emit (node:events:524:28)[39m
+[90m    at addChunk (node:internal/streams/readable:561:12)[39m
+[90m    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)[39m
+[90m    at Readable.push (node:internal/streams/readable:392:5)[39m
+[90m    at TCP.onStreamRead (node:internal/stream_base_commons:191:23)[39m {
+  severity_local: [32m'ERROR'[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'42P01'[39m,
+  position: [32m'13'[39m,
+  file: [32m'parse_relation.c'[39m,
+  line: [32m'1452'[39m,
+  routine: [32m'parserOpenTable'[39m
+}
+[1G[0K⠙[1G[0K[1G[0K⠙[1G[0K

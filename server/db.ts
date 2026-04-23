@@ -577,6 +577,55 @@ export class DatabaseStorage {
     return updated;
   }
 
+  // Wasalni
+  async getWasalniRequest(id: string): Promise<any | undefined> {
+    try {
+      const [request] = await this.db.select({
+        id: wasalniRequests.id,
+        requestNumber: wasalniRequests.requestNumber,
+        customerName: wasalniRequests.customerName,
+        customerPhone: wasalniRequests.customerPhone,
+        customerId: wasalniRequests.customerId,
+        fromAddress: wasalniRequests.fromAddress,
+        toAddress: wasalniRequests.toAddress,
+        fromLat: wasalniRequests.fromLat,
+        fromLng: wasalniRequests.fromLng,
+        toLat: wasalniRequests.toLat,
+        toLng: wasalniRequests.toLng,
+        orderType: wasalniRequests.orderType,
+        notes: wasalniRequests.notes,
+        status: wasalniRequests.status,
+        driverId: wasalniRequests.driverId,
+        estimatedFee: wasalniRequests.estimatedFee,
+        createdAt: wasalniRequests.createdAt,
+        updatedAt: wasalniRequests.updatedAt,
+        driverName: drivers.name,
+        driverPhone: drivers.phone,
+      })
+      .from(wasalniRequests)
+      .leftJoin(drivers, eq(wasalniRequests.driverId, drivers.id))
+      .where(eq(wasalniRequests.id, id));
+      
+      return request;
+    } catch (error) {
+      console.error('Error fetching wasalni request:', error);
+      return undefined;
+    }
+  }
+
+  async updateWasalniRequest(id: string, data: any): Promise<any | undefined> {
+    try {
+      const [updated] = await this.db.update(wasalniRequests)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(wasalniRequests.id, id))
+        .returning();
+      return updated;
+    } catch (error) {
+      console.error('Error updating wasalni request:', error);
+      return undefined;
+    }
+  }
+
   // Drivers
   async getDrivers(): Promise<Driver[]> {
     const result = await this.db.select().from(drivers);

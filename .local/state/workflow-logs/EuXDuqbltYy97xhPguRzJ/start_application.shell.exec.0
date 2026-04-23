@@ -1,0 +1,200 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development npx tsx server/index.ts
+
+[1G[0K[1G[0K⠙[1G[0K🗺️ Using PostgreSQL database connection...
+🔗 DATABASE_URL exists: [33mtrue[39m
+[dotenv@17.3.1] injecting env (2) from .env [2m-- tip: ⚙️  override existing env vars with { override: true }[0m
+3:58:33 AM [express] 🌱 Seeding database with default data...
+🌱 Starting database seeding...
+✅ Database connection verified successfully at 3:58:33 AM
+✓ Database already seeded, skipping initial data...
+3:58:34 AM [express] ⏰ تم تشغيل مؤقت الطلبات المجدولة
+3:58:34 AM [express] serving on port 5000
+
+[1m[33mwarn[39m[22m - The class `duration-[10s]` is ambiguous and matches multiple utilities.
+[1m[33mwarn[39m[22m - If this is content and not a class, replace it with `duration-&lsqb;10s&rsqb;` to silence this warning.
+
+[1m[33mwarn[39m[22m - The class `duration-[20s]` is ambiguous and matches multiple utilities.
+[1m[33mwarn[39m[22m - If this is content and not a class, replace it with `duration-&lsqb;20s&rsqb;` to silence this warning.
+3:58:43 AM [express] GET /api/admin/ui-settings 200 in 6ms
+3:58:44 AM [express] GET /api/categories 200 in 2ms
+3:58:44 AM [express] GET /api/categories 200 in 3ms
+3:58:44 AM [express] GET /api/admin/ui-settings 200 in 4ms
+3:58:46 AM [express] GET /api/categories 200 in 2ms
+3:58:46 AM [express] GET /api/admin/ui-settings 200 in 3ms
+3:59:02 AM [express] GET /api/categories 200 in 2ms
+3:59:12 AM [express] GET /api/admin/ui-settings 200 in 4ms
+3:59:12 AM [express] GET /api/categories 200 in 1ms
+3:59:17 AM [express] GET /api/categories 200 in 3ms
+3:59:17 AM [express] GET /api/admin/ui-settings 200 in 6ms
+3:59:38 AM [express] GET /api/categories 200 in 4ms
+3:59:38 AM [express] GET /api/admin/ui-settings 200 in 11ms
+4:00:13 AM [express] GET /api/categories 200 in 16ms
+4:00:13 AM [express] GET /api/admin/ui-settings 200 in 18ms
+4:00:25 AM [express] GET /api/categories 200 in 2ms
+4:00:25 AM [express] GET /api/admin/ui-settings 200 in 2ms
+4:00:29 AM [express] GET /api/admin/ui-settings 200 in 4ms
+4:00:29 AM [express] GET /api/categories 200 in 2ms
+4:00:33 AM [express] GET /api/categories 200 in 2ms
+4:00:33 AM [express] GET /api/admin/ui-settings 200 in 4ms
+4:00:42 AM [express] GET /api/categories 200 in 2ms
+4:00:42 AM [express] GET /api/admin/ui-settings 200 in 3ms
+4:00:43 AM [express] New WS connection from 127.0.0.1
+4:00:48 AM [express] GET /api/categories 200 in 4ms
+4:00:48 AM [express] GET /api/admin/ui-settings 200 in 6ms
+4:00:53 AM [express] GET /api/categories 200 in 2ms
+4:00:53 AM [express] GET /api/admin/ui-settings 200 in 4ms
+4:00:56 AM [express] GET /api/categories 200 in 1ms
+4:00:56 AM [express] GET /api/admin/ui-settings 200 in 3ms
+4:01:02 AM [express] GET /api/categories 200 in 1ms
+4:01:02 AM [express] GET /api/admin/ui-settings 200 in 2ms
+4:03:02 AM [express] GET /api/categories 200 in 2ms
+4:03:02 AM [express] GET /api/admin/ui-settings 200 in 4ms
+4:03:06 AM [express] GET /api/categories 200 in 2ms
+4:03:06 AM [express] GET /api/admin/ui-settings 200 in 3ms
+4:03:19 AM [express] GET /api/admin/ui-settings 200 in 5ms
+4:03:19 AM [express] GET /api/categories 200 in 18ms
+4:03:23 AM [express] GET /api/categories 200 in 2ms
+4:03:23 AM [express] GET /api/admin/ui-settings 200 in 4ms
+4:03:29 AM [express] GET /api/drivers 200 in 2ms
+4:03:29 AM [express] GET /api/categories 200 in 3ms
+4:03:29 AM [express] GET /api/restaurants 200 in 3ms
+4:03:29 AM [express] GET /api/admin/ui-settings 200 in 3ms
+✅ Database connection verified successfully at 4:03:33 AM
+4:03:44 AM [express] GET /api/drivers 200 in 2ms
+4:03:44 AM [express] GET /api/restaurants 200 in 3ms
+4:04:05 AM [express] GET /api/categories 200 in 2ms
+4:04:05 AM [express] GET /api/admin/ui-settings 200 in 3ms
+4:04:09 AM [express] GET /api/categories 200 in 2ms
+4:04:09 AM [express] GET /api/admin/ui-settings 200 in 3ms
+4:04:14 AM [express] GET /api/categories 200 in 2ms
+4:04:14 AM [express] GET /api/admin/ui-settings 200 in 2ms
+🔐 محاولة تسجيل دخول سائق: +967771234567
+🎉 تم تسجيل الدخول بنجاح للسائق: أحمد محمد السائق
+4:04:40 AM [express] POST /api/auth/driver/login 200 in 106ms
+4:04:40 AM [express] POST /api/drivers/app/status 200 in 14ms
+4:04:40 AM [express] POST /api/drivers/status 200 in 49ms
+4:04:40 AM [express] POST /api/orders 201 in 82ms
+4:04:40 AM [express] GET /api/orders 200 in 3ms
+4:04:40 AM [express] GET /api/notifications/customer 200 in 3ms
+4:04:40 AM [express] PUT /api/orders/33600e43-1efc-4ff1-ba05-d8f176c0287b/assign-driver 200 in 14ms
+4:04:40 AM [express] GET /api/notifications/customer 200 in 4ms
+4:04:40 AM [express] GET /api/orders/33600e43-1efc-4ff1-ba05-d8f176c0287b/tracking 200 in 9ms
+4:04:40 AM [express] GET /api/drivers/orders/available 200 in 7ms
+4:04:40 AM [express] POST /api/drivers/orders/33600e43-1efc-4ff1-ba05-d8f176c0287b/accept 200 in 18ms
+4:04:40 AM [express] PUT /api/drivers/orders/33600e43-1efc-4ff1-ba05-d8f176c0287b/status 200 in 105ms
+4:04:40 AM [express] PUT /api/drivers/orders/33600e43-1efc-4ff1-ba05-d8f176c0287b/status 200 in 35ms
+4:04:40 AM [express] GET /api/notifications/customer 200 in 3ms
+4:04:40 AM [express] GET /api/orders/33600e43-1efc-4ff1-ba05-d8f176c0287b/tracking 200 in 10ms
+Error completing order: ReferenceError: restaurantWallets is not defined
+    at DatabaseStorage.completeOrder [90m(/home/runner/workspace/[39mserver/db.ts:2094:55[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at async <anonymous> [90m(/home/runner/workspace/[39mserver/routes/driver.ts:252:22[90m)[39m
+خطأ في تحديث حالة الطلب: ReferenceError: restaurantWallets is not defined
+    at DatabaseStorage.completeOrder [90m(/home/runner/workspace/[39mserver/db.ts:2094:55[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at async <anonymous> [90m(/home/runner/workspace/[39mserver/routes/driver.ts:252:22[90m)[39m
+4:04:40 AM [express] PUT /api/drivers/orders/33600e43-1efc-4ff1-ba05-d8f176c0287b/status 500 in 60ms
+Error creating notification: PostgresError: insert or update on table "notifications" violates foreign key constraint "notifications_order_id_orders_id_fk"
+    at ErrorResponse [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:815:30[90m)[39m
+    at handle [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:489:6[90m)[39m
+    at Socket.data [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:324:9[90m)[39m
+[90m    at Socket.emit (node:events:524:28)[39m
+[90m    at addChunk (node:internal/streams/readable:561:12)[39m
+[90m    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)[39m
+[90m    at Readable.push (node:internal/streams/readable:392:5)[39m
+[90m    at TCP.onStreamRead (node:internal/stream_base_commons:191:23)[39m {
+  severity_local: [32m'ERROR'[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'23503'[39m,
+  detail: [32m'Key (order_id)=(6a83ccc3-f788-4ea8-bb46-080dd5084fda) is not present in table "orders".'[39m,
+  schema_name: [32m'public'[39m,
+  table_name: [32m'notifications'[39m,
+  constraint_name: [32m'notifications_order_id_orders_id_fk'[39m,
+  file: [32m'ri_triggers.c'[39m,
+  line: [32m'2619'[39m,
+  routine: [32m'ri_ReportViolation'[39m
+}
+Error creating wasalni request: PostgresError: insert or update on table "notifications" violates foreign key constraint "notifications_order_id_orders_id_fk"
+    at ErrorResponse [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:815:30[90m)[39m
+    at handle [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:489:6[90m)[39m
+    at Socket.data [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:324:9[90m)[39m
+[90m    at Socket.emit (node:events:524:28)[39m
+[90m    at addChunk (node:internal/streams/readable:561:12)[39m
+[90m    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)[39m
+[90m    at Readable.push (node:internal/streams/readable:392:5)[39m
+[90m    at TCP.onStreamRead (node:internal/stream_base_commons:191:23)[39m {
+  severity_local: [32m'ERROR'[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'23503'[39m,
+  detail: [32m'Key (order_id)=(6a83ccc3-f788-4ea8-bb46-080dd5084fda) is not present in table "orders".'[39m,
+  schema_name: [32m'public'[39m,
+  table_name: [32m'notifications'[39m,
+  constraint_name: [32m'notifications_order_id_orders_id_fk'[39m,
+  file: [32m'ri_triggers.c'[39m,
+  line: [32m'2619'[39m,
+  routine: [32m'ri_ReportViolation'[39m
+}
+4:04:40 AM [express] POST /api/wasalni 500 in 17ms
+4:04:40 AM [express] GET /api/wasalni 200 in 4ms
+Error assigning driver to wasalni request: PostgresError: invalid input syntax for type uuid: "undefined"
+    at ErrorResponse [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:815:30[90m)[39m
+    at handle [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:489:6[90m)[39m
+    at Socket.data [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:324:9[90m)[39m
+[90m    at Socket.emit (node:events:524:28)[39m
+[90m    at addChunk (node:internal/streams/readable:561:12)[39m
+[90m    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)[39m
+[90m    at Readable.push (node:internal/streams/readable:392:5)[39m
+[90m    at TCP.onStreamRead (node:internal/stream_base_commons:191:23)[39m {
+  severity_local: [32m'ERROR'[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'22P02'[39m,
+  where: [32m"unnamed portal parameter $1 = '...'"[39m,
+  file: [32m'uuid.c'[39m,
+  line: [32m'136'[39m,
+  routine: [32m'string_to_uuid'[39m
+}
+4:04:40 AM [express] POST /api/wasalni/undefined/assign-driver 500 in 5ms
+4:04:40 AM [express] GET /api/notifications/customer 200 in 3ms
+4:04:40 AM [express] GET /api/drivers/wasalni 200 in 7ms
+خطأ في تحديث حالة وصل لي: PostgresError: invalid input syntax for type uuid: "undefined"
+    at ErrorResponse [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:815:30[90m)[39m
+    at handle [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:489:6[90m)[39m
+    at Socket.data [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:324:9[90m)[39m
+[90m    at Socket.emit (node:events:524:28)[39m
+[90m    at addChunk (node:internal/streams/readable:561:12)[39m
+[90m    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)[39m
+[90m    at Readable.push (node:internal/streams/readable:392:5)[39m
+[90m    at TCP.onStreamRead (node:internal/stream_base_commons:191:23)[39m {
+  severity_local: [32m'ERROR'[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'22P02'[39m,
+  where: [32m"unnamed portal parameter $1 = '...'"[39m,
+  file: [32m'uuid.c'[39m,
+  line: [32m'136'[39m,
+  routine: [32m'string_to_uuid'[39m
+}
+4:04:40 AM [express] PUT /api/drivers/wasalni/undefined/status 500 in 10ms
+خطأ في تحديث حالة وصل لي: PostgresError: invalid input syntax for type uuid: "undefined"
+    at ErrorResponse [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:815:30[90m)[39m
+    at handle [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:489:6[90m)[39m
+    at Socket.data [90m(file:///home/runner/workspace/[39mnode_modules/[4mpostgres[24m/src/connection.js:324:9[90m)[39m
+[90m    at Socket.emit (node:events:524:28)[39m
+[90m    at addChunk (node:internal/streams/readable:561:12)[39m
+[90m    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)[39m
+[90m    at Readable.push (node:internal/streams/readable:392:5)[39m
+[90m    at TCP.onStreamRead (node:internal/stream_base_commons:191:23)[39m {
+  severity_local: [32m'ERROR'[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'22P02'[39m,
+  where: [32m"unnamed portal parameter $1 = '...'"[39m,
+  file: [32m'uuid.c'[39m,
+  line: [32m'136'[39m,
+  routine: [32m'string_to_uuid'[39m
+}
+4:04:40 AM [express] PUT /api/drivers/wasalni/undefined/status 500 in 7ms
+4:04:40 AM [express] GET /api/notifications/customer 200 in 11ms
+4:05:17 AM [express] GET /api/categories 200 in 15ms
+4:05:17 AM [express] GET /api/admin/ui-settings 200 in 15ms
+4:05:18 AM [express] New WS connection from 127.0.0.1

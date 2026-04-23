@@ -1,0 +1,55 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development npx tsx server/index.ts
+
+[1G[0K[1G[0K⠙[1G[0K🗺️ Using PostgreSQL database connection...
+🔗 DATABASE_URL exists: [33mtrue[39m
+[dotenv@17.3.1] injecting env (2) from .env [2m-- tip: ⚙️  enable debug logging with { debug: true }[0m
+4:07:14 AM [express] 🌱 Seeding database with default data...
+🌱 Starting database seeding...
+✅ Database connection verified successfully at 4:07:14 AM
+✓ Database already seeded, skipping initial data...
+4:07:15 AM [express] ⏰ تم تشغيل مؤقت الطلبات المجدولة
+4:07:15 AM [express] serving on port 5000
+
+[1m[33mwarn[39m[22m - The class `duration-[10s]` is ambiguous and matches multiple utilities.
+[1m[33mwarn[39m[22m - If this is content and not a class, replace it with `duration-&lsqb;10s&rsqb;` to silence this warning.
+
+[1m[33mwarn[39m[22m - The class `duration-[20s]` is ambiguous and matches multiple utilities.
+[1m[33mwarn[39m[22m - If this is content and not a class, replace it with `duration-&lsqb;20s&rsqb;` to silence this warning.
+🔐 محاولة تسجيل دخول سائق: +967771234567
+🎉 تم تسجيل الدخول بنجاح للسائق: أحمد محمد السائق
+4:07:31 AM [express] POST /api/auth/driver/login 200 in 98ms
+4:07:32 AM [express] POST /api/drivers/app/status 200 in 7ms
+4:07:32 AM [express] POST /api/drivers/status 200 in 21ms
+4:07:32 AM [express] POST /api/orders 201 in 67ms
+4:07:32 AM [express] GET /api/orders 200 in 4ms
+4:07:32 AM [express] GET /api/notifications/customer 200 in 4ms
+4:07:32 AM [express] PUT /api/orders/6980fdf2-cb48-47dd-9ac6-f0e710b7a283/assign-driver 200 in 14ms
+4:07:32 AM [express] GET /api/notifications/customer 200 in 3ms
+4:07:32 AM [express] GET /api/orders/6980fdf2-cb48-47dd-9ac6-f0e710b7a283/tracking 200 in 6ms
+4:07:32 AM [express] GET /api/drivers/orders/available 200 in 5ms
+4:07:32 AM [express] POST /api/drivers/orders/6980fdf2-cb48-47dd-9ac6-f0e710b7a283/accept 200 in 12ms
+4:07:32 AM [express] PUT /api/drivers/orders/6980fdf2-cb48-47dd-9ac6-f0e710b7a283/status 200 in 28ms
+4:07:32 AM [express] PUT /api/drivers/orders/6980fdf2-cb48-47dd-9ac6-f0e710b7a283/status 200 in 25ms
+4:07:32 AM [express] GET /api/notifications/customer 200 in 3ms
+4:07:32 AM [express] GET /api/orders/6980fdf2-cb48-47dd-9ac6-f0e710b7a283/tracking 200 in 7ms
+4:07:32 AM [express] PUT /api/drivers/orders/6980fdf2-cb48-47dd-9ac6-f0e710b7a283/status 200 in 70ms
+4:07:32 AM [express] POST /api/wasalni 201 in 18ms
+4:07:32 AM [express] GET /api/wasalni 200 in 5ms
+4:07:32 AM [express] POST /api/wasalni/3f0882d6-ed8d-47ef-8c44-d4b2c5891452/assign-driver 200 in 26ms
+4:07:32 AM [express] GET /api/notifications/customer 200 in 3ms
+4:07:32 AM [express] GET /api/drivers/wasalni 200 in 6ms
+4:07:32 AM [express] PUT /api/drivers/wasalni/3f0882d6-ed8d-47ef-8c44-d4b2c5891452/status 200 in 20ms
+4:07:32 AM [express] PUT /api/drivers/wasalni/3f0882d6-ed8d-47ef-8c44-d4b2c5891452/status 200 in 25ms
+4:07:32 AM [express] GET /api/notifications/customer 200 in 2ms
+4:07:58 AM [express] GET /api/admin/ui-settings 200 in 5ms
+4:07:58 AM [express] GET /api/categories 200 in 2ms
+4:08:03 AM [express] GET /api/categories 200 in 2ms
+4:08:03 AM [express] GET /api/admin/ui-settings 200 in 4ms
+4:08:08 AM [express] GET /api/categories 200 in 2ms
+4:08:08 AM [express] GET /api/admin/ui-settings 200 in 3ms
+4:08:13 AM [express] GET /api/categories 200 in 2ms
+4:08:13 AM [express] GET /api/admin/ui-settings 200 in 4ms
+4:08:17 AM [express] GET /api/categories 200 in 2ms
+4:08:17 AM [express] GET /api/admin/ui-settings 200 in 3ms

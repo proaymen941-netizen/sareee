@@ -104,7 +104,10 @@ export default function OrderTrackingPage() {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          if (message.type === 'order_status_changed' || message.type === 'order_update') {
+          // Check if this update belongs to our current order
+          const isRelevantOrder = message.payload?.orderId === orderId || message.payload?.id === orderId;
+          
+          if ((message.type === 'order_status_changed' || message.type === 'order_update') && isRelevantOrder) {
             refetch();
           } else if (message.type === 'driver_location' && message.payload.driverId === orderData?.order.driverId) {
             setDriverLocation([message.payload.latitude, message.payload.longitude]);
