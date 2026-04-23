@@ -11,7 +11,7 @@ import {
   deliveryFeeSettings, deliveryZones, financialReports,
   geoZones, deliveryRules, deliveryDiscounts,
   messages, auditLogs, paymentGateways,
-  paymentMethods, paymentMethodDocuments, coupons, couponUsages,
+  paymentMethods, paymentMethodDocuments, coupons, couponUsages, restaurantWallets, wasalniRequests,
   type AdminUser, type InsertAdminUser,
   type Category, type InsertCategory,
   type Restaurant, type InsertRestaurant,

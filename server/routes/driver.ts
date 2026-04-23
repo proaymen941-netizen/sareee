@@ -277,6 +277,19 @@ router.put("/orders/:id/status", requireDriverAuth, async (req: AuthenticatedReq
         });
       }
 
+      // كتابة قيد تتبع للطلب
+      try {
+        await storage.createOrderTracking({
+          orderId: id,
+          status,
+          message: statusMessage,
+          createdBy: driverId,
+          createdByType: 'driver',
+        });
+      } catch (trackErr) {
+        console.error('خطأ في إنشاء قيد التتبع:', trackErr);
+      }
+
       await storage.createNotification({
         type: 'order_status_update',
         title: 'تحديث حالة الطلب من السائق',
