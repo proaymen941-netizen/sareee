@@ -309,11 +309,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
-    let ws: WebSocket | null = null;
+    let ws: WebSocket | null = (window as any).WS_MANAGER;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const connect = () => {
       ws = new WebSocket(wsUrl);
+      (window as any).WS_MANAGER = ws;
 
       ws.onopen = () => {
         // Authenticate as admin
@@ -326,15 +327,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         }));
       };
 
-      ws.onmessage = (event) => {
+      const handleMessage = (event: MessageEvent) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.type === "order_update" || msg.type === "new_order" || msg.type === "NEW_NOTIFICATION") {
+          if (msg.type === "order_update" || msg.type === "new_order" || msg.type === "NEW_NOTIFICATION" || msg.type === "settings_changed") {
             queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
             queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/wasalni'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/admin/ui-settings'] });
           }
         } catch (_) {}
       };
+
+      ws.addEventListener('message', handleMessage);
 
       ws.onclose = () => {
         reconnectTimeout = setTimeout(connect, 5000);
@@ -345,11 +350,24 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       };
     };
 
-    connect();
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
+      connect();
+    } else {
+      // If already connected, ensure we are authenticated as admin too
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: "auth",
+          payload: {
+            userId: "admin_dashboard",
+            userType: "admin"
+          }
+        }));
+      }
+    }
 
     return () => {
+      // In layout, we might want to keep the socket alive but remove listeners
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      ws?.close();
     };
   }, [queryClient]);
 
