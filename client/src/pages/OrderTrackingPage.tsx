@@ -75,7 +75,11 @@ export default function OrderTrackingPage() {
   const { data: orderData, isLoading, error, refetch } = useQuery<{order: OrderDetails, tracking: OrderStatus[]}>({
     queryKey: [`/api/orders/${orderId}/track`],
     enabled: !!orderId,
-    refetchInterval: 10000, // Reduced polling frequency as we now have WebSockets
+    refetchInterval: (data) => {
+      // إذا كان الطلب مكتملاً أو ملغياً، نتوقف عن التحديث التلقائي
+      if (data?.order?.status === 'delivered' || data?.order?.status === 'cancelled') return false;
+      return 15000;
+    },
   });
 
   // WebSocket support for real-time tracking

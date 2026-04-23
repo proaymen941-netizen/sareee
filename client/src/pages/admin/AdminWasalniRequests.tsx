@@ -249,68 +249,74 @@ export default function AdminWasalniRequests() {
 
       {/* Requests List */}
       {isLoading ? (
-        <div className="text-center py-10 text-gray-400">جاري التحميل...</div>
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary" />
+          <p className="font-bold">جاري تحميل الطلبات...</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
+        <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-gray-200">
           <Bike className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-400 font-medium">لا توجد طلبات</p>
+          <p className="text-gray-400 font-medium">لا توجد طلبات مطابقة للبحث</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((request) => (
-            <Card key={request.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className="font-black text-base text-primary">{request.requestNumber}</span>
-                      <Badge className={`text-[10px] px-1.5 py-0 border ${STATUS_COLORS[request.status] || 'bg-gray-100 text-gray-600'}`}>
-                        {STATUS_LABELS[request.status] || request.status}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-white">{request.orderType}</Badge>
-                    </div>
+            <Card key={request.id} className="hover:shadow-lg transition-all border-none shadow-sm rounded-3xl overflow-hidden group">
+              <CardContent className="p-0">
+                <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                  <span className="font-black text-primary text-sm tracking-tighter">{request.requestNumber}</span>
+                  <Badge className={`text-[10px] px-2 py-0.5 rounded-full border-none font-bold ${STATUS_COLORS[request.status] || 'bg-gray-100 text-gray-600'}`}>
+                    {STATUS_LABELS[request.status] || request.status}
+                  </Badge>
+                </div>
 
-                    <div className="grid grid-cols-1 gap-1 text-sm text-gray-700 mb-2">
-                      <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                        <span className="font-bold truncate">{request.customerName}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                        <span className="font-medium text-xs bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-100">{request.customerPhone}</span>
-                      </div>
+                <div className="p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="h-5 w-5 text-primary" />
                     </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-gray-900 text-sm truncate">{request.customerName}</p>
+                      <p className="text-xs text-gray-500 font-bold">{request.customerPhone}</p>
+                    </div>
+                    <a href={`tel:${request.customerPhone}`} className="mr-auto w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center text-green-600 hover:bg-green-600 hover:text-white transition-colors">
+                      <Phone className="h-4 w-4" />
+                    </a>
+                  </div>
 
-                    <div className="bg-gray-50/50 rounded-xl p-2.5 border border-gray-100 space-y-1.5 text-xs text-gray-600 mb-2">
-                      <div className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1 shrink-0" />
-                        <span className="leading-tight"><span className="text-gray-400">من:</span> {request.fromAddress}</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1 shrink-0" />
-                        <span className="leading-tight"><span className="text-gray-400">إلى:</span> {request.toAddress}</span>
+                  <div className="space-y-2 relative pr-3 before:absolute before:right-0 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100 before:rounded-full">
+                    <div className="flex items-start gap-2 relative">
+                      <div className="w-2 h-2 rounded-full bg-green-500 mt-1 shrink-0 ring-4 ring-green-50" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-gray-400 font-bold">من (نقطة الانطلاق)</p>
+                        <p className="text-xs text-gray-700 font-bold truncate">{request.fromAddress}</p>
                       </div>
                     </div>
-
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100/50">
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold">
-                        <Clock className="h-3 w-3" />
-                        {request.scheduledDate} {request.scheduledTime}
+                    <div className="flex items-start gap-2 relative">
+                      <div className="w-2 h-2 rounded-full bg-red-500 mt-1 shrink-0 ring-4 ring-red-50" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-gray-400 font-bold">إلى (نقطة الوصول)</p>
+                        <p className="text-xs text-gray-700 font-bold truncate">{request.toAddress}</p>
                       </div>
-                      {request.estimatedFee && !isNaN(parseFloat(request.estimatedFee)) && (
-                        <div className="bg-orange-50 text-orange-700 px-2 py-1 rounded-lg font-black text-xs">
-                          {parseFloat(request.estimatedFee).toLocaleString()} ر.ي
-                        </div>
-                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold">
+                      <Clock className="h-3 w-3" />
+                      {request.scheduledDate} | {request.scheduledTime}
+                    </div>
+                    <div className="bg-orange-50 text-orange-700 px-3 py-1 rounded-xl font-black text-xs">
+                      {request.estimatedFee ? `${parseFloat(request.estimatedFee).toLocaleString()} ر.ي` : 'قيد التقدير'}
                     </div>
                   </div>
 
                   <Button
-                    size="sm"
                     onClick={() => openDetail(request)}
-                    className="shrink-0 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl"
+                    className="w-full h-10 bg-gray-900 text-white hover:bg-primary rounded-2xl transition-all font-bold text-xs gap-2"
                   >
                     <Eye className="h-4 w-4" />
+                    عرض التفاصيل ومعالجة الطلب
                   </Button>
                 </div>
               </CardContent>
@@ -321,209 +327,181 @@ export default function AdminWasalniRequests() {
 
       {/* Detail Dialog */}
       <Dialog open={showDetail} onOpenChange={setShowDetail}>
-        <DialogContent className="max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bike className="h-5 w-5 text-orange-500" />
-              تفاصيل طلب وصل لي
+        <DialogContent className="max-w-xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl" dir="rtl">
+          <DialogHeader className="p-6 bg-gradient-to-r from-orange-500 to-red-500 text-white">
+            <DialogTitle className="flex items-center gap-3 text-xl font-black">
+              <Bike className="h-7 w-7" />
+              معالجة طلب وصل لي
             </DialogTitle>
           </DialogHeader>
 
           {selectedRequest && (
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-xl p-3 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">رقم الطلب</span>
-                  <span className="font-bold text-primary">{selectedRequest.requestNumber}</span>
+            <div className="p-6 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar bg-white">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-orange-50/50 p-4 rounded-[1.5rem] border border-orange-100">
+                  <p className="text-[10px] text-orange-400 font-black mb-1">رقم الطلب</p>
+                  <p className="font-black text-primary text-sm">{selectedRequest.requestNumber}</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">العميل</span>
-                  <span className="font-bold">{selectedRequest.customerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">الهاتف</span>
-                  <span className="font-bold">{selectedRequest.customerPhone}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">نوع الطلب</span>
-                  <span className="font-bold">{selectedRequest.orderType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">وقت التنفيذ</span>
-                  <span className="font-bold">{selectedRequest.scheduledDate} {selectedRequest.scheduledTime}</span>
+                <div className="bg-gray-50 p-4 rounded-[1.5rem] border border-gray-100">
+                  <p className="text-[10px] text-gray-400 font-black mb-1">الحالة الحالية</p>
+                  <Badge className={`text-[10px] px-2.5 py-0.5 rounded-full border-none font-black ${STATUS_COLORS[selectedRequest.status]}`}>
+                    {STATUS_LABELS[selectedRequest.status]}
+                  </Badge>
                 </div>
               </div>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-start gap-2 bg-green-50 rounded-xl p-3">
-                  <MapPin className="h-4 w-4 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="text-gray-500 text-xs">من</p>
-                    <p className="font-bold text-gray-800">{selectedRequest.fromAddress}</p>
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  معلومات العميل والمسار
+                </h3>
+                <div className="bg-gray-50/50 rounded-[2rem] p-5 border border-gray-100 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500 font-bold">العميل:</span>
+                    <span className="font-black text-sm">{selectedRequest.customerName}</span>
                   </div>
-                </div>
-                <div className="flex items-start gap-2 bg-red-50 rounded-xl p-3">
-                  <MapPin className="h-4 w-4 text-red-600 mt-0.5" />
-                  <div>
-                    <p className="text-gray-500 text-xs">إلى</p>
-                    <p className="font-bold text-gray-800">{selectedRequest.toAddress}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500 font-bold">الهاتف:</span>
+                    <a href={`tel:${selectedRequest.customerPhone}`} className="font-black text-sm text-primary underline underline-offset-4">{selectedRequest.customerPhone}</a>
                   </div>
-                </div>
-                {selectedRequest.notes && (
-                  <div className="bg-blue-50 rounded-xl p-3">
-                    <p className="text-gray-500 text-xs mb-1">ملاحظات العميل</p>
-                    <p className="text-gray-800">{selectedRequest.notes}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-600">رسوم التوصيل</label>
-                <Input
-                  type="number"
-                  placeholder="ادخل الرسوم"
-                  value={estimatedFee}
-                  onChange={(e) => setEstimatedFee(e.target.value)}
-                  className="rounded-xl"
-                />
-              </div>
-
-              {/* تعيين سائق واقتراح الأقرب */}
-              <div className="space-y-3 p-3 bg-orange-50 rounded-xl border border-orange-100">
-                <label className="text-xs font-bold text-orange-700 flex items-center gap-1.5">
-                  <Truck className="h-3.5 w-3.5" />
-                  تعيين سائق للطلب
-                </label>
-                
-                {getNearestDriver(selectedRequest) && (
-                  <div className="bg-white/80 p-2 rounded-lg border border-orange-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                        <UserCheck className="h-4 w-4 text-orange-600" />
+                  <div className="pt-4 border-t border-gray-200/50 space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                        <MapPin className="h-4 w-4 text-green-600" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-orange-600 font-bold">السائق الأقرب المقترح:</p>
-                        <p className="text-xs font-black">{getNearestDriver(selectedRequest)?.driver.name}</p>
+                        <p className="text-[10px] text-gray-400 font-black">نقطة الاستلام (من)</p>
+                        <p className="text-sm font-bold text-gray-800 leading-relaxed">{selectedRequest.fromAddress}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-gray-500 font-bold">يبعد حوالي:</p>
-                      <p className="text-xs font-black text-orange-600">{getNearestDriver(selectedRequest)?.distance} كم</p>
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                        <MapPin className="h-4 w-4 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 font-black">نقطة التوصيل (إلى)</p>
+                        <p className="text-sm font-bold text-gray-800 leading-relaxed">{selectedRequest.toAddress}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Driver Assignment Section */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-primary" />
+                  تعيين مندوب التوصيل
+                </h3>
+                
+                {getNearestDriver(selectedRequest) && (
+                  <div className="bg-gradient-to-br from-orange-50 to-white border border-orange-100 rounded-[2rem] p-5 flex items-center justify-between gap-4 shadow-sm">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-[1.25rem] bg-orange-100 flex items-center justify-center shadow-inner">
+                        <Navigation className="h-6 w-6 text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-orange-500 font-black uppercase tracking-tighter">السائق الأقرب للموقع</p>
+                        <p className="text-sm font-black text-gray-900">{getNearestDriver(selectedRequest)?.driver.name}</p>
+                        <p className="text-[10px] text-gray-400 font-bold">يبعد حوالي {getNearestDriver(selectedRequest)?.distance} كم</p>
+                      </div>
                     </div>
                     <Button 
                       size="sm" 
-                      variant="ghost" 
-                      className="h-8 w-8 p-0 hover:bg-orange-100 text-orange-600"
+                      variant="outline" 
+                      className="rounded-[1rem] border-orange-200 text-orange-600 font-black text-xs hover:bg-orange-600 hover:text-white transition-all shadow-sm"
                       onClick={() => setSelectedDriverId(getNearestDriver(selectedRequest)?.driver.id || '')}
                     >
-                      <Plus className="h-4 w-4" />
+                      اختياره
                     </Button>
                   </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-                    <SelectTrigger className="rounded-xl bg-white flex-1 h-10">
-                      <SelectValue placeholder="اختر سائق..." />
+                    <SelectTrigger className="flex-1 h-12 rounded-[1.25rem] bg-gray-50 border-gray-100 font-bold text-sm">
+                      <SelectValue placeholder="اختر مندوباً من القائمة" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {drivers.filter(d => d.isActive && d.isAvailable).map((driver) => {
-                        const dist = (selectedRequest.fromLat && selectedRequest.fromLng && driver.latitude && driver.longitude)
-                          ? calculateDistance(
-                              parseFloat(selectedRequest.fromLat),
-                              parseFloat(selectedRequest.fromLng),
-                              parseFloat(driver.latitude),
-                              parseFloat(driver.longitude)
-                            ).toFixed(1)
-                          : null;
-                        
-                        return (
-                          <SelectItem key={driver.id} value={driver.id}>
-                            <div className="flex justify-between items-center w-full gap-4">
-                              <span>{driver.name}</span>
-                              {dist && <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{dist} كم</span>}
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
+                    <SelectContent className="rounded-2xl border-none shadow-2xl">
+                      {drivers.filter(d => d.isActive).map(driver => (
+                        <SelectItem key={driver.id} value={driver.id} className="rounded-xl my-1 mx-1">
+                          <div className="flex items-center justify-between w-full gap-4">
+                            <span className="font-bold">{driver.name}</span>
+                            {!driver.isAvailable && <Badge variant="outline" className="text-[8px] bg-red-50 text-red-500 border-none font-black">مشغول</Badge>}
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  <Button
-                    size="sm"
-                    disabled={!selectedDriverId || assignDriverMutation.isPending}
+                  <Button 
                     onClick={handleAssignDriver}
-                    className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl px-4"
+                    disabled={!selectedDriverId || assignDriverMutation.isPending}
+                    className="h-12 px-8 bg-gray-900 hover:bg-primary text-white rounded-[1.25rem] font-black gap-2 transition-all shadow-lg"
                   >
-                    {assignDriverMutation.isPending ? '...' : 'تعيين'}
+                    {assignDriverMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserCheck className="h-5 w-5" />}
+                    تعيين
                   </Button>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-600">ملاحظات الإدارة</label>
-                <Textarea
-                  placeholder="ملاحظات داخلية..."
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  rows={2}
-                  className="rounded-xl resize-none"
-                />
-              </div>
+              {/* Fee & Status */}
+              <div className="space-y-4 pt-6 border-t border-gray-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black text-gray-400 uppercase px-2">الحالة</Label>
+                    <Select value={selectedRequest.status} onValueChange={handleUpdateStatus}>
+                      <SelectTrigger className="h-12 rounded-[1.25rem] bg-gray-50 border-gray-100 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-none shadow-2xl">
+                        {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                          <SelectItem key={val} value={val} className="rounded-xl my-1 mx-1">{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black text-gray-400 uppercase px-2">رسوم التوصيل (ر.ي)</Label>
+                    <Input
+                      type="number"
+                      value={estimatedFee}
+                      onChange={(e) => setEstimatedFee(e.target.value)}
+                      placeholder="0.00"
+                      className="h-12 rounded-[1.25rem] bg-gray-50 border-gray-100 font-black text-primary text-center"
+                    />
+                  </div>
+                </div>
 
-              {selectedRequest.status === 'pending' && (
+                {selectedRequest.status === 'cancelled' && (
+                  <div className="space-y-2 animate-in slide-in-from-top-2">
+                    <Label className="text-[10px] font-black text-red-400 uppercase px-2">سبب الإلغاء</Label>
+                    <Input
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      placeholder="لماذا تم إلغاء الطلب؟"
+                      className="h-12 rounded-[1.25rem] bg-red-50/50 border-red-100 font-bold text-red-600"
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-gray-600">سبب الإلغاء (عند الإلغاء)</label>
-                  <Input
-                    placeholder="سبب الإلغاء..."
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    className="rounded-xl"
+                  <Label className="text-[10px] font-black text-gray-400 uppercase px-2">ملاحظات الإدارة</Label>
+                  <Textarea
+                    value={adminNotes}
+                    onChange={(e) => setAdminNotes(e.target.value)}
+                    placeholder="ملاحظات سرية للإدارة..."
+                    className="rounded-[1.5rem] bg-gray-50 border-gray-100 font-medium resize-none"
+                    rows={2}
                   />
                 </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-2">
-                {selectedRequest.status === 'pending' && (
-                  <>
-                    <Button
-                      onClick={() => handleUpdateStatus('confirmed')}
-                      disabled={updateMutation.isPending}
-                      className="bg-green-600 hover:bg-green-700 text-white rounded-xl gap-1"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      قبول
-                    </Button>
-                    <Button
-                      onClick={() => handleUpdateStatus('cancelled')}
-                      disabled={updateMutation.isPending}
-                      variant="destructive"
-                      className="rounded-xl gap-1"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      رفض
-                    </Button>
-                  </>
-                )}
-                {selectedRequest.status === 'confirmed' && (
-                  <Button
-                    onClick={() => handleUpdateStatus('on_way')}
-                    disabled={updateMutation.isPending}
-                    className="col-span-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl gap-1"
-                  >
-                    <Truck className="h-4 w-4" />
-                    السائق في الطريق
-                  </Button>
-                )}
-                {selectedRequest.status === 'on_way' && (
-                  <Button
-                    onClick={() => handleUpdateStatus('delivered')}
-                    disabled={updateMutation.isPending}
-                    className="col-span-2 bg-green-600 hover:bg-green-700 text-white rounded-xl gap-1"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    تم التنفيذ
-                  </Button>
-                )}
+                <Button 
+                  onClick={() => handleUpdateStatus(selectedRequest.status)}
+                  disabled={updateMutation.isPending}
+                  className="w-full h-14 bg-primary hover:opacity-90 text-white rounded-[1.5rem] font-black text-lg transition-all shadow-xl shadow-primary/20"
+                >
+                  {updateMutation.isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : "حفظ ومعالجة الطلب"}
+                </Button>
               </div>
             </div>
           )}

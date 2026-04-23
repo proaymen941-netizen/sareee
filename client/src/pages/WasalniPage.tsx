@@ -201,6 +201,15 @@ export default function WasalniPage() {
   };
 
   const handleSubmit = () => {
+    if (appStatus && !appStatus.isOpen && storeStatus === 'closed') {
+      toast({
+        title: "التطبيق مغلق",
+        description: "عذراً، التطبيق مغلق حالياً من قِبل الإدارة ولا يمكن استقبال طلبات جديدة",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     createRequestMutation.mutate({
       customerName: form.customerName,
       customerPhone: form.customerPhone,
