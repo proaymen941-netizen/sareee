@@ -558,10 +558,10 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
                         <Button 
                           variant="outline" 
                           className="w-full border-green-600 text-green-600 hover:bg-green-50"
-                          onClick={() => acceptOrderMutation.mutate(order.id)}
-                          disabled={acceptOrderMutation.isPending}
+                          onClick={() => { setAcceptingOrderId(order.id); acceptOrderMutation.mutate(order.id); }}
+                          disabled={acceptingOrderId === order.id && acceptOrderMutation.isPending}
                         >
-                          {acceptOrderMutation.isPending ? 'جاري القبول...' : 'قبول الطلب فوراً'}
+                          {acceptingOrderId === order.id && acceptOrderMutation.isPending ? 'جاري القبول...' : 'قبول الطلب فوراً'}
                         </Button>
                       </CardContent>
                     </Card>
