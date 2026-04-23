@@ -15,6 +15,7 @@ export function useSettingsSync() {
 
     const connect = () => {
       ws = new WebSocket(wsUrl);
+      (window as any).WS_MANAGER = ws;
 
       ws.onopen = () => {
         console.log("WebSocket connected");
@@ -36,12 +37,13 @@ export function useSettingsSync() {
           const msg = JSON.parse(event.data);
           
           if (msg.type === "settings_changed") {
-            const key = msg.payload?.changedKey;
+            const key = msg.payload?.key || msg.payload?.changedKey;
             
             // Invalidate ui-settings for any settings change
             queryClient.invalidateQueries({ queryKey: ["/api/ui-settings"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/ui-settings"] });
 
-            if (key === "restaurants" || key === "delivery_fee_settings" || !key) {
+            if (key === "restaurants" || key === "delivery_fee_settings" || key === "app_closed" || !key) {
               queryClient.invalidateQueries({ queryKey: ["/api/restaurants"] });
               queryClient.invalidateQueries({ queryKey: ["/api/admin/restaurants"] });
               queryClient.invalidateQueries({ queryKey: ["/api/delivery-fees/settings"] });

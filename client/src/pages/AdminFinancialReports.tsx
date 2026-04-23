@@ -139,6 +139,35 @@ export default function AdminFinancialReports() {
     }
   });
 
+  const { data: dailyRevenue = [] } = useQuery({
+    queryKey: ['/api/admin/analytics/daily-revenue'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/admin/analytics/daily-revenue');
+      return response.json();
+    }
+  });
+
+  const { data: retentionStats } = useQuery({
+    queryKey: ['/api/admin/analytics/customer-retention'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/admin/analytics/customer-retention');
+      return response.json();
+    }
+  });
+
+  const { data: topAreas = [] } = useQuery({
+    queryKey: ['/api/admin/analytics/top-areas'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/admin/analytics/top-areas');
+      return response.json();
+    }
+  });
+
+  const retentionData = retentionStats ? [
+    { name: 'عملاء عائدون', value: retentionStats.returningCustomers },
+    { name: 'عملاء جدد', value: retentionStats.newCustomers },
+  ] : [];
+
   const handleApproveWithdrawal = async (id: string) => {
     try {
       await apiRequest('POST', `/api/admin/withdrawals/${id}/approve`, {});
@@ -361,6 +390,7 @@ export default function AdminFinancialReports() {
         <TabsList>
           <TabsTrigger value="transactions">المعاملات الحديثة</TabsTrigger>
           <TabsTrigger value="withdrawals">طلبات السحب</TabsTrigger>
+          <TabsTrigger value="analytics">التحليلات الذكية</TabsTrigger>
           <TabsTrigger value="taxes">الضرائب والرسوم</TabsTrigger>
         </TabsList>
 
@@ -440,6 +470,117 @@ export default function AdminFinancialReports() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  نمو المبيعات (آخر 30 يوم)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dailyRevenue}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis 
+                        dataKey="date" 
+                        tickFormatter={(str) => new Date(str).toLocaleDateString('ar-YE', { day: 'numeric', month: 'short' })}
+                      />
+                      <YAxis />
+                      <Tooltip 
+                        labelFormatter={(label) => new Date(label).toLocaleDateString('ar-YE', { dateStyle: 'long' })}
+                        formatter={(value) => [formatCurrency(value as number), 'الإيرادات']}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="amount" 
+                        stroke="#ec3714" 
+                        fillOpacity={1}
+                        fill="url(#colorRevenue)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChartIcon className="h-5 w-5 text-primary" />
+                  الاحتفاظ بالعملاء
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChartIcon>
+                      <Pie
+                        data={retentionData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {retentionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChartIcon>
+                  </ResponsiveContainer>
+                </div>
+                {retentionStats && (
+                  <div className="text-center mt-4">
+                    <p className="text-sm text-muted-foreground">معدل الاحتفاظ</p>
+                    <p className="text-2xl font-bold text-primary">{retentionStats.retentionRate.toFixed(1)}%</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  المناطق الأكثر طلباً
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topAreas} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        width={100} 
+                      />
+                      <Tooltip formatter={(value) => [value, 'عدد الطلبات']} />
+                      <Bar 
+                        dataKey="count" 
+                        fill="#00C49F" 
+                        radius={[0, 4, 4, 0]}
+                        barSize={30}
+                      >
+                        {topAreas.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

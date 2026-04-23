@@ -246,6 +246,49 @@ export default function AdminOrders() {
     return labels[currentStatus as keyof typeof labels];
   };
 
+  // دالة لحساب المسافة بالكم بين نقطتين
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // نصف قطر الأرض بالكم
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  const getNearestDriver = (order: Order) => {
+    if (!drivers || drivers.length === 0 || !order.restaurantLatitude || !order.restaurantLongitude) return null;
+    
+    const availableDrivers = drivers.filter(d => d.isAvailable && d.latitude && d.longitude);
+    if (availableDrivers.length === 0) return null;
+
+    let nearest = availableDrivers[0];
+    let minDistance = calculateDistance(
+      parseFloat(order.restaurantLatitude), 
+      parseFloat(order.restaurantLongitude),
+      parseFloat(nearest.latitude!),
+      parseFloat(nearest.longitude!)
+    );
+
+    availableDrivers.forEach(driver => {
+      const dist = calculateDistance(
+        parseFloat(order.restaurantLatitude!),
+        parseFloat(order.restaurantLongitude!),
+        parseFloat(driver.latitude!),
+        parseFloat(driver.longitude!)
+      );
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearest = driver;
+      }
+    });
+
+    return { driver: nearest, distance: minDistance.toFixed(2) };
+  };
+
   const filteredOrders = orders?.filter(order => {
     if (statusFilter === 'all') return true;
     return order.status === statusFilter;
@@ -509,6 +552,31 @@ export default function AdminOrders() {
                               </Badge>
                             )}
                           </div>
+
+                          {!order.driverId && getNearestDriver(order) && (
+                            <div className="mb-3 p-2 bg-yellow-100 border border-yellow-200 rounded text-xs flex items-center justify-between">
+                              <span className="flex items-center gap-1 text-yellow-800">
+                                <Navigation className="h-3 w-3" />
+                                السائق الأقرب للمطعم: <strong>{getNearestDriver(order)?.driver.name}</strong> 
+                                ({getNearestDriver(order)?.distance} كم)
+                              </span>
+                              <Button 
+                                size="xs" 
+                                variant="outline" 
+                                className="h-6 text-[10px] border-yellow-400 text-yellow-800 hover:bg-yellow-200"
+                                onClick={() => {
+                                  const nearest = getNearestDriver(order)?.driver;
+                                  if (nearest) {
+                                    setAssigningOrderId(order.id);
+                                    setSelectedDriver(prev => ({ ...prev, [order.id]: nearest.id }));
+                                  }
+                                }}
+                              >
+                                اختياره
+                              </Button>
+                            </div>
+                          )}
+
                           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
                             <Select 
                               value={assigningOrderId === order.id ? (selectedDriver[order.id] || '') : (order.driverId || '')} 

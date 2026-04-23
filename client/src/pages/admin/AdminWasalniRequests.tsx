@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bike, MapPin, Clock, Phone, User, Eye, CheckCircle, XCircle, Truck, Search, UserCheck } from 'lucide-react';
+import { Bike, MapPin, Clock, Phone, User, Eye, CheckCircle, XCircle, Truck, Search, UserCheck, Plus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -133,6 +133,49 @@ export default function AdminWasalniRequests() {
     assignDriverMutation.mutate({ requestId: selectedRequest.id, driverId: selectedDriverId });
   };
 
+  // دالة لحساب المسافة بالكم بين نقطتين
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // نصف قطر الأرض بالكم
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  const getNearestDriver = (req: any) => {
+    if (!drivers || drivers.length === 0 || !req.fromLat || !req.fromLng) return null;
+    
+    const availableDrivers = drivers.filter(d => d.isAvailable && d.isActive && d.latitude && d.longitude);
+    if (availableDrivers.length === 0) return null;
+
+    let nearest = availableDrivers[0];
+    let minDistance = calculateDistance(
+      parseFloat(req.fromLat), 
+      parseFloat(req.fromLng),
+      parseFloat(nearest.latitude!),
+      parseFloat(nearest.longitude!)
+    );
+
+    availableDrivers.forEach(driver => {
+      const dist = calculateDistance(
+        parseFloat(req.fromLat),
+        parseFloat(req.fromLng),
+        parseFloat(driver.latitude!),
+        parseFloat(driver.longitude!)
+      );
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearest = driver;
+      }
+    });
+
+    return { driver: nearest, distance: minDistance.toFixed(2) };
+  };
+
   const openDetail = (r: any) => {
     setSelectedRequest(r);
     setAdminNotes(r.adminNotes || '');
@@ -254,7 +297,7 @@ export default function AdminWasalniRequests() {
                         <Clock className="h-3 w-3" />
                         {request.scheduledDate} {request.scheduledTime}
                       </div>
-                      {request.estimatedFee && (
+                      {request.estimatedFee && !isNaN(parseFloat(request.estimatedFee)) && (
                         <div className="bg-orange-50 text-orange-700 px-2 py-1 rounded-lg font-black text-xs">
                           {parseFloat(request.estimatedFee).toLocaleString()} ر.ي
                         </div>
@@ -345,32 +388,73 @@ export default function AdminWasalniRequests() {
                 />
               </div>
 
-              {/* تعيين سائق */}
-              <div className="space-y-2 p-3 bg-orange-50 rounded-xl border border-orange-100">
-                <label className="text-xs font-bold text-orange-700 flex items-center gap-1.5 mb-1.5">
+              {/* تعيين سائق واقتراح الأقرب */}
+              <div className="space-y-3 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                <label className="text-xs font-bold text-orange-700 flex items-center gap-1.5">
                   <Truck className="h-3.5 w-3.5" />
                   تعيين سائق للطلب
                 </label>
+                
+                {getNearestDriver(selectedRequest) && (
+                  <div className="bg-white/80 p-2 rounded-lg border border-orange-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                        <UserCheck className="h-4 w-4 text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-orange-600 font-bold">السائق الأقرب المقترح:</p>
+                        <p className="text-xs font-black">{getNearestDriver(selectedRequest)?.driver.name}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-gray-500 font-bold">يبعد حوالي:</p>
+                      <p className="text-xs font-black text-orange-600">{getNearestDriver(selectedRequest)?.distance} كم</p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-8 w-8 p-0 hover:bg-orange-100 text-orange-600"
+                      onClick={() => setSelectedDriverId(getNearestDriver(selectedRequest)?.driver.id || '')}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-                    <SelectTrigger className="rounded-xl bg-white">
+                    <SelectTrigger className="rounded-xl bg-white flex-1 h-10">
                       <SelectValue placeholder="اختر سائق..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {drivers.filter(d => d.isActive && d.isAvailable).map((driver) => (
-                        <SelectItem key={driver.id} value={driver.id}>
-                          {driver.name} ({driver.phone})
-                        </SelectItem>
-                      ))}
+                      {drivers.filter(d => d.isActive && d.isAvailable).map((driver) => {
+                        const dist = (selectedRequest.fromLat && selectedRequest.fromLng && driver.latitude && driver.longitude)
+                          ? calculateDistance(
+                              parseFloat(selectedRequest.fromLat),
+                              parseFloat(selectedRequest.fromLng),
+                              parseFloat(driver.latitude),
+                              parseFloat(driver.longitude)
+                            ).toFixed(1)
+                          : null;
+                        
+                        return (
+                          <SelectItem key={driver.id} value={driver.id}>
+                            <div className="flex justify-between items-center w-full gap-4">
+                              <span>{driver.name}</span>
+                              {dist && <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{dist} كم</span>}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <Button
                     size="sm"
                     disabled={!selectedDriverId || assignDriverMutation.isPending}
                     onClick={handleAssignDriver}
-                    className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl"
+                    className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl px-4"
                   >
-                    {assignDriverMutation.isPending ? 'جاري...' : 'تعيين'}
+                    {assignDriverMutation.isPending ? '...' : 'تعيين'}
                   </Button>
                 </div>
               </div>

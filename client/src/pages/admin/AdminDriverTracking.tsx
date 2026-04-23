@@ -39,9 +39,65 @@ export default function AdminDriverTracking() {
 
   const [mapCenter, setMapCenter] = useState<[number, number]>([15.3694, 44.1910]); // صنعاء كمثال
   const [selectedDriver, setSelectedDriver] = useState<any>(null);
+  const [liveDrivers, setLiveDrivers] = useState<Record<string, any>>({});
+  const queryClient = useQueryClient();
+
+  // تتبع حي عبر WebSocket
+  useEffect(() => {
+    const ws = (window as any).WS_MANAGER;
+    if (!ws) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'driver_location') {
+          const { driverId, latitude, longitude, currentLocation } = message.payload;
+          setLiveDrivers(prev => ({
+            ...prev,
+            [driverId]: {
+              latitude,
+              longitude,
+              currentLocation,
+              lastUpdate: new Date()
+            }
+          }));
+          
+          // إذا كان السائق المختار هو نفسه، نقوم بتحديث إحداثياته في الواجهة
+          if (selectedDriver?.id === driverId) {
+            setSelectedDriver((prev: any) => ({
+              ...prev,
+              latitude,
+              longitude,
+              currentLocation
+            }));
+          }
+        } else if (message.type === 'driver_status_update') {
+          queryClient.invalidateQueries({ queryKey: ['/api/drivers'] });
+        }
+      } catch (err) {
+        console.error('Error processing live tracking message:', err);
+      }
+    };
+
+    ws.addEventListener('message', handleMessage);
+    return () => ws.removeEventListener('message', handleMessage);
+  }, [selectedDriver, queryClient]);
+
+  // دمج بيانات السائقين من الـ API مع التحديثات الحية
+  const driversWithLive = drivers.map(d => {
+    if (liveDrivers[d.id]) {
+      return {
+        ...d,
+        latitude: liveDrivers[d.id].latitude,
+        longitude: liveDrivers[d.id].longitude,
+        currentLocation: liveDrivers[d.id].currentLocation || d.currentLocation
+      };
+    }
+    return d;
+  });
 
   // السائقون الذين لديهم إحداثيات
-  const activeDrivers = drivers.filter(d => d.latitude && d.longitude && d.isActive);
+  const activeDrivers = driversWithLive.filter(d => d.latitude && d.longitude && d.isActive);
 
   const focusOnDriver = (driver: any) => {
     const lat = parseFloat(driver.latitude);

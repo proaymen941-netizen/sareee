@@ -102,80 +102,65 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
   useEffect(() => {
     if (!driverId) return;
     
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout;
+    const ws = (window as any).WS_MANAGER;
+    if (!ws) return;
 
-    const connect = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-      ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        console.log('Connected to WebSocket');
-        ws?.send(JSON.stringify({
-          type: 'auth',
-          payload: { 
-            userId: driverId,
-            userType: 'driver'
-          }
-        }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log('WS Message received:', message.type);
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('WS Message received in Driver Dashboard:', message.type);
+        
+        if (message.type === 'order_update' || message.type === 'new_order_assigned' || message.type === 'order_status_changed' || message.type === 'review_received' || message.type === 'NEW_NOTIFICATION' || message.type === 'settings_changed') {
+          // Invalidate all driver related queries
+          queryClient.invalidateQueries({ queryKey: [`/api/drivers/app/dashboard`] });
+          queryClient.invalidateQueries({ queryKey: ['/api/drivers/orders/available', driverId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] });
           
-          if (message.type === 'order_update' || message.type === 'new_order_assigned' || message.type === 'order_status_changed' || message.type === 'review_received' || message.type === 'NEW_NOTIFICATION' || message.type === 'settings_changed') {
-            // Invalidate all driver related queries
-            queryClient.invalidateQueries({ queryKey: [`/api/drivers/app/dashboard`] });
-            queryClient.invalidateQueries({ queryKey: ['/api/drivers/orders/available', driverId] });
-            queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer'] }); // Also refresh notifications if any
-            queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] }); // Refresh UI settings if they changed
-            
-            if (message.type === 'review_received') {
-              toast({ 
-                title: '⭐ تقييم جديد!', 
-                description: `لقد حصلت على تقييم جديد: ${message.payload?.rating} نجوم`,
-                variant: 'default'
-              });
-            } else if (message.type === 'new_order_assigned') {
-              toast({ 
-                title: '📦 طلب جديد مُعين لك', 
-                description: message.payload?.message || 'يرجى مراجعة الطلب في صفحة الطلبات المتاحة',
-                variant: 'default'
-              });
-              // Auto switch to available orders tab if currently on dashboard
-              if (activeTab === 'dashboard') {
-                setActiveTab('available');
-              }
-            } else if (message.type === 'order_status_changed') {
-              toast({ 
-                title: 'تحديث حالة الطلب', 
-                description: `تغيرت حالة الطلب #${message.payload?.orderId?.slice(-6)} إلى ${message.payload?.status}` 
-              });
+          if (message.type === 'review_received') {
+            toast({ 
+              title: '⭐ تقييم جديد!', 
+              description: `لقد حصلت على تقييم جديد: ${message.payload?.rating} نجوم`,
+              variant: 'default'
+            });
+          } else if (message.type === 'new_order_assigned') {
+            toast({ 
+              title: '📦 طلب جديد مُعين لك', 
+              description: message.payload?.message || 'يرجى مراجعة الطلب في صفحة الطلبات المتاحة',
+              variant: 'default'
+            });
+            if (activeTab === 'dashboard') {
+              setActiveTab('available');
             }
+          } else if (message.type === 'order_status_changed') {
+            toast({ 
+              title: 'تحديث حالة الطلب', 
+              description: `تغيرت حالة الطلب #${message.payload?.orderId?.slice(-6)} إلى ${message.payload?.status}` 
+            });
           }
-        } catch (err) {
-          console.error('Failed to parse WS message:', err);
         }
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket disconnected. Reconnecting...');
-        reconnectTimeout = setTimeout(connect, 3000);
-      };
-
-      setSocket(ws);
+      } catch (err) {
+        console.error('Failed to parse WS message:', err);
+      }
     };
 
-    connect();
+    ws.addEventListener('message', handleMessage);
+
+    // Initial auth if needed (though useSettingsSync handles it)
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'auth',
+        payload: { 
+          userId: driverId,
+          userType: 'driver'
+        }
+      }));
+    }
 
     return () => {
-      if (ws) ws.close();
-      clearTimeout(reconnectTimeout);
+      ws.removeEventListener('message', handleMessage);
     };
-  }, [driverId, queryClient, toast]);
+  }, [driverId, queryClient, toast, activeTab]);
 
   // Fetch dashboard data
   const { data: dashboardData, isLoading } = useQuery({
@@ -305,6 +290,8 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
   // Get current location
   useEffect(() => {
     if (navigator.geolocation) {
+      const ws = (window as any).WS_MANAGER;
+      
       const watchId = navigator.geolocation.watchPosition(
         (position) => {
           const lat = position.coords.latitude;
@@ -312,13 +299,14 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
           setCurrentLocation([lat, lng]);
           
           // Send location update to server via WebSocket
-          if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
               type: 'location_update',
               payload: {
                 driverId,
                 latitude: lat,
-                longitude: lng
+                longitude: lng,
+                currentLocation: `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`
               }
             }));
           }
@@ -328,14 +316,14 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
         },
         {
           enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0,
+          timeout: 10000,
+          maximumAge: 5000,
         }
       );
 
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [socket, driverId]);
+  }, [driverId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
