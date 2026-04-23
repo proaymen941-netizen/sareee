@@ -36,6 +36,7 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [updatingWasalniId, setUpdatingWasalniId] = useState<string | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const driverToken = localStorage.getItem('driver_token');
 
@@ -83,9 +84,11 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/drivers/orders', 'active', driverId] });
       queryClient.invalidateQueries({ queryKey: [`/api/drivers/app/dashboard`] });
+      setUpdatingOrderId(null);
       toast({ title: "تم التحديث ✅", description: "تم تحديث حالة الطلب بنجاح" });
     },
     onError: (error: Error) => {
+      setUpdatingOrderId(null);
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
     }
   });
@@ -222,14 +225,17 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
                       onClick={(e) => {
                         e.stopPropagation();
                         const nextStatus = getNextStatus(order.status);
-                        if (nextStatus) updateOrderStatusMutation.mutate({ orderId: order.id, status: nextStatus });
+                        if (nextStatus) {
+                          setUpdatingOrderId(order.id);
+                          updateOrderStatusMutation.mutate({ orderId: order.id, status: nextStatus });
+                        }
                       }}
-                      disabled={updateOrderStatusMutation.isPending}
+                      disabled={updatingOrderId === order.id && updateOrderStatusMutation.isPending}
                       size="sm"
                       className="gap-2 bg-blue-600 hover:bg-blue-700 text-white mr-auto"
                     >
                       <CheckCircle className="h-4 w-4" />
-                      {updateOrderStatusMutation.isPending ? 'جاري...' : getNextStatusLabel(order.status)}
+                      {updatingOrderId === order.id && updateOrderStatusMutation.isPending ? 'جاري...' : getNextStatusLabel(order.status)}
                     </Button>
                   </div>
                 </CardContent>

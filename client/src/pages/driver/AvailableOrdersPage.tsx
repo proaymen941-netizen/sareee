@@ -207,7 +207,7 @@ export default function AvailableOrdersPage({ driverId, onSelectOrder, onOrderAc
                         setAcceptingOrderId(order.id);
                         acceptOrderMutation.mutate(order.id);
                       }}
-                      disabled={(acceptingOrderId !== null && acceptingOrderId !== order.id) || acceptOrderMutation.isPending}
+                      disabled={acceptingOrderId === order.id && acceptOrderMutation.isPending}
                       size="sm"
                       className="gap-2 bg-green-600 hover:bg-green-700 ml-auto"
                     >
