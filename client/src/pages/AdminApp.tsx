@@ -18,6 +18,7 @@ import AdminBackup from "./admin/AdminBackup";
 import AdminCoupons from "./admin/AdminCoupons";
 import AdminPaymentMethods from "./admin/AdminPaymentMethods";
 import AdminRestaurantAccounts from "./admin/AdminRestaurantAccounts";
+import RestaurantStatementPage from "./admin/RestaurantStatementPage";
 import AdminFlutterNotifications from "./admin/AdminFlutterNotifications";
 import AdminWasalniRequests from "./admin/AdminWasalniRequests";
 import AdminDriverTracking from "./admin/AdminDriverTracking";
@@ -62,6 +63,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/coupons" component={AdminCoupons} />
         <Route path="/admin/payment-methods" component={AdminPaymentMethods} />
         <Route path="/admin/restaurant-accounts" component={AdminRestaurantAccounts} />
+        <Route path="/admin/restaurant-accounts/:restaurantId/statement" component={RestaurantStatementPage} />
         <Route path="/admin/restaurant-sections" component={RestaurantSections} />
         <Route path="/admin/business-hours" component={AdminBusinessHours} />
         <Route path="/admin/notifications" component={AdminFlutterNotifications} />

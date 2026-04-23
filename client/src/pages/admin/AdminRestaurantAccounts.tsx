@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,7 @@ const getStatusBadge = (status: string) => {
 export default function AdminRestaurantAccounts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('accounts');
   const [searchQuery, setSearchQuery] = useState('');
   const [withdrawalFilter, setWithdrawalFilter] = useState('all');
@@ -313,12 +315,19 @@ export default function AdminRestaurantAccounts() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex items-center justify-center gap-1 flex-wrap">
                               <Button
                                 variant="outline" size="sm"
                                 onClick={() => { setSelectedRestaurantId(item.restaurant.id); setDetailsOpen(true); }}
                               >
                                 <Eye className="h-3.5 w-3.5 ml-1" />كشف حساب
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white gap-1"
+                                onClick={() => setLocation(`/admin/restaurant-accounts/${item.restaurant.id}/statement`)}
+                              >
+                                <FileText className="h-3.5 w-3.5" />تقرير PDF
                               </Button>
                             </div>
                           </TableCell>
