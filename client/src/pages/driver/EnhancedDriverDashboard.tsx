@@ -114,6 +114,9 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
           // Invalidate all driver related queries
           queryClient.invalidateQueries({ queryKey: [`/api/drivers/app/dashboard`] });
           queryClient.invalidateQueries({ queryKey: ['/api/drivers/orders/available', driverId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/drivers/orders', 'active', driverId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/drivers/wasalni', 'available', driverId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/drivers/wasalni', 'active', driverId] });
           queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer'] });
           queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] });
           
