@@ -568,6 +568,109 @@ router.put("/profile", requireDriverAuth, async (req: AuthenticatedRequest, res)
 });
 
 // ================================================================
+// مسارات طلبات وصل لي للسائق
+// ================================================================
+
+// جلب طلبات وصل لي المعينة للسائق
+router.get("/wasalni", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const driverId = req.driverId!;
+    const { status } = req.query;
+    const db = (storage as any).db;
+    if (!db) return res.status(500).json({ error: "Database not available" });
+    const { wasalniRequests } = await import("../../shared/schema");
+    const { eq } = await import("drizzle-orm");
+
+    let results = await db.select().from(wasalniRequests).where(eq(wasalniRequests.driverId, driverId));
+
+    if (status === 'available') {
+      results = results.filter((r: any) => r.status === 'confirmed');
+    } else if (status === 'active') {
+      results = results.filter((r: any) => ['confirmed', 'on_way'].includes(r.status));
+    } else if (status === 'history') {
+      results = results.filter((r: any) => ['delivered', 'cancelled'].includes(r.status));
+    }
+
+    results.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json(results);
+  } catch (error) {
+    console.error("خطأ في جلب طلبات وصل لي للسائق:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// قبول أو تحديث حالة طلب وصل لي من السائق
+router.put("/wasalni/:id/status", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const driverId = req.driverId!;
+
+    const db = (storage as any).db;
+    if (!db) return res.status(500).json({ error: "Database not available" });
+    const { wasalniRequests } = await import("../../shared/schema");
+    const { eq } = await import("drizzle-orm");
+
+    const [request] = await db.select().from(wasalniRequests).where(eq(wasalniRequests.id, id));
+    if (!request) return res.status(404).json({ error: "الطلب غير موجود" });
+    if (request.driverId !== driverId) return res.status(403).json({ error: "غير مصرح لك بتحديث هذا الطلب" });
+
+    const allowedStatuses = ['on_way', 'delivered', 'cancelled'];
+    if (!allowedStatuses.includes(status)) return res.status(400).json({ error: "حالة غير صحيحة" });
+
+    const [updated] = await db.update(wasalniRequests)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(wasalniRequests.id, id))
+      .returning();
+
+    // بث التحديث عبر WebSocket
+    const ws = req.app.get('ws');
+    if (ws) {
+      ws.broadcast('order_update', { orderId: id, status, type: 'wasalni', driverId });
+    }
+
+    // إشعار للعميل
+    const statusMessages: Record<string, string> = {
+      on_way: 'السائق في طريقه لاستلام طلبك',
+      delivered: 'تم تنفيذ طلب وصل لي بنجاح',
+      cancelled: 'تم إلغاء طلب وصل لي من قِبل السائق',
+    };
+
+    if (request.customerId || request.customerPhone) {
+      await storage.createNotification({
+        type: 'wasalni_status_update',
+        title: 'تحديث طلب وصل لي',
+        message: `${statusMessages[status] || 'تم تحديث حالة الطلب'} - رقم الطلب: ${request.requestNumber}`,
+        recipientType: 'customer',
+        recipientId: request.customerId || request.customerPhone,
+        orderId: id,
+        isRead: false,
+      });
+    }
+
+    await storage.createNotification({
+      type: 'wasalni_status_update',
+      title: 'تحديث وصل لي من السائق',
+      message: `الطلب ${request.requestNumber}: ${statusMessages[status] || status}`,
+      recipientType: 'admin',
+      recipientId: null,
+      orderId: id,
+      isRead: false,
+    });
+
+    // إذا تم التسليم، أعد السائق للحالة المتاحة
+    if (status === 'delivered' || status === 'cancelled') {
+      await storage.updateDriver(driverId, { isAvailable: true });
+    }
+
+    res.json({ success: true, request: updated });
+  } catch (error) {
+    console.error("خطأ في تحديث حالة وصل لي:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// ================================================================
 // مسارات الـ Wildcard للإدارة (يجب أن تكون في النهاية دائماً)
 // ================================================================
 
