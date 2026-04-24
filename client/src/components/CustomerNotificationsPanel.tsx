@@ -88,7 +88,12 @@ export function CustomerNotificationsPanel() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'NEW_NOTIFICATION' || data.type === 'order_update' || data.type === 'order_status_changed') {
+          if (
+            data.type === 'NEW_NOTIFICATION' ||
+            data.type === 'notifications_updated' ||
+            data.type === 'order_update' ||
+            data.type === 'order_status_changed'
+          ) {
             queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer', phone, customerId] });
             refetch();
           }
