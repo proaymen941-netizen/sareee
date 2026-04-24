@@ -299,14 +299,6 @@ router.put("/orders/:id/status", requireDriverAuth, async (req: AuthenticatedReq
         orderId: id,
         isRead: false,
       });
-
-      await storage.createOrderTracking({
-        orderId: id,
-        status,
-        message: statusMessage,
-        createdBy: driverId,
-        createdByType: 'driver',
-      });
     } catch (notifErr) {
       console.error('خطأ في إنشاء إشعارات السائق:', notifErr);
     }

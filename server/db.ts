@@ -887,7 +887,7 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   async createNotification(notification: InsertNotification): Promise<Notification> {
     try {
       const [newNotification] = await this.db.insert(notifications).values(notification).returning();
-      
+
       // Notify client if WebSocket manager is available
       if (global.WS_MANAGER) {
         // Send based on recipient type
@@ -896,18 +896,42 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
             // Broadcast to all if it's a global notification
             global.WS_MANAGER.broadcast('NEW_NOTIFICATION', newNotification);
           } else {
+            // إرسال للمعرّف المحدد (UUID أو رقم هاتف)
             global.WS_MANAGER.sendToUser(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
+
+            // ضمان وصول الإشعار للعميل سواء كان متصلاً برقم الهاتف أو بمعرّف الحساب
+            // عبر استخراج المعرّف الآخر من الطلب المرتبط وإرساله أيضاً
+            if (notification.orderId) {
+              try {
+                const [orderRow] = await this.db.select({
+                  customerId: orders.customerId,
+                  customerPhone: orders.customerPhone,
+                }).from(orders).where(eq(orders.id, notification.orderId)).limit(1);
+
+                if (orderRow) {
+                  const altIds = [orderRow.customerId, orderRow.customerPhone]
+                    .filter((v): v is string => !!v && v !== notification.recipientId);
+                  for (const altId of altIds) {
+                    global.WS_MANAGER.sendToUser(altId, 'NEW_NOTIFICATION', newNotification);
+                  }
+                }
+              } catch (lookupErr) {
+                // فشل البحث عن المعرّف البديل لا يوقف العملية
+                console.error('Notification fallback lookup failed:', lookupErr);
+              }
+            }
           }
+          // إعلام لوحة التحكم بأي إشعار عميل جديد للمراقبة العامة
+          global.WS_MANAGER.sendToAdmin('NEW_NOTIFICATION', newNotification);
         } else if (notification.recipientType === 'driver' && notification.recipientId) {
           global.WS_MANAGER.sendToDriver(notification.recipientId, 'NEW_NOTIFICATION', newNotification);
+          global.WS_MANAGER.sendToAdmin('NEW_NOTIFICATION', newNotification);
         } else if (notification.recipientType === 'admin') {
+          // إرسال واحد فقط للمدير لتجنب التكرار
           global.WS_MANAGER.sendToAdmin('NEW_NOTIFICATION', newNotification);
         }
-        
-        // Always notify admin about all notifications for visibility
-        global.WS_MANAGER.sendToAdmin('NEW_NOTIFICATION', newNotification);
       }
-      
+
       return newNotification;
     } catch (error) {
       console.error('Error creating notification:', error);

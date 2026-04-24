@@ -560,10 +560,15 @@ router.put("/:id", async (req, res) => {
     if (status === 'delivered') {
       updatedOrder = await storage.completeOrder(id);
     } else {
-      updatedOrder = await storage.updateOrder(id, {
+      const updateData: any = {
         status,
         updatedAt: new Date()
-      });
+      };
+      // حفظ سبب الإلغاء عند إلغاء الطلب
+      if (status === 'cancelled' && cancelReason) {
+        updateData.cancelReason = cancelReason;
+      }
+      updatedOrder = await storage.updateOrder(id, updateData);
     }
 
     // Broadcast update via WebSocket

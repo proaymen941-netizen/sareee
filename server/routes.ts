@@ -972,19 +972,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!phone && !customerId) {
         return res.status(400).json({ message: "phone or customerId required" });
       }
-      // Get ALL customer notifications then filter unread ones
       const allNotifs = await storage.getNotifications('customer');
       const unread = allNotifs.filter((n: any) => {
-        if (!n.isRead) {
-          // إشعارات عامة
-          if (!n.recipientId || n.recipientId === 'all') return true;
-          // إشعارات خاصة
-          if (customerId && n.recipientId === customerId) return true;
-          if (phone && n.recipientId === phone) return true;
-        }
+        if (n.isRead) return false;
+        if (!n.recipientId || n.recipientId === 'all') return true;
+        if (customerId && n.recipientId === customerId) return true;
+        if (phone && n.recipientId === phone) return true;
         return false;
       });
       await Promise.all(unread.map((n: any) => (storage as any).markNotificationAsRead(n.id)));
+
+      // بث حدث المزامنة لجميع أجهزة العميل لتحديث الشارة فوراً
+      if (global.WS_MANAGER) {
+        const payload = { allRead: true, count: unread.length };
+        if (customerId) global.WS_MANAGER.sendToUser(customerId, 'notifications_updated', payload);
+        if (phone) global.WS_MANAGER.sendToUser(phone, 'notifications_updated', payload);
+      }
+
       res.json({ success: true, markedCount: unread.length });
     } catch (error) {
       console.error('Error marking customer notifications as read:', error);
@@ -996,27 +1000,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/notifications/:id/read", async (req, res) => {
     try {
       const { id } = req.params;
-      
-      // For MemStorage, we need to implement this method
-      if (storage.constructor.name === 'MemStorage') {
-        // Simple implementation for memory storage
-        const notifications = await storage.getNotifications();
-        const notification = notifications.find(n => n.id === id);
-        if (notification) {
-          // Update in memory (this is a simplified approach)
-          (notification as any).isRead = true;
-          res.json(notification);
-        } else {
-          res.status(404).json({ message: "Notification not found" });
-        }
-      } else {
-        // For database storage
-        const notification = await (storage as any).markNotificationAsRead(id);
-        if (!notification) {
-          return res.status(404).json({ message: "Notification not found" });
-        }
-        res.json(notification);
+      const notification = await (storage as any).markNotificationAsRead(id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
       }
+
+      // بث المزامنة للمستلم لتحديث الشارة على بقية الأجهزة/التبويبات
+      if (global.WS_MANAGER && notification.recipientId) {
+        const payload = { id: notification.id, isRead: true };
+        if (notification.recipientType === 'driver') {
+          global.WS_MANAGER.sendToDriver(notification.recipientId, 'notifications_updated', payload);
+        } else {
+          global.WS_MANAGER.sendToUser(notification.recipientId, 'notifications_updated', payload);
+        }
+      }
+
+      res.json(notification);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       res.status(500).json({ message: "Failed to update notification" });
