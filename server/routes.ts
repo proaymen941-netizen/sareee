@@ -322,6 +322,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===========================================
+  // Bootstrap endpoint - يُجمّع كل البيانات الأولية للتطبيق في طلب واحد
+  // يُستهلك من شاشة السبلاش لتحضير الكاش قبل دخول المستخدم للتطبيق
+  // ===========================================
+  app.get("/api/bootstrap", async (req, res) => {
+    try {
+      const { phone, customerId } = req.query as { phone?: string; customerId?: string };
+
+      // تشغيل كل الاستعلامات بالتوازي لخفض زمن الاستجابة
+      const [
+        uiSettings,
+        categories,
+        restaurants,
+        specialOffers,
+        paymentMethodsRaw,
+      ] = await Promise.all([
+        storage.getUiSettings().catch(() => []),
+        storage.getCategories().catch(() => []),
+        storage.getRestaurants({}).catch(() => []),
+        storage.getActiveSpecialOffers().catch(() => []),
+        (storage as any).getActivePaymentMethods?.().catch(() => []) ?? Promise.resolve([]),
+      ]);
+
+      // إثراء طرق الدفع بالمستندات (نفس سلوك /api/payment-methods)
+      const paymentMethods = await Promise.all(
+        (paymentMethodsRaw || []).map(async (m: any) => {
+          try {
+            const docs = await (storage as any).getPaymentMethodDocuments?.(m.id) ?? [];
+            return { ...m, documents: docs };
+          } catch {
+            return { ...m, documents: [] };
+          }
+        })
+      );
+
+      // بيانات خاصة بالعميل (اختيارية حسب المعرّف المُمرَّر)
+      let customerData: {
+        addresses: any[];
+        orders: any[];
+        notifications: any[];
+        unreadCount: number;
+      } | null = null;
+
+      if (phone || customerId) {
+        const [addresses, orders, allNotifs] = await Promise.all([
+          customerId
+            ? (storage as any).getUserAddresses?.(customerId).catch(() => []) ?? Promise.resolve([])
+            : Promise.resolve([]),
+          phone
+            ? storage.getOrdersByCustomer(phone).catch(() => [])
+            : Promise.resolve([]),
+          (storage as any).getNotifications?.('customer').catch(() => []) ?? Promise.resolve([]),
+        ]);
+
+        const myNotifications = (allNotifs || []).filter((n: any) => {
+          if (!n.recipientId || n.recipientId === 'all') return true;
+          if (customerId && n.recipientId === customerId) return true;
+          if (phone && n.recipientId === phone) return true;
+          return false;
+        });
+        myNotifications.sort((a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        customerData = {
+          addresses: addresses || [],
+          orders: orders || [],
+          notifications: myNotifications.slice(0, 30),
+          unreadCount: myNotifications.filter((n: any) => !n.isRead).length,
+        };
+      }
+
+      res.set('Cache-Control', 'no-store');
+      res.json({
+        uiSettings,
+        categories,
+        restaurants,
+        specialOffers,
+        paymentMethods,
+        customer: customerData,
+        serverTime: Date.now(),
+      });
+    } catch (error) {
+      console.error('Error in /api/bootstrap:', error);
+      res.status(500).json({ message: 'Failed to load bootstrap data' });
+    }
+  });
+
   // UI Settings Routes
   app.get("/api/ui-settings", async (req, res) => {
     try {
