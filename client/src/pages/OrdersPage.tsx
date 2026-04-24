@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
@@ -151,6 +151,63 @@ export default function OrdersPage() {
     refetchInterval: 30000,
     retry: 1
   });
+
+  // اشتراك WebSocket لتلقي تحديثات الطلبات الفورية من السائق والإدارة
+  useEffect(() => {
+    if (!customerPhone) return;
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const connect = () => {
+      if (cancelled) return;
+      try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+        ws.onopen = () => {
+          ws?.send(JSON.stringify({
+            type: 'auth',
+            payload: { userId: customerPhone, userType: 'customer' },
+          }));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (
+              message.type === 'order_update' ||
+              message.type === 'order_status_changed' ||
+              message.type === 'new_wasalni_request' ||
+              message.type === 'driver_assigned'
+            ) {
+              queryClient.invalidateQueries({ queryKey: ['orders', customerPhone] });
+            }
+          } catch (err) {
+            console.error('Failed to parse WS message in OrdersPage:', err);
+          }
+        };
+
+        ws.onclose = () => {
+          if (!cancelled) {
+            reconnectTimeout = setTimeout(connect, 5000);
+          }
+        };
+        ws.onerror = () => {
+          try { ws?.close(); } catch {}
+        };
+      } catch (err) {
+        console.error('WebSocket connection failed:', err);
+      }
+    };
+
+    connect();
+    return () => {
+      cancelled = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      try { ws?.close(); } catch {}
+    };
+  }, [customerPhone, queryClient]);
 
   // طلب الإلغاء
   const cancelOrderMutation = useMutation({

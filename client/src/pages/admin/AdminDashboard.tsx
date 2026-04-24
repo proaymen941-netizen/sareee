@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { NotificationSystem } from '@/components/NotificationSystem';
 import { 
   BarChart3, 
   Users, 
@@ -51,7 +50,7 @@ export default function AdminDashboard() {
     const connect = () => {
       ws = new WebSocket(wsUrl);
       ws.onopen = () => {
-        ws?.send(JSON.stringify({ type: 'auth', payload: { userId: 'admin', userType: 'admin' } }));
+        ws?.send(JSON.stringify({ type: 'auth', payload: { userId: 'admin_dashboard', userType: 'admin' } }));
       };
       ws.onmessage = (e) => {
         try {

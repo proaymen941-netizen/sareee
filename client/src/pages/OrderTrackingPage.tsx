@@ -75,9 +75,10 @@ export default function OrderTrackingPage() {
   const { data: orderData, isLoading, error, refetch } = useQuery<{order: OrderDetails, tracking: OrderStatus[]}>({
     queryKey: [`/api/orders/${orderId}/track`],
     enabled: !!orderId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // إذا كان الطلب مكتملاً أو ملغياً، نتوقف عن التحديث التلقائي
-      if (data?.order?.status === 'delivered' || data?.order?.status === 'cancelled') return false;
+      const status = query.state.data?.order?.status;
+      if (status === 'delivered' || status === 'cancelled') return false;
       return 15000;
     },
   });

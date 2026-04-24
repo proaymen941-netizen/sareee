@@ -101,16 +101,17 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
   // WebSocket Connection with reconnection logic
   useEffect(() => {
     if (!driverId) return;
-    
-    const ws = (window as any).WS_MANAGER;
-    if (!ws) return;
+
+    let ws: WebSocket | null = null;
+    let attachInterval: ReturnType<typeof setInterval> | null = null;
+    let attached = false;
 
     const handleMessage = (event: MessageEvent) => {
       try {
         const message = JSON.parse(event.data);
         console.log('WS Message received in Driver Dashboard:', message.type);
         
-        if (message.type === 'order_update' || message.type === 'new_order_assigned' || message.type === 'order_status_changed' || message.type === 'review_received' || message.type === 'NEW_NOTIFICATION' || message.type === 'settings_changed') {
+        if (message.type === 'order_update' || message.type === 'new_order_assigned' || message.type === 'order_status_changed' || message.type === 'review_received' || message.type === 'NEW_NOTIFICATION' || message.type === 'notifications_updated' || message.type === 'settings_changed') {
           // Invalidate all driver related queries
           queryClient.invalidateQueries({ queryKey: [`/api/drivers/app/dashboard`] });
           queryClient.invalidateQueries({ queryKey: ['/api/drivers/orders/available', driverId] });
@@ -147,21 +148,48 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
       }
     };
 
-    ws.addEventListener('message', handleMessage);
+    const attachToWs = () => {
+      const candidate: WebSocket | undefined = (window as any).WS_MANAGER;
+      if (!candidate) return false;
 
-    // Initial auth if needed (though useSettingsSync handles it)
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'auth',
-        payload: { 
-          userId: driverId,
-          userType: 'driver'
+      ws = candidate;
+      ws.addEventListener('message', handleMessage);
+      attached = true;
+
+      const sendAuth = () => {
+        try {
+          ws?.send(JSON.stringify({
+            type: 'auth',
+            payload: { userId: driverId, userType: 'driver' }
+          }));
+        } catch (e) {
+          console.error('Driver WS auth send failed:', e);
         }
-      }));
+      };
+
+      if (ws.readyState === WebSocket.OPEN) {
+        sendAuth();
+      } else {
+        ws.addEventListener('open', sendAuth, { once: true });
+      }
+      return true;
+    };
+
+    // محاولة الربط فوراً، وإن لم يكن WS_MANAGER جاهزاً نحاول كل 500ms
+    if (!attachToWs()) {
+      attachInterval = setInterval(() => {
+        if (attachToWs() && attachInterval) {
+          clearInterval(attachInterval);
+          attachInterval = null;
+        }
+      }, 500);
     }
 
     return () => {
-      ws.removeEventListener('message', handleMessage);
+      if (attachInterval) clearInterval(attachInterval);
+      if (attached && ws) {
+        ws.removeEventListener('message', handleMessage);
+      }
     };
   }, [driverId, queryClient, toast, activeTab]);
 
