@@ -3,7 +3,6 @@ import { Minus, Plus, Trash2, ShoppingBag, X, MapPin, Loader2, Calendar, Clock, 
 import { useCart } from '../context/CartContext';
 import { useUserLocation as useGeoLocation } from '../context/LocationContext';
 import { GoogleMapsLocationPicker, LocationData } from './GoogleMapsLocationPicker';
-import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -186,15 +185,16 @@ export function Cart({ isOpen, onClose }: CartProps) {
   if (!isOpen) return null;
 
   const saveCustomerInfoToProfile = async () => {
+    // حفظ الاسم ورقم الهاتف محلياً ليتمكن العميل من رؤية طلباته في صفحة "طلباتي"
     try {
-      const userId = '5ea1edd8-b9e1-4c9e-84fb-25aa2741a0db';
-      await apiRequest('PUT', `/api/users/${userId}`, {
-        name: customerInfo.name,
-        phone: customerInfo.phone,
-        address: selectedLocation?.address,
-      });
-    } catch (error) {
-      console.error('Failed to save customer info to profile:', error);
+      if (customerInfo.phone) {
+        localStorage.setItem('customer_phone', customerInfo.phone.trim().replace(/\s+/g, ''));
+      }
+      if (customerInfo.name) {
+        localStorage.setItem('customer_name', customerInfo.name);
+      }
+    } catch (e) {
+      console.error('Failed to persist customer info locally:', e);
     }
   };
 
