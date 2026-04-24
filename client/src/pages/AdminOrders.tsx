@@ -55,15 +55,21 @@ export default function AdminOrders() {
     ws.onopen = () => {
       ws.send(JSON.stringify({
         type: 'auth',
-        payload: { userId: 'admin_dashboard' }
+        payload: { userId: 'admin_dashboard', userType: 'admin' }
       }));
     };
 
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        if (message.type === 'order_update' || message.type === 'driver_assigned') {
+        const liveEvents = [
+          'order_update', 'driver_assigned', 'new_order',
+          'order_status_changed', 'new_wasalni_request', 'NEW_NOTIFICATION',
+          'driver_status_update'
+        ];
+        if (liveEvents.includes(message.type)) {
           queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/drivers'] });
         }
       } catch (err) {
         console.error('Failed to parse WS message:', err);

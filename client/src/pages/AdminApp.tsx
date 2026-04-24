@@ -30,6 +30,7 @@ import RatingsManagement from "./RatingsManagement";
 import WalletManagement from "./WalletManagement";
 import NotFound from "./not-found";
 import React from "react";
+import AdminErrorBoundary from "@/components/AdminErrorBoundary";
 
 interface AdminAppProps {
   onLogout?: () => void;
@@ -38,6 +39,7 @@ interface AdminAppProps {
 export const AdminApp: React.FC<AdminAppProps> = () => {
   return (
     <AdminLayout>
+      <AdminErrorBoundary>
       <Switch>
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
@@ -70,6 +72,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/wasalni" component={AdminWasalniRequests} />
         <Route component={NotFound} />
       </Switch>
+      </AdminErrorBoundary>
     </AdminLayout>
   );
 };

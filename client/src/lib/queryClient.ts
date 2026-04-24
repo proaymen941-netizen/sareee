@@ -1,5 +1,33 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// اعتراض fetch عام لإضافة توكن المدير تلقائياً لجميع طلبات /api/admin/* و /api/restaurant-accounts/*
+// يضمن عمل جميع الاستدعاءات المباشرة (بدون apiRequest) بعد تفعيل المصادقة في الخادم.
+if (typeof window !== 'undefined' && !(window as any).__adminFetchPatched) {
+  const originalFetch = window.fetch.bind(window);
+  (window as any).__adminFetchPatched = true;
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    try {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL ? input.toString() : (input as Request).url;
+      const needsAdminAuth = url.includes('/api/admin/')
+        || url.includes('/api/restaurant-accounts/')
+        || url.includes('/api/flutter/');
+      if (needsAdminAuth) {
+        const token = localStorage.getItem('admin_token');
+        if (token) {
+          const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : {}));
+          if (!headers.has('Authorization')) {
+            headers.set('Authorization', `Bearer ${token}`);
+          }
+          init = { ...(init || {}), headers };
+        }
+      }
+    } catch {}
+    return originalFetch(input as any, init);
+  };
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
