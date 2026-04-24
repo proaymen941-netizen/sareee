@@ -880,8 +880,8 @@ router.patch("/:orderId/cancel", async (req, res) => {
     const ws = req.app.get('ws');
     if (ws) {
       ws.broadcast('order_update', { 
-        orderId: id, 
-        status, 
+        orderId: orderId, 
+        status: 'cancelled', 
         orderNumber: order.orderNumber,
         type: 'regular'
       });
@@ -889,6 +889,8 @@ router.patch("/:orderId/cancel", async (req, res) => {
 
     // إنشاء إشعارات
     try {
+      const statusMessage = reason ? `تم إلغاء الطلب - السبب: ${reason}` : 'تم إلغاء الطلب';
+      
       // إشعار للعميل
       await storage.createNotification({
         type: 'order_status_update',
@@ -896,24 +898,14 @@ router.patch("/:orderId/cancel", async (req, res) => {
         message: `طلبك رقم ${order.orderNumber}: ${statusMessage}`,
         recipientType: 'customer',
         recipientId: order.customerId || order.customerPhone,
-        orderId: id,
-        isRead: false
-      });
-
-      await storage.createNotification({
-        type: 'order_cancelled',
-        title: 'تم إلغاء الطلب',
-        message: `تم إلغاء طلبك رقم ${order.orderNumber}${reason ? ': ' + reason : ''}`,
-        recipientType: 'customer',
-        recipientId: order.customerId || order.customerPhone,
-        orderId,
+        orderId: orderId,
         isRead: false
       });
 
       await storage.createOrderTracking({
         orderId,
         status: 'cancelled',
-        message: reason || 'تم إلغاء الطلب',
+        message: statusMessage,
         createdBy: cancelledBy || 'system',
         createdByType: 'system'
       });

@@ -658,8 +658,53 @@ router.put("/orders/:id/status", async (req: any, res) => {
       return res.status(404).json({ error: "الطلب غير موجود" });
     }
     
-    // Note: تتبع الطلبات (order tracking) ليس منفذاً في MemStorage بعد
-    // يمكن إضافته لاحقاً إذا لزم الأمر
+    // بث التحديث عبر WebSocket
+    const ws = req.app.get('ws');
+    if (ws) {
+      ws.broadcast('order_update', { 
+        orderId: id, 
+        status,
+        orderNumber: updatedOrder.orderNumber,
+        type: 'regular'
+      });
+    }
+
+    // إنشاء رسالة الحالة للتتبع والإشعارات
+    let statusMessage = '';
+    switch (status) {
+      case 'confirmed': statusMessage = 'تم تأكيد الطلب'; break;
+      case 'preparing': statusMessage = 'جاري تحضير الطلب'; break;
+      case 'ready': statusMessage = 'الطلب جاهز للاستلام'; break;
+      case 'picked_up': statusMessage = 'تم استلام الطلب من المطعم'; break;
+      case 'on_way': statusMessage = 'السائق في الطريق إليك'; break;
+      case 'delivered': statusMessage = 'تم تسليم الطلب بنجاح'; break;
+      case 'cancelled': statusMessage = 'تم إلغاء الطلب من قبل الإدارة'; break;
+      default: statusMessage = `تم تحديث حالة الطلب إلى ${status}`;
+    }
+
+    try {
+      // إنشاء قيد تتبع
+      await storage.createOrderTracking({
+        orderId: id,
+        status,
+        message: statusMessage,
+        createdBy: req.admin?.id || 'admin',
+        createdByType: 'admin'
+      });
+
+      // إشعار للعميل
+      await storage.createNotification({
+        type: 'order_status_update',
+        title: 'تحديث حالة الطلب',
+        message: `طلبك رقم ${updatedOrder.orderNumber}: ${statusMessage}`,
+        recipientType: 'customer',
+        recipientId: updatedOrder.customerId || updatedOrder.customerPhone,
+        orderId: id,
+        isRead: false
+      });
+    } catch (err) {
+      console.error("Error creating tracking/notification in admin update:", err);
+    }
     
     res.json(updatedOrder);
   } catch (error) {

@@ -78,6 +78,10 @@ export interface IStorage {
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined>;
 
+  // Wasalni
+  getWasalniRequest(id: string): Promise<any | undefined>;
+  updateWasalniRequest(id: string, data: any): Promise<any | undefined>;
+
   // Drivers
   getDrivers(): Promise<Driver[]>;
   getAllDrivers(): Promise<Driver[]>;
@@ -1027,6 +1031,14 @@ export class MemStorage implements IStorage {
     const updated = { ...existing, ...order };
     this.orders.set(id, updated);
     return updated;
+  }
+
+  async getWasalniRequest(id: string): Promise<any | undefined> {
+    return undefined; // Not implemented for MemStorage
+  }
+
+  async updateWasalniRequest(id: string, data: any): Promise<any | undefined> {
+    return undefined; // Not implemented for MemStorage
   }
 
   // Drivers مع الحقول الجديدة

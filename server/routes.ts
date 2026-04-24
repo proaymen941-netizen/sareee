@@ -375,9 +375,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/:id/track", async (req, res) => {
     try {
       const { id } = req.params;
-      const order = await storage.getOrder(id);
+      let orderData = await storage.getOrder(id);
+      let isWaselLi = false;
+
+      // If not found in regular orders, check wasalni requests
+      if (!orderData) {
+        const wasalniOrder = await storage.getWasalniRequest(id);
+        if (wasalniOrder) {
+          isWaselLi = true;
+          // Map wasalni structure to order structure for tracking page
+          orderData = {
+            ...wasalniOrder,
+            orderNumber: wasalniOrder.requestNumber,
+            deliveryAddress: wasalniOrder.toAddress,
+            customerLocationLat: wasalniOrder.toLat,
+            customerLocationLng: wasalniOrder.toLng,
+            total: wasalniOrder.estimatedFee,
+            items: [], // Wasalni has no items list usually
+            isWaselLi: true,
+            pickupAddress: wasalniOrder.fromAddress,
+            pickupLocationLat: wasalniOrder.fromLat,
+            pickupLocationLng: wasalniOrder.fromLng,
+            waselLiItemType: wasalniOrder.orderType,
+            restaurantName: "وصل لي"
+          };
+        }
+      }
       
-      if (!order) {
+      if (!orderData) {
         return res.status(404).json({ error: "الطلب غير موجود" });
       }
 
@@ -394,54 +419,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       if (tracking.length === 0) {
-        const baseTime = new Date(order.createdAt);
+        const baseTime = new Date(orderData.createdAt);
         
-        if (order.status === 'pending' || order.status === 'confirmed' || order.status === 'preparing' || 
-            order.status === 'on_way' || order.status === 'delivered') {
+        if (orderData.status === 'pending' || orderData.status === 'confirmed' || orderData.status === 'preparing' || 
+            orderData.status === 'on_way' || orderData.status === 'delivered') {
           tracking.push({
             id: '1',
             status: 'pending',
-            message: 'تم استلام الطلب',
+            message: isWaselLi ? 'تم استلام طلب وصل لي' : 'تم استلام الطلب',
             timestamp: baseTime,
             createdByType: 'system'
           });
         }
         
-        if (order.status === 'confirmed' || order.status === 'preparing' || order.status === 'on_way' || order.status === 'delivered') {
+        if (orderData.status === 'confirmed' || orderData.status === 'preparing' || orderData.status === 'on_way' || orderData.status === 'delivered') {
           tracking.push({
             id: '2',
             status: 'confirmed',
-            message: 'تم تأكيد الطلب من المطعم',
+            message: isWaselLi ? 'تم قبول طلبك وجاري تعيين سائق' : 'تم تأكيد الطلب من المطعم',
             timestamp: new Date(baseTime.getTime() + 5 * 60000),
-            createdByType: 'restaurant'
+            createdByType: isWaselLi ? 'system' : 'restaurant'
           });
         }
         
-        if (order.status === 'preparing' || order.status === 'on_way' || order.status === 'delivered') {
+        if (orderData.status === 'preparing' || orderData.status === 'on_way' || orderData.status === 'delivered') {
           tracking.push({
             id: '3',
             status: 'preparing',
-            message: 'جاري تحضير الطلب',
+            message: isWaselLi ? 'السائق في الطريق لنقطة الاستلام' : 'جاري تحضير الطلب',
             timestamp: new Date(baseTime.getTime() + 10 * 60000),
-            createdByType: 'restaurant'
+            createdByType: isWaselLi ? 'driver' : 'restaurant'
           });
         }
         
-        if (order.status === 'on_way' || order.status === 'delivered') {
+        if (orderData.status === 'on_way' || orderData.status === 'delivered') {
           tracking.push({
             id: '4',
             status: 'on_way',
-            message: 'الطلب في الطريق إليك',
+            message: isWaselLi ? 'السائق استلم الغرض وهو في الطريق إليك' : 'الطلب في الطريق إليك',
             timestamp: new Date(baseTime.getTime() + 20 * 60000),
             createdByType: 'driver'
           });
         }
         
-        if (order.status === 'delivered') {
+        if (orderData.status === 'delivered') {
           tracking.push({
             id: '5',
             status: 'delivered',
-            message: 'تم تسليم الطلب بنجاح',
+            message: isWaselLi ? 'تم توصيل طلب وصل لي بنجاح' : 'تم تسليم الطلب بنجاح',
             timestamp: new Date(baseTime.getTime() + 35 * 60000),
             createdByType: 'driver'
           });
@@ -451,16 +476,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse items if they're stored as JSON string
       let parsedItems = [];
       try {
-        parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        parsedItems = typeof orderData.items === 'string' ? JSON.parse(orderData.items) : orderData.items;
       } catch (e) {
         parsedItems = [];
       }
 
       res.json({
         order: {
-          ...order,
+          ...orderData,
           items: parsedItems,
-          total: parseFloat(order.total || '0')
+          total: parseFloat(orderData.total || '0')
         },
         tracking
       });
