@@ -339,7 +339,7 @@ router.post("/location", requireDriverAuth, async (req: AuthenticatedRequest, re
 
     const ws = req.app.get('ws');
     if (ws) {
-      ws.broadcast('driver_location_update', {
+      ws.broadcast('driver_location', {
         driverId,
         latitude,
         longitude,
@@ -490,7 +490,7 @@ router.post("/location", requireDriverAuth, async (req: AuthenticatedRequest, re
 
     const ws = req.app.get('ws');
     if (ws) {
-      ws.broadcast('driver_location_update', {
+      ws.broadcast('driver_location', {
         driverId,
         latitude,
         longitude,
