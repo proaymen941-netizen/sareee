@@ -1,15 +1,44 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUiSettings } from '@/context/UiSettingsContext';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
+import { prefetchBootstrap } from '@/lib/bootstrap';
 
 interface SplashScreenProps {
   onFinish: () => void;
 }
 
+const MIN_SPLASH_MS = 900;   // الحد الأدنى لعرض الشاشة لتجنب الوميض
+const MAX_BOOTSTRAP_MS = 6000; // أقصى انتظار لتحميل البيانات قبل تفعيل الزر
+
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const { getSetting, loading: settingsLoading } = useUiSettings();
+  const { user } = useAuth();
   const [show, setShow] = useState(true);
+  const [ready, setReady] = useState(false);
+
+  // تحميل بيانات التطبيق من الخادم أثناء عرض السبلاش لتجنب التأخير لاحقاً
+  useEffect(() => {
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const phone = user?.phone || localStorage.getItem('customer_phone') || '';
+    const customerId = user?.id || '';
+
+    const bootPromise = prefetchBootstrap({ phone, customerId, force: true });
+    const timeoutPromise = new Promise(resolve => setTimeout(resolve, MAX_BOOTSTRAP_MS));
+
+    Promise.race([bootPromise, timeoutPromise]).finally(() => {
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
+      setTimeout(() => {
+        if (!cancelled) setReady(true);
+      }, remaining);
+    });
+
+    return () => { cancelled = true; };
+  }, [user?.id, user?.phone]);
 
   if (settingsLoading) {
     return (
@@ -68,12 +97,22 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         </div>
 
         <div className="w-full max-w-sm pb-10 md:pb-16">
-          <Button 
+          <Button
             onClick={handleStart}
-            className="w-full h-16 md:h-20 rounded-[2rem] text-xl md:text-2xl font-black bg-primary hover:bg-primary/90 text-white shadow-[0_20px_50px_rgba(236,72,20,0.3)] flex items-center justify-center gap-4 active:scale-95 transition-all group"
+            disabled={!ready}
+            className="w-full h-16 md:h-20 rounded-[2rem] text-xl md:text-2xl font-black bg-primary hover:bg-primary/90 text-white shadow-[0_20px_50px_rgba(236,72,20,0.3)] flex items-center justify-center gap-4 active:scale-95 transition-all group disabled:opacity-80 disabled:cursor-not-allowed"
           >
-            {buttonText}
-            <ChevronLeft className="h-7 w-7 group-hover:-translate-x-2 transition-transform" />
+            {ready ? (
+              <>
+                {buttonText}
+                <ChevronLeft className="h-7 w-7 group-hover:-translate-x-2 transition-transform" />
+              </>
+            ) : (
+              <>
+                <Loader2 className="h-6 w-6 animate-spin" />
+                جاري التحميل...
+              </>
+            )}
           </Button>
         </div>
       </div>
