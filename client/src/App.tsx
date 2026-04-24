@@ -18,6 +18,7 @@ import AdminApp from "./pages/AdminApp";
 import DriverAppPage from "./pages/driver/DriverApp";
 import { useState, useEffect } from "react";
 import { useSettingsSync } from "./hooks/useSettingsSync";
+import { prefetchBootstrap } from "./lib/bootstrap";
 import HomePage from "./pages/HomePage";
 import RestaurantPage from "./pages/RestaurantPage";
 import Cart from "./pages/Cart";
@@ -46,7 +47,16 @@ function MainApp() {
     return localStorage.getItem('is_guest') === 'true';
   });
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+
+  // Pre-warm caches on cold start (covers users who already saw splash this session)
+  useEffect(() => {
+    if (!showSplash) {
+      const phone = user?.phone || localStorage.getItem('customer_phone') || '';
+      const customerId = user?.id || '';
+      prefetchBootstrap({ phone, customerId });
+    }
+  }, [showSplash, user?.id, user?.phone]);
 
   // Handle splash finish
   const handleSplashFinish = () => {
