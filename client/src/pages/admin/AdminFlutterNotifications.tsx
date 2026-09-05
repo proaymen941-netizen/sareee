@@ -4,7 +4,7 @@ import {
   Bell, Send, Smartphone, Users, CheckCircle, Trash2,
   History, Filter, RefreshCw, Globe, Truck, User, Info,
   Tag, AlertTriangle, ShoppingBag, CreditCard, BarChart2,
-  Users as UsersIcon, Clock, Target, Gift
+  Users as UsersIcon, Clock, Target, Gift, MessageSquare, Phone, ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -93,6 +93,129 @@ export default function AdminNotifications() {
       title: marketingForm.title,
       message: marketingForm.message,
       type: marketingForm.type
+    });
+  };
+
+  const [whatsappForm, setWhatsappForm] = useState({
+    message: 'مرحباً {name}! لدينا رسالة إدارية أو عروض مميزة بانتظارك اليوم 🛍️',
+    group: 'customers', // 'customers' | 'employees' | 'drivers'
+    scope: 'all', // 'all' | 'inactive' | <id>
+  });
+
+  const { data: allCustomers = [] } = useQuery({
+    queryKey: ['/api/admin/marketing/customers'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/marketing/customers');
+      return res.json();
+    },
+    enabled: activeTab === 'marketing',
+  });
+
+  const { data: allEmployees = [] } = useQuery({
+    queryKey: ['/api/admin/marketing/employees'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/marketing/employees');
+      return res.json();
+    },
+    enabled: activeTab === 'marketing',
+  });
+
+  const { data: allDrivers = [] } = useQuery({
+    queryKey: ['/api/admin/marketing/drivers'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/marketing/drivers');
+      return res.json();
+    },
+    enabled: activeTab === 'marketing',
+  });
+
+  const sendWhatsAppCampaignMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/admin/marketing/whatsapp-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'فشل في الإرسال');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: 'حملة ناجحة 🚀', description: data.message });
+      setWhatsappForm(f => ({ ...f, message: '' }));
+    },
+    onError: (err: any) => {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+  });
+
+  const handleSendWhatsAppCampaign = (channel: 'whatsapp' | 'sms', method: 'server' | 'manual' = 'manual') => {
+    let list: any[] = [];
+    if (whatsappForm.group === 'customers') {
+      if (whatsappForm.scope === 'inactive') {
+        list = inactiveUsers;
+      } else if (whatsappForm.scope === 'all') {
+        list = allCustomers;
+      } else {
+        const found = allCustomers.find((c: any) => c.id === whatsappForm.scope);
+        if (found) list = [found];
+      }
+    } else if (whatsappForm.group === 'employees') {
+      if (whatsappForm.scope === 'all') {
+        list = allEmployees;
+      } else {
+        const found = allEmployees.find((e: any) => e.id === whatsappForm.scope);
+        if (found) list = [found];
+      }
+    } else if (whatsappForm.group === 'drivers') {
+      if (whatsappForm.scope === 'all') {
+        list = allDrivers;
+      } else {
+        const found = allDrivers.find((d: any) => d.id === whatsappForm.scope);
+        if (found) list = [found];
+      }
+    }
+
+    if (list.length === 0) {
+      toast({ title: 'تنبيه', description: 'لا توجد أرقام مستهدفة مطابقة للإرسال', variant: 'destructive' });
+      return;
+    }
+    
+    const validRecipients = list.filter(c => c.phone).map(c => ({ name: c.name, phone: c.phone }));
+    if (validRecipients.length === 0) {
+      toast({ title: 'تنبيه', description: 'لا توجد أرقام هواتف للمستهدفين', variant: 'destructive' });
+      return;
+    }
+
+    if (method === 'server') {
+      sendWhatsAppCampaignMutation.mutate({
+        channel,
+        method: 'server',
+        recipients: validRecipients,
+        message: whatsappForm.message
+      });
+      return;
+    }
+
+    let count = 0;
+    validRecipients.forEach((c: any, index: number) => {
+      const phone = c.phone.replace(/[^0-9+]/g, '');
+      const msg = whatsappForm.message.replace(/{name}/g, c.name || 'عزيزنا');
+      
+      if (channel === 'whatsapp') {
+        setTimeout(() => {
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }, index * 350);
+      } else {
+        setTimeout(() => {
+          window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, '_blank');
+        }, index * 350);
+      }
+      count++;
+    });
+
+    toast({
+      title: `تم بدء حملة ${channel === 'whatsapp' ? 'الواتساب' : 'الرسائل النصية SMS'} 🚀`,
+      description: `تم فتح نوافذ الإرسال اليدوي لـ ${count} مستلم بنجاح`
     });
   };
 
@@ -354,6 +477,140 @@ export default function AdminNotifications() {
               </Card>
             </div>
           </div>
+
+          {/* WhatsApp & SMS Marketing Card */}
+          <Card className="border-2 border-green-500/20 shadow-lg mt-6">
+            <CardHeader className="bg-green-50 border-b">
+              <CardTitle className="flex items-center gap-2 text-green-900">
+                <MessageSquare className="h-5 w-5 text-green-600" />
+                ربط وحملات الواتساب والرسائل النصية (SMS) للعملاء، الموظفين، والسائقين
+              </CardTitle>
+              <CardDescription>إرسال رسائل جماعية أو فردية عبر الواتساب أو SMS لكل فئات النظام المسجلة</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="font-bold">فئة المستهدفين الرئيسية</Label>
+                  <Select 
+                    value={whatsappForm.group} 
+                    onValueChange={(v) => setWhatsappForm(f => ({...f, group: v, scope: 'all'}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الفئة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="customers">العملاء ({allCustomers.length})</SelectItem>
+                      <SelectItem value="employees">الموظفون ({allEmployees.length})</SelectItem>
+                      <SelectItem value="drivers">السائقون ({allDrivers.length})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="font-bold">نطاق الإرسال (جماعي أو فردي)</Label>
+                  <Select 
+                    value={whatsappForm.scope} 
+                    onValueChange={(v) => setWhatsappForm(f => ({...f, scope: v}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر النطاق" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {whatsappForm.group === 'customers' && (
+                        <>
+                          <SelectItem value="all">جميع العملاء ({allCustomers.length})</SelectItem>
+                          <SelectItem value="inactive">العملاء غير النشطين ({inactiveUsers.length})</SelectItem>
+                          {allCustomers.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>عميل: {c.name || c.phone}</SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {whatsappForm.group === 'employees' && (
+                        <>
+                          <SelectItem value="all">جميع الموظفين ({allEmployees.length})</SelectItem>
+                          {allEmployees.map((e: any) => (
+                            <SelectItem key={e.id} value={e.id}>موظف: {e.name || e.email}</SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {whatsappForm.group === 'drivers' && (
+                        <>
+                          <SelectItem value="all">جميع السائقين ({allDrivers.length})</SelectItem>
+                          {allDrivers.map((d: any) => (
+                            <SelectItem key={d.id} value={d.id}>سائق: {d.name || d.phone}</SelectItem>
+                          ))}
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-end">
+                  <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg border w-full">
+                    💡 استخدم المتغير <code className="bg-gray-200 px-1 py-0.5 rounded font-mono text-green-700">{`{name}`}</code> لاسم المستلم.
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="font-bold">نص رسالة الواتساب / SMS</Label>
+                <Textarea 
+                  placeholder="اكتب رسالتك هنا..." 
+                  className="min-h-[110px]"
+                  value={whatsappForm.message}
+                  onChange={e => setWhatsappForm(f => ({...f, message: e.target.value}))}
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-3 p-4">
+              <div className="text-sm text-gray-600">
+                إجمالي المستهدفين بالحملة: <span className="font-bold text-green-600">
+                  {whatsappForm.group === 'customers' && (whatsappForm.scope === 'inactive' ? inactiveUsers.length : whatsappForm.scope === 'all' ? allCustomers.length : 1)}
+                  {whatsappForm.group === 'employees' && (whatsappForm.scope === 'all' ? allEmployees.length : 1)}
+                  {whatsappForm.group === 'drivers' && (whatsappForm.scope === 'all' ? allDrivers.length : 1)} مستلم برقم هاتف
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => handleSendWhatsAppCampaign('sms', 'manual')}
+                    variant="outline"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                  >
+                    <Smartphone className="h-4 w-4" />
+                    SMS يدوي
+                  </Button>
+                  <Button 
+                    onClick={() => handleSendWhatsAppCampaign('sms', 'server')}
+                    variant="outline"
+                    className="bg-blue-600 text-white hover:bg-blue-700 gap-2"
+                    disabled={sendWhatsAppCampaignMutation.isPending}
+                  >
+                    <Send className="h-4 w-4" />
+                    SMS عبر الخادم
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => handleSendWhatsAppCampaign('whatsapp', 'manual')}
+                    variant="outline"
+                    className="border-green-300 text-green-700 hover:bg-green-50 gap-2"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    واتساب يدوي
+                  </Button>
+                  <Button 
+                    onClick={() => handleSendWhatsAppCampaign('whatsapp', 'server')}
+                    className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                    disabled={sendWhatsAppCampaignMutation.isPending}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    واتساب عبر الخادم (API)
+                  </Button>
+                </div>
+              </div>
+            </CardFooter>
+          </Card>
         </TabsContent>
 
         {/* ── تبويب الإرسال ── */}

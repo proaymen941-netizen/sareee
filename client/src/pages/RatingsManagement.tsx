@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Check, X, Eye } from 'lucide-react';
 
-interface Rating {
-  id: string;
-  orderId?: string;
-  restaurantId?: string;
-  customerName: string;
-  customerPhone?: string;
-  rating: number;
-  comment?: string;
-  isApproved: boolean;
-  createdAt: string;
-}
+  interface Rating {
+    id: string;
+    orderId?: string;
+    restaurantId?: string;
+    driverId?: string;
+    type?: string;
+    customerName: string;
+    customerPhone?: string;
+    restaurantName?: string;
+    driverName?: string;
+    orderNumber?: string;
+    rating: number;
+    comment?: string;
+    isApproved: boolean;
+    createdAt: string;
+  }
 
 export default function RatingsManagement() {
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -42,12 +47,12 @@ export default function RatingsManagement() {
     }
   };
 
-  const handleApprove = async (id: string, approved: boolean) => {
+  const handleApprove = async (rating: Rating, approved: boolean) => {
     try {
-      const response = await fetch(`/api/ratings/${id}/approve`, {
+      const response = await fetch(`/api/ratings/${rating.id}/approve`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approved })
+        body: JSON.stringify({ approved, type: rating.type })
       });
       
       if (response.ok) {
@@ -58,11 +63,11 @@ export default function RatingsManagement() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (rating: Rating) => {
     if (!confirm('هل أنت متأكد من حذف هذا التقييم؟')) return;
     
     try {
-      const response = await fetch(`/api/ratings/${id}`, {
+      const response = await fetch(`/api/ratings/${rating.id}${rating.type === 'driver' ? '?type=driver' : ''}`, {
         method: 'DELETE'
       });
       
@@ -128,7 +133,8 @@ export default function RatingsManagement() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">العميل</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">العميل / الطلب</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الجهة المقيّمة</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">التقييم</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">التعليق</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الحالة</th>
@@ -139,11 +145,11 @@ export default function RatingsManagement() {
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center">جاري التحميل...</td>
+                  <td colSpan={7} className="px-6 py-4 text-center">جاري التحميل...</td>
                 </tr>
               ) : ratings.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
                     لا توجد تقييمات
                   </td>
                 </tr>
@@ -156,6 +162,17 @@ export default function RatingsManagement() {
                         {rating.customerPhone && (
                           <div className="text-sm text-gray-500">{rating.customerPhone}</div>
                         )}
+                        {rating.orderNumber && (
+                          <div className="text-xs text-blue-600 mt-1 font-mono">{rating.orderNumber}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <span className={`px-2 py-1 text-[10px] font-bold rounded-full ${rating.type === 'driver' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                          {rating.type === 'driver' ? 'سائق' : 'متجر'}
+                        </span>
+                        <div className="text-sm text-gray-800 mt-1 font-medium">{rating.type === 'driver' ? rating.driverName : rating.restaurantName}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -187,7 +204,7 @@ export default function RatingsManagement() {
                       <div className="flex space-x-2">
                         {!rating.isApproved && (
                           <button
-                            onClick={() => handleApprove(rating.id, true)}
+                            onClick={() => handleApprove(rating, true)}
                             className="text-green-600 hover:text-green-900"
                             title="اعتماد"
                           >
@@ -196,7 +213,7 @@ export default function RatingsManagement() {
                         )}
                         {rating.isApproved && (
                           <button
-                            onClick={() => handleApprove(rating.id, false)}
+                            onClick={() => handleApprove(rating, false)}
                             className="text-orange-600 hover:text-orange-900"
                             title="إلغاء الاعتماد"
                           >
@@ -204,7 +221,7 @@ export default function RatingsManagement() {
                           </button>
                         )}
                         <button
-                          onClick={() => handleDelete(rating.id)}
+                          onClick={() => handleDelete(rating)}
                           className="text-red-600 hover:text-red-900"
                           title="حذف"
                         >

@@ -544,6 +544,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: UserCog, label: 'الموارد البشرية', path: '/admin/hr-management', permission: 'manage_customers' },
         { icon: Users, label: 'العملاء', path: '/admin/users', permission: 'manage_customers' },
         { icon: Shield, label: 'الأمن والخصوصية', path: '/admin/security', permission: 'manage_settings' },
+        { icon: FileText, label: 'تقارير نشاط المشرفين', path: '/admin/supervisor-reports', permission: 'manage_settings' },
         { icon: Bell, label: 'الإشعارات', path: '/admin/notifications', permission: 'manage_settings' },
         { icon: Bike, label: 'طلبات وصل لي', path: '/admin/wasalni', badge: pendingWasalniCount, permission: 'manage_orders' },
       ].filter(item => hasPermission(item.permission))

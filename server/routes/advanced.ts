@@ -2,7 +2,8 @@
 import express from "express";
 import { storage } from "../storage";
 import { AdvancedDatabaseStorage } from "../db-advanced";
-import { DatabaseStorage } from "../db";
+import { DatabaseStorage, db } from "../db";
+import { adminUsers } from "@shared/schema";
 import { z } from "zod";
 import { coerceRequestData } from "../utils/coercion";
 
@@ -495,8 +496,47 @@ export function registerAdvancedRoutes(app: express.Express) {
         endDate: endDate ? new Date(endDate as string) : undefined
       });
 
-      res.json(logs.slice(0, 100));
+      // Fetch all admins to map names
+      const allAdmins = await db.select().from(adminUsers).catch(() => []);
+      const adminMap = Object.fromEntries(allAdmins.map((a: any) => [a.id, a.name]));
+
+      const mappedLogs = logs.map(log => {
+        let actionDesc = 'عملية';
+        if (log.action.startsWith('create_')) actionDesc = 'إضافة';
+        else if (log.action.startsWith('update_')) actionDesc = 'تحديث';
+        else if (log.action.startsWith('delete_')) actionDesc = 'حذف';
+        else if (log.action === 'login') actionDesc = 'تسجيل دخول';
+        else actionDesc = log.action;
+        
+        let entityName = log.entityType;
+        const eMap: Record<string, string> = {
+          'categories': 'تصنيف',
+          'restaurants': 'مطعم',
+          'menu-items': 'عنصر قائمة',
+          'users': 'مستخدم',
+          'customers': 'عميل',
+          'drivers': 'سائق',
+          'sub-admins': 'مشرف',
+          'orders': 'طلب',
+          'special-offers': 'عرض خاص',
+          'coupons': 'كوبون'
+        };
+        entityName = eMap[entityName] || entityName;
+
+        return {
+          id: log.id,
+          createdAt: log.createdAt,
+          userId: adminMap[log.adminId] || log.adminId || 'نظام',
+          action: actionDesc,
+          entityType: entityName,
+          description: `قام بـ ${actionDesc} ${entityName}`,
+          status: 'success'
+        };
+      });
+
+      res.json(mappedLogs.slice(0, 100));
     } catch (error) {
+      console.error("Error fetching audit logs:", error);
       res.status(500).json({ error: "Failed to fetch audit logs" });
     }
   });
@@ -702,6 +742,172 @@ export function registerAdvancedRoutes(app: express.Express) {
     } catch (error) {
       console.error("Error sending mass notification:", error);
       res.status(500).json({ error: "Failed to send notifications" });
+    }
+  });
+
+  // Get all customers for WhatsApp / SMS marketing
+  app.get("/api/admin/marketing/customers", async (req, res) => {
+    try {
+      const allUsers = await storage.getUsers();
+      const customers = allUsers.map(u => ({
+        id: u.id,
+        name: u.name,
+        phone: u.phone,
+        email: u.email,
+        createdAt: u.createdAt,
+      }));
+      res.json(customers);
+    } catch (error) {
+      console.error("Error fetching customers for marketing:", error);
+      res.status(500).json({ error: "Failed to fetch customers" });
+    }
+  });
+
+  // Get all employees (adminUsers) for WhatsApp / SMS marketing
+  app.get("/api/admin/marketing/employees", async (req, res) => {
+    try {
+      const allAdmins = await db.select().from(adminUsers).catch(() => []);
+      const employees = allAdmins.map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        phone: a.phone || '',
+        email: a.email,
+        role: a.userType,
+      })).filter((e: any) => e.phone);
+      res.json(employees);
+    } catch (error) {
+      console.error("Error fetching employees for marketing:", error);
+      res.status(500).json({ error: "Failed to fetch employees" });
+    }
+  });
+
+  // Get all drivers for WhatsApp / SMS marketing
+  app.get("/api/admin/marketing/drivers", async (req, res) => {
+    try {
+      const allDrivers = await dbStorage.getDrivers().catch(() => []);
+      const drivers = allDrivers.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        phone: d.phone || '',
+        email: d.email,
+      })).filter((d: any) => d.phone);
+      res.json(drivers);
+    } catch (error) {
+      console.error("Error fetching drivers for marketing:", error);
+      res.status(500).json({ error: "Failed to fetch drivers" });
+    }
+  });
+
+  // Send WhatsApp / SMS campaign log
+  app.post("/api/admin/marketing/whatsapp-campaign", async (req, res) => {
+    try {
+      const { recipients, message, channel = 'whatsapp', method = 'manual' } = req.body;
+      if (!recipients || !Array.isArray(recipients) || !message) {
+        return res.status(400).json({ error: "بيانات الحملة غير مكتملة" });
+      }
+
+      if (method === 'server') {
+        const settings = await (storage as any).getUiSettings();
+        const getSetting = (k: string) => settings.find((s: any) => s.key === k)?.value;
+        
+        let successCount = 0;
+        let failCount = 0;
+
+        if (channel === 'whatsapp') {
+          const waToken = getSetting('whatsapp_access_token');
+          const waPhoneId = getSetting('whatsapp_phone_number_id');
+          
+          if (!waToken || !waPhoneId) {
+            return res.status(400).json({ error: "يرجى إعداد رمز الوصول ومعرف الهاتف للواتساب في الإعدادات أولاً" });
+          }
+
+          for (const recipient of recipients) {
+            try {
+               let phone = recipient.phone.replace(/[^0-9]/g, '');
+               if (phone.startsWith('00')) phone = phone.substring(2);
+               
+               const msgContent = message.replace(/{name}/g, recipient.name || 'عزيزنا');
+               
+               // Simulate Meta WhatsApp API call
+               const waRes = await fetch(`https://graph.facebook.com/v17.0/${waPhoneId}/messages`, {
+                 method: 'POST',
+                 headers: {
+                   'Authorization': `Bearer ${waToken}`,
+                   'Content-Type': 'application/json'
+                 },
+                 body: JSON.stringify({
+                   messaging_product: "whatsapp",
+                   to: phone,
+                   type: "text",
+                   text: { body: msgContent }
+                 })
+               });
+
+               if (waRes.ok) {
+                 successCount++;
+               } else {
+                 failCount++;
+                 console.error("WhatsApp API Error:", await waRes.text());
+               }
+            } catch (err) {
+               failCount++;
+            }
+          }
+        } else if (channel === 'sms') {
+          const smsGateway = getSetting('otp_sms_provider_url');
+
+          if (!smsGateway) {
+            return res.status(400).json({ error: "يرجى إعداد مزود SMS في إعدادات النظام أولاً" });
+          }
+
+          for (const recipient of recipients) {
+             let phone = recipient.phone.replace(/[^0-9]/g, '');
+             const msgContent = message.replace(/{name}/g, recipient.name || 'عزيزنا');
+             
+             // Simulate SMS Gateway call
+             try {
+                // If it's a GET request format in URL
+                if (smsGateway.includes('{phone}') || smsGateway.includes('{msg}')) {
+                   const finalUrl = smsGateway
+                     .replace('{phone}', phone)
+                     .replace('{msg}', encodeURIComponent(msgContent));
+                   await fetch(finalUrl);
+                }
+                successCount++;
+             } catch (err) {
+                failCount++;
+             }
+          }
+        }
+
+        // Insert into audit logs
+        try {
+          await db.insert(auditLogs).values({
+            adminId: req.admin?.id || '00000000-0000-0000-0000-000000000000',
+            action: `send_mass_${channel}`,
+            entityType: 'marketing',
+            entityId: '00000000-0000-0000-0000-000000000000',
+            newData: JSON.stringify({ successCount, failCount }),
+            ipAddress: req.ip || 'unknown'
+          });
+        } catch (e) {}
+
+        return res.json({
+          success: true,
+          message: `تم الإرسال التلقائي عبر الخادم. نجاح: ${successCount}، فشل: ${failCount}`,
+          count: successCount
+        });
+      }
+
+      // Log or process campaign dispatch (Manual)
+      res.json({
+        success: true,
+        message: `تم فتح نوافذ الإرسال اليدوي لـ ${recipients.length} مستلم بنجاح`,
+        count: recipients.length
+      });
+    } catch (error) {
+      console.error("Error sending WhatsApp campaign:", error);
+      res.status(500).json({ error: "Failed to send WhatsApp campaign" });
     }
   });
 }

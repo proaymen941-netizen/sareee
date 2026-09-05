@@ -335,6 +335,47 @@ router.get("/notifications/stats", async (req, res) => {
   }
 });
 
+// POST /api/flutter/device-token
+// يُستخدم لتسجيل توكن الجهاز (FCM) للإشعارات
+router.post("/device-token", async (req, res) => {
+  try {
+    const { token, platform, userId, driverId } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ error: "Token is required" });
+    }
+
+    const db = getDb();
+    
+    // Check if token already exists
+    const [existing] = await db.select().from(deviceTokens).where(eq(deviceTokens.token, token));
+    
+    if (existing) {
+      await db.update(deviceTokens)
+        .set({ 
+          userId: userId || existing.userId,
+          driverId: driverId || existing.driverId,
+          isActive: true,
+          updatedAt: new Date()
+        })
+        .where(eq(deviceTokens.id, existing.id));
+    } else {
+      await db.insert(deviceTokens).values({
+        token,
+        platform: platform || 'android',
+        userId: userId || null,
+        driverId: driverId || null,
+        isActive: true
+      });
+    }
+
+    res.json({ success: true, message: "Token registered successfully" });
+  } catch (error) {
+    console.error("Error registering device token:", error);
+    res.status(500).json({ success: false, message: "خطأ في الخادم" });
+  }
+});
+
 // GET /api/flutter/device-tokens
 // يُعيد قائمة الأجهزة المسجّلة (للمشرف)
 router.get("/device-tokens", async (req, res) => {

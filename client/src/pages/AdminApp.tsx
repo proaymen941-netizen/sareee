@@ -12,6 +12,7 @@ import AdminUiSettings from "./admin/AdminUiSettings";
 import AdminFinancialReports from "./AdminFinancialReports";
 import AdminHRManagement from "./AdminHRManagement";
 import AdminSecurity from "./AdminSecurity";
+import AdminSupervisorReports from "./admin/AdminSupervisorReports";
 import AdminDashboard from "./admin/AdminDashboard";
 import AdminDeliveryFees from "./admin/AdminDeliveryFees";
 import AdminBackup from "./admin/AdminBackup";
@@ -59,6 +60,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/financial-reports" component={AdminFinancialReports} />
         <Route path="/admin/hr-management" component={AdminHRManagement} />
         <Route path="/admin/security" component={AdminSecurity} />
+        <Route path="/admin/supervisor-reports" component={AdminSupervisorReports} />
         <Route path="/admin/ui-settings" component={AdminUiSettings} />
         <Route path="/admin/settings" component={() => { const [, setLocation] = useLocation(); React.useEffect(() => { setLocation('/admin/ui-settings'); }, []); return null; }} />
         <Route path="/admin/ratings" component={RatingsManagement} />

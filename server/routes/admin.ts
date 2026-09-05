@@ -110,6 +110,59 @@ router.use(async (req: any, res, next) => {
   next();
 });
 
+// Middleware لتسجيل العمليات (Audit Logging)
+router.use((req: any, res: any, next: any) => {
+  res.on('finish', async () => {
+    // Only log state-changing operations that succeed
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method) && res.statusCode >= 200 && res.statusCode < 300) {
+      if (req.admin && req.path) {
+        // Skip auth related paths to avoid logging sensitive data
+        if (req.path.includes('/login') || req.path.includes('/auth') || req.path.includes('/upload')) return;
+
+        let action = req.method;
+        if (req.method === 'POST') action = 'create';
+        else if (req.method === 'PUT' || req.method === 'PATCH') action = 'update';
+        else if (req.method === 'DELETE') action = 'delete';
+
+        const pathParts = req.path.split('/').filter(Boolean);
+        const entityType = pathParts[0] || 'system';
+        
+        // Attempt to find an entity ID
+        let entityId = req.params?.id || req.body?.id || req.query?.id;
+        
+        // Must be a valid UUID, otherwise use a placeholder
+        if (!entityId || typeof entityId !== 'string' || !entityId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            entityId = '00000000-0000-0000-0000-000000000000';
+        }
+
+        const adminIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().substring(0, 50);
+        
+        let newData = null;
+        if (req.method !== 'DELETE' && req.body) {
+           const safeBody = { ...req.body };
+           delete safeBody.password;
+           const jsonString = JSON.stringify(safeBody);
+           newData = jsonString.length > 2000 ? jsonString.substring(0, 2000) + '...' : jsonString;
+        }
+
+        try {
+          await db.insert(auditLogs).values({
+            adminId: req.admin.id,
+            action: `${action}_${entityType}`,
+            entityType: entityType.substring(0, 50),
+            entityId: entityId,
+            newData: newData,
+            ipAddress: adminIp
+          });
+        } catch (err) {
+          console.error("Failed to insert audit log:", err);
+        }
+      }
+    }
+  });
+  next();
+});
+
 // دالة للتحقق من صلاحيات المدير الفرعي
 function requirePermission(permission: string) {
   return (req: any, res: any, next: any) => {
@@ -3431,6 +3484,35 @@ router.post("/security/log-logout", async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.get("/supervisor-activity-reports", async (req, res) => {
+  try {
+    const logs = await db
+      .select({
+        id: auditLogs.id,
+        adminId: auditLogs.adminId,
+        action: auditLogs.action,
+        entityType: auditLogs.entityType,
+        entityId: auditLogs.entityId,
+        ipAddress: auditLogs.ipAddress,
+        createdAt: auditLogs.createdAt,
+        oldData: auditLogs.oldData,
+        newData: auditLogs.newData,
+        adminName: adminUsers.name,
+        adminEmail: adminUsers.email,
+        userType: adminUsers.userType,
+      })
+      .from(auditLogs)
+      .leftJoin(adminUsers, eq(auditLogs.adminId, adminUsers.id))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(500);
+
+    res.json(logs);
+  } catch (error) {
+    console.error("Error fetching supervisor activity reports:", error);
+    res.status(500).json({ error: "فشل جلب تقارير نشاط المشرفين" });
   }
 });
 
