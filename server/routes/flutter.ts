@@ -1,24 +1,13 @@
 import express from "express";
 import { storage } from "../storage.js";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { db } from "../db.js";
 import { deviceTokens, notifications } from "../../shared/schema.js";
 import { eq, and, gt, desc, or } from "drizzle-orm";
 
 const router = express.Router();
 
-let _db: ReturnType<typeof drizzle> | null = null;
-
 function getDb() {
-  if (_db) return _db;
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set");
-  const isCloudProvider = url.includes("render.com") || url.includes("dpg-") || url.includes("neon.tech") || url.includes("supabase") || url.includes("aws");
-  const hasSslMode = url.includes("sslmode=") || url.includes("ssl=");
-  const ssl = (isCloudProvider || hasSslMode || process.env.NODE_ENV === "production" || process.env.DB_SSL === "true") ? { rejectUnauthorized: false } : undefined;
-  const client = postgres(url, { max: 5, ssl });
-  _db = drizzle(client);
-  return _db;
+  return db;
 }
 
 // GET /api/flutter/app-config
