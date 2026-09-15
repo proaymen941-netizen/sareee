@@ -51,6 +51,20 @@ function MainApp() {
 
   const { isAuthenticated, user } = useAuth();
 
+  // Auto-detect and route based on Native Android Bridge API Key or URL apiKey
+  useEffect(() => {
+    const key = androidBridge.getApiKey();
+    if (key) {
+      // Store key locally for subsequent API calls
+      localStorage.setItem('saree_app_api_key', key);
+      
+      // If it is a driver key and currently on customer route, route to /driver seamlessly
+      if (key.includes('driver') && !currentLocation.startsWith('/driver')) {
+        setLocation('/driver');
+      }
+    }
+  }, [currentLocation, setLocation]);
+
   // Register with Android Bridge if customer is authenticated
   useEffect(() => {
     if (isAuthenticated && user?.id) {

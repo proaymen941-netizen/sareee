@@ -135,7 +135,22 @@ export const androidBridge = {
   },
   getApiKey: (): string | null => {
     if (androidBridge.isAvailable() && window.AndroidBridge?.getApiKey) {
-      return window.AndroidBridge.getApiKey();
+      try {
+        const key = window.AndroidBridge.getApiKey();
+        if (key && typeof key === 'string' && key.trim()) {
+          return key.trim();
+        }
+      } catch (err) {
+        console.warn('AndroidBridge.getApiKey error:', err);
+      }
+    }
+    // Fallback: check query parameter or localStorage
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlKey = urlParams.get('apiKey') || urlParams.get('key');
+      if (urlKey) return urlKey;
+      const storedKey = localStorage.getItem('saree_app_api_key');
+      if (storedKey) return storedKey;
     }
     return null;
   }

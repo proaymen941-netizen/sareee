@@ -4,7 +4,7 @@ import {
   Save, Settings, Eye, Image as ImageIcon, Smartphone, Truck, 
   MessageCircle, Phone, Share2, Lock, ShoppingCart, Star, Bell,
   ChevronDown, ChevronRight, Hash, Globe, Bike, AlertTriangle, ShoppingBag, Clock, ShieldCheck,
-  CheckCircle2, KeyRound, Send, RefreshCw, Info, ExternalLink, Zap
+  CheckCircle2, KeyRound, Send, RefreshCw, Info, ExternalLink, Zap, Copy, Check, Key
 } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
@@ -345,6 +345,38 @@ export default function AdminUiSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
+  const [copiedKeyTarget, setCopiedKeyTarget] = useState<string | null>(null);
+
+  const copyKeyToClipboard = (text: string, target: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKeyTarget(target);
+    toast({
+      title: "تم النسخ بنجاح",
+      description: target === 'driver' ? 'تم نسخ مفتاح تطبيق السائق' : 'تم نسخ مفتاح تطبيق العميل',
+    });
+    setTimeout(() => setCopiedKeyTarget(null), 2500);
+  };
+
+  const regenerateAppKeyMutation = useMutation({
+    mutationFn: async (target: 'customer' | 'driver') => {
+      return apiRequest('POST', '/api/admin/security/regenerate-api-key', { target });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/ui-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/security/settings'] });
+      toast({
+        title: "تم تحديث المفتاح",
+        description: data.target === 'driver' ? 'تم توليد مفتاح جديد لتطبيق السائق بنجاح' : 'تم توليد مفتاح جديد لتطبيق العميل بنجاح',
+      });
+    },
+    onError: () => {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء إعادة توليد مفتاح API",
+        variant: "destructive",
+      });
+    }
+  });
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     branding: true,
     splash: true,
@@ -592,7 +624,7 @@ export default function AdminUiSettings() {
 
       <div className="p-6 space-y-6">
         <Tabs defaultValue="customer" className="w-full">
-          <TabsList className="grid grid-cols-3 w-full mb-6 bg-orange-50 border border-orange-100">
+          <TabsList className="grid grid-cols-4 w-full mb-6 bg-orange-50 border border-orange-100">
             <TabsTrigger value="customer" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
               <Smartphone className="h-3.5 w-3.5" />
               تطبيق العميل
@@ -604,6 +636,10 @@ export default function AdminUiSettings() {
             <TabsTrigger value="store" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
               <Settings className="h-3.5 w-3.5" />
               إعدادات المتجر وساعات العمل
+            </TabsTrigger>
+            <TabsTrigger value="api_keys" className="gap-1 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white font-bold">
+              <Key className="h-3.5 w-3.5" />
+              مفاتيح API التطبيقات
             </TabsTrigger>
           </TabsList>
 
@@ -1232,6 +1268,168 @@ export default function AdminUiSettings() {
                 <SettingRow label="تنبيه المدير للطلبات المنسية" {...rowProps('notify_admin_pending_orders')} type="boolean" description="تنبيه في لوحة التحكم للطلبات التي لم تُعيَّن لسائق" />
               </CardContent>
             </Card>
+          </TabsContent>
+          {/* ===== تبويب مفاتيح API الخاصة بتطبيقات الجوال (أندرويد) ===== */}
+          <TabsContent value="api_keys" className="space-y-6">
+            <Card className="border-blue-200 bg-gradient-to-r from-blue-50/70 to-indigo-50/70 shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
+                    <Key className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base text-gray-900 font-bold">
+                      نظام توليد وإدارة مفاتيح API لتطبيقات الجوال (بدون Google أو Firebase)
+                    </CardTitle>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      يقوم النظام بتوليد والتحقق من المفاتيح ذاتياً داخل خادمك بنسبة 100% للسماح لتطبيق الأندرويد بعرض واجهات الويب والاتصال بأمان
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="text-xs text-blue-900 space-y-2 pt-0">
+                <div className="bg-white/80 p-3 rounded-lg border border-blue-100 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    <strong>طريقة العمل الذاتية:</strong> يمرر تطبيق الأندرويد المفتاح عبر <code className="bg-blue-100 px-1 py-0.5 rounded text-blue-800 font-mono">AndroidBridge.getApiKey()</code> أو ترويسة <code className="bg-blue-100 px-1 py-0.5 rounded text-blue-800 font-mono">x-api-key</code> للتحقق من هوية التطبيق تلقائياً وتوجيهه إلى الواجهة المخصصة له مباشرة وبدون أي عوائق.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* مفتاح تطبيق العميل */}
+              <Card className="border-blue-200 shadow-sm hover:border-blue-300 transition-all">
+                <CardHeader className="bg-blue-50/50 border-b border-blue-100 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="w-5 h-5 text-blue-600" />
+                      <CardTitle className="text-base text-blue-950 font-bold">مفتاح تطبيق العميل (Customer App Key)</CardTitle>
+                    </div>
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                      نشط ويعمل
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-600 block mb-1.5 font-semibold">مفتاح API الخاص بتطبيق العميل</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        readOnly
+                        value={getValue('sec_customer_api_key') || 'sareeone_cust_app_key_default'}
+                        className="font-mono text-xs bg-gray-50 dir-ltr text-left pl-3 text-blue-900 font-bold border-blue-200"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-50 text-xs gap-1"
+                        onClick={() => copyKeyToClipboard(getValue('sec_customer_api_key') || 'sareeone_cust_app_key_default', 'customer')}
+                      >
+                        {copiedKeyTarget === 'customer' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedKeyTarget === 'customer' ? 'تم النسخ' : 'نسخ'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-gray-50 rounded-lg text-xs space-y-1.5 border border-gray-200">
+                    <p className="font-semibold text-gray-800">📍 كيفية استخدام المفتاح في تطبيق أندرويد العميل:</p>
+                    <p className="text-gray-600 font-mono text-[11px] dir-ltr text-left bg-white p-2 rounded border">
+                      @JavascriptInterface<br/>
+                      public String getApiKey() &#123;<br/>
+                      &nbsp;&nbsp;return "{getValue('sec_customer_api_key') || 'sareeone_cust_app_key_default'}";<br/>
+                      &#125;
+                    </p>
+                    <p className="text-gray-500 text-[11px]">
+                      أو افتح الويب فيو مع الرابط: <code className="text-blue-600 dir-ltr select-all">/?apiKey={getValue('sec_customer_api_key') || 'sareeone_cust_app_key_default'}</code>
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs text-red-600 border-red-200 hover:bg-red-50 gap-1"
+                      disabled={regenerateAppKeyMutation.isPending}
+                      onClick={() => {
+                        if (confirm('هل أنت متأكد من رغبتك في توليد مفتاح جديد لتطبيق العميل؟ سيتوجب عليك تحديثه في كود الأندرويد.')) {
+                          regenerateAppKeyMutation.mutate('customer');
+                        }
+                      }}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      إعادة توليد مفتاح جديد للعميل
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* مفتاح تطبيق السائق */}
+              <Card className="border-orange-200 shadow-sm hover:border-orange-300 transition-all">
+                <CardHeader className="bg-orange-50/50 border-b border-orange-100 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-5 h-5 text-orange-600" />
+                      <CardTitle className="text-base text-orange-950 font-bold">مفتاح تطبيق السائق (Driver App Key)</CardTitle>
+                    </div>
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+                      نشط ويعمل
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-600 block mb-1.5 font-semibold">مفتاح API الخاص بتطبيق السائق</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        readOnly
+                        value={getValue('sec_driver_api_key') || 'sareeone_driver_app_key_default'}
+                        className="font-mono text-xs bg-gray-50 dir-ltr text-left pl-3 text-orange-900 font-bold border-orange-200"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 border-orange-300 text-orange-700 hover:bg-orange-50 text-xs gap-1"
+                        onClick={() => copyKeyToClipboard(getValue('sec_driver_api_key') || 'sareeone_driver_app_key_default', 'driver')}
+                      >
+                        {copiedKeyTarget === 'driver' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedKeyTarget === 'driver' ? 'تم النسخ' : 'نسخ'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-gray-50 rounded-lg text-xs space-y-1.5 border border-gray-200">
+                    <p className="font-semibold text-gray-800">📍 كيفية استخدام المفتاح في تطبيق أندرويد السائق:</p>
+                    <p className="text-gray-600 font-mono text-[11px] dir-ltr text-left bg-white p-2 rounded border">
+                      @JavascriptInterface<br/>
+                      public String getApiKey() &#123;<br/>
+                      &nbsp;&nbsp;return "{getValue('sec_driver_api_key') || 'sareeone_driver_app_key_default'}";<br/>
+                      &#125;
+                    </p>
+                    <p className="text-gray-500 text-[11px]">
+                      أو افتح الويب فيو مباشرة مع الرابط: <code className="text-orange-600 dir-ltr select-all">/driver?apiKey={getValue('sec_driver_api_key') || 'sareeone_driver_app_key_default'}</code>
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs text-red-600 border-red-200 hover:bg-red-50 gap-1"
+                      disabled={regenerateAppKeyMutation.isPending}
+                      onClick={() => {
+                        if (confirm('هل أنت متأكد من رغبتك في توليد مفتاح جديد لتطبيق السائق؟ سيتوجب عليك تحديثه في كود الأندرويد.')) {
+                          regenerateAppKeyMutation.mutate('driver');
+                        }
+                      }}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      إعادة توليد مفتاح جديد للسائق
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
