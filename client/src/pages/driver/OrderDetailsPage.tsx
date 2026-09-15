@@ -14,6 +14,7 @@ import {
 import DriverMapView from '@/components/maps/DriverMapView';
 import { CallContactDialog } from '@/components/CallContactDialog';
 import { soundAlert } from '@/lib/soundAlert';
+import { openInGoogleMaps } from '@/lib/mapUtils';
 import {
   MapPin,
   Phone,
@@ -65,6 +66,8 @@ interface Order {
   updatedAt: Date;
   adminName?: string;
   adminPhone?: string;
+  isWasalni?: boolean;
+  orderType?: string;
 }
 
 interface OrderDetailsPageProps {
@@ -393,15 +396,32 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
                           customerLocationLng: order.customerLocationLng,
                           restaurantLat: order.restaurantLatitude,
                           restaurantLng: order.restaurantLongitude,
+                          restaurantAddress: order.restaurantAddress,
+                          restaurantName: order.restaurantName,
                           status: order.status,
-                          totalAmount: order.totalAmount
+                          totalAmount: order.totalAmount,
+                          isWasalni: !!order.isWasalni,
                         }]}
                         height="calc(85vh - 60px)"
                         onNavigate={(o) => {
-                          const dest = o.status === 'ready' || o.status === 'assigned' 
-                            ? `${o.restaurantLat},${o.restaurantLng}` 
-                            : `${o.customerLocationLat},${o.customerLocationLng}`;
-                          window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
+                          const isPickupTarget = (o.status === 'ready' || o.status === 'assigned');
+                          if (isPickupTarget && (o.restaurantLat || o.restaurantAddress)) {
+                            openInGoogleMaps({
+                              lat: o.restaurantLat,
+                              lng: o.restaurantLng,
+                              address: o.restaurantAddress,
+                              label: o.restaurantName || 'موقع الاستلام',
+                              mode: 'navigate'
+                            });
+                          } else {
+                            openInGoogleMaps({
+                              lat: o.customerLocationLat,
+                              lng: o.customerLocationLng,
+                              address: o.deliveryAddress,
+                              label: o.customerName,
+                              mode: 'navigate'
+                            });
+                          }
                         }}
                         onCall={(phone) => setCallDialog({
                           isOpen: true,
@@ -456,21 +476,24 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
               <p className="text-sm text-gray-600 mb-2">عنوان التوصيل</p>
               <div className="flex gap-2 mb-4">
                 <MapPin className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <p className="font-medium">{order.deliveryAddress}</p>
+                <p className="font-medium">{order.deliveryAddress || 'لم يتم تحديد العنوان'}</p>
               </div>
-              {order.customerLocationLat && order.customerLocationLng && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const url = `https://www.google.com/maps/dir/?api=1&destination=${order.customerLocationLat},${order.customerLocationLng}`;
-                    window.open(url, '_blank');
-                  }}
-                  className="w-full gap-2 border-green-200 text-green-700 hover:bg-green-50"
-                >
-                  <Navigation className="h-4 w-4" />
-                  تتبع موقع العميل على الخرائط
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  openInGoogleMaps({
+                    lat: order.customerLocationLat,
+                    lng: order.customerLocationLng,
+                    address: order.deliveryAddress,
+                    label: order.customerName,
+                    mode: 'navigate'
+                  });
+                }}
+                className="w-full gap-2 border-green-600 text-green-700 hover:bg-green-50 font-bold"
+              >
+                <Navigation className="h-4 w-4 text-green-600" />
+                تتبع موقع العميل على خرائط Google
+              </Button>
             </div>
 
             {order.notes && (
@@ -682,17 +705,22 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
             </div>
           )}
 
-          {order.customerLocationLat && order.customerLocationLng && order.driverId === driverId && (
+          {order.driverId === driverId && (
             <Button
               variant="outline"
               onClick={() => {
-                const url = `https://www.google.com/maps/dir/?api=1&destination=${order.customerLocationLat},${order.customerLocationLng}`;
-                window.open(url, '_blank');
+                openInGoogleMaps({
+                  lat: order.customerLocationLat,
+                  lng: order.customerLocationLng,
+                  address: order.deliveryAddress,
+                  label: order.customerName,
+                  mode: 'navigate'
+                });
               }}
-              className="w-full h-12 gap-2 text-lg"
+              className="w-full h-12 gap-2 text-base font-bold border-green-600 text-green-700 hover:bg-green-50"
             >
-              <Navigation className="h-5 w-5" />
-              التوجيه على الخريطة
+              <Navigation className="h-5 w-5 text-green-600" />
+              تتبع عنوان العميل على خرائط Google
             </Button>
           )}
 

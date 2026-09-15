@@ -4,7 +4,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Phone, Navigation, CheckCircle, Package, Clock, Bike, ArrowLeftRight, DollarSign } from 'lucide-react';
+import { MapPin, Phone, Navigation, CheckCircle, Package, Clock, Bike, ArrowLeftRight, DollarSign, Store, Map as MapIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import DriverMapView from '@/components/maps/DriverMapView';
+import { openInGoogleMaps } from '@/lib/mapUtils';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { soundAlert } from '@/lib/soundAlert';
 import { CallContactDialog } from '@/components/CallContactDialog';
@@ -39,6 +42,7 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
   const queryClient = useQueryClient();
   const [updatingWasalniId, setUpdatingWasalniId] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [mapModalOrder, setMapModalOrder] = useState<any | null>(null);
   const [callDialog, setCallDialog] = useState<{
     isOpen: boolean;
     name: string;
@@ -287,11 +291,39 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
                     >
                       <Phone className="h-4 w-4 text-emerald-600" />اتصال وتواصل
                     </Button>
-                    {order.customerLocationLat && order.customerLocationLng && (
-                      <Button onClick={(e) => { e.stopPropagation(); window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.customerLocationLat},${order.customerLocationLng}`, '_blank'); }} variant="outline" size="sm" className="gap-2">
-                        <Navigation className="h-4 w-4" />خريطة
-                      </Button>
-                    )}
+
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openInGoogleMaps({
+                          lat: order.customerLocationLat,
+                          lng: order.customerLocationLng,
+                          address: order.deliveryAddress,
+                          label: order.customerName,
+                          mode: 'navigate'
+                        });
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-red-700 border-red-300 hover:bg-red-50 font-bold"
+                    >
+                      <Navigation className="h-4 w-4 text-red-600" />
+                      تتبع العميل (خرائط)
+                    </Button>
+
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMapModalOrder(order);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50"
+                    >
+                      <MapIcon className="h-4 w-4 text-blue-600" />
+                      الخريطة
+                    </Button>
+
                     {order.status !== 'on_way' && order.status !== 'on_the_way' && order.status !== 'delivered' && (
                       <Button
                         onClick={(e) => {
@@ -390,6 +422,68 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
                     >
                       <Phone className="h-4 w-4 text-emerald-600" />اتصال وتواصل
                     </Button>
+
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openInGoogleMaps({
+                          lat: req.toLat,
+                          lng: req.toLng,
+                          address: req.toAddress,
+                          label: req.customerName,
+                          mode: 'navigate'
+                        });
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-red-700 border-red-300 hover:bg-red-50 font-bold"
+                    >
+                      <Navigation className="h-4 w-4 text-red-600" />
+                      تتبع العميل (خرائط)
+                    </Button>
+
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openInGoogleMaps({
+                          lat: req.fromLat,
+                          lng: req.fromLng,
+                          address: req.fromAddress,
+                          label: 'موقع الاستلام - وصل لي',
+                          mode: 'navigate'
+                        });
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50 font-medium"
+                    >
+                      <Store className="h-4 w-4 text-amber-600" />
+                      موقع الاستلام
+                    </Button>
+
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMapModalOrder({
+                          ...req,
+                          customerLocationLat: req.toLat,
+                          customerLocationLng: req.toLng,
+                          restaurantLatitude: req.fromLat,
+                          restaurantLongitude: req.fromLng,
+                          deliveryAddress: req.toAddress,
+                          restaurantAddress: req.fromAddress,
+                          restaurantName: 'موقع الاستلام (وصل لي)',
+                          isWasalni: true,
+                        });
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50"
+                    >
+                      <MapIcon className="h-4 w-4 text-blue-600" />
+                      الخريطة
+                    </Button>
+
                     {req.status === 'confirmed' && (
                       <Button
                         onClick={(e) => {
@@ -436,6 +530,61 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
         phoneNumber={callDialog.phone}
         orderNumber={callDialog.orderNumber}
       />
+
+      {/* نافذة الخريطة التفاعلية */}
+      <Dialog open={!!mapModalOrder} onOpenChange={(open) => !open && setMapModalOrder(null)}>
+        <DialogContent className="max-w-3xl w-[95vw] p-4 max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right text-base font-bold flex items-center justify-between">
+              <span>خريطة ومسار الطلب #{mapModalOrder?.orderNumber || mapModalOrder?.requestNumber || mapModalOrder?.id?.slice(-6)}</span>
+            </DialogTitle>
+          </DialogHeader>
+          {mapModalOrder && (
+            <div className="space-y-3 mt-2">
+              <DriverMapView
+                orders={[mapModalOrder]}
+                height="360px"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    openInGoogleMaps({
+                      lat: mapModalOrder.customerLocationLat ?? mapModalOrder.toLat,
+                      lng: mapModalOrder.customerLocationLng ?? mapModalOrder.toLng,
+                      address: mapModalOrder.deliveryAddress ?? mapModalOrder.toAddress,
+                      label: mapModalOrder.customerName,
+                      mode: 'navigate'
+                    });
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold gap-2 text-xs h-10 shadow-xs"
+                >
+                  <Navigation className="h-4 w-4" />
+                  توجيه Google Maps لعنوان العميل
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    openInGoogleMaps({
+                      lat: mapModalOrder.restaurantLatitude ?? mapModalOrder.restaurantLat ?? mapModalOrder.fromLat,
+                      lng: mapModalOrder.restaurantLongitude ?? mapModalOrder.restaurantLng ?? mapModalOrder.fromLng,
+                      address: mapModalOrder.restaurantAddress ?? mapModalOrder.fromAddress,
+                      label: mapModalOrder.restaurantName || 'موقع الاستلام',
+                      mode: 'navigate'
+                    });
+                  }}
+                  className="border-amber-500 text-amber-700 hover:bg-amber-50 font-bold gap-2 text-xs h-10"
+                >
+                  <Store className="h-4 w-4 text-amber-600" />
+                  توجيه Google Maps لموقع الاستلام
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

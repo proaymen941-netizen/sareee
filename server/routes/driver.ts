@@ -120,6 +120,16 @@ router.get("/app/dashboard", requireDriverAuth, async (req: AuthenticatedRequest
         customerPhone: r.customerPhone,
         deliveryAddress: r.toAddress,
         fromAddress: r.fromAddress,
+        toAddress: r.toAddress,
+        fromLat: r.fromLat,
+        fromLng: r.fromLng,
+        toLat: r.toLat,
+        toLng: r.toLng,
+        customerLocationLat: r.toLat,
+        customerLocationLng: r.toLng,
+        restaurantLatitude: r.fromLat,
+        restaurantLongitude: r.fromLng,
+        restaurantAddress: r.fromAddress,
         status: r.status,
         items: r.itemsDescription || r.orderType || 'طلب وصل لي',
         totalAmount: String(r.estimatedFee || "0"),
@@ -139,6 +149,16 @@ router.get("/app/dashboard", requireDriverAuth, async (req: AuthenticatedRequest
         customerPhone: r.customerPhone,
         deliveryAddress: r.toAddress,
         fromAddress: r.fromAddress,
+        toAddress: r.toAddress,
+        fromLat: r.fromLat,
+        fromLng: r.fromLng,
+        toLat: r.toLat,
+        toLng: r.toLng,
+        customerLocationLat: r.toLat,
+        customerLocationLng: r.toLng,
+        restaurantLatitude: r.fromLat,
+        restaurantLongitude: r.fromLng,
+        restaurantAddress: r.fromAddress,
         status: r.status,
         items: r.itemsDescription || r.orderType || 'طلب وصل لي',
         totalAmount: String(r.estimatedFee || "0"),
@@ -493,7 +513,23 @@ router.put("/orders/:id/status", requireDriverAuth, async (req: AuthenticatedReq
       } catch (_) {}
     }
 
-    if (!order) return res.status(404).json({ error: "الطلب غير موجود" });
+    if (!order) {
+      try {
+        const wasalni = await storage.getWasalniRequest(id);
+        if (wasalni) {
+          if (wasalni.driverId && wasalni.driverId !== driverId) {
+            return res.status(403).json({ error: "غير مصرح لك بتحديث هذا الطلب" });
+          }
+          if (status === "on_the_way") status = "on_way";
+          const updatedWasalni = await storage.updateWasalniRequest(id, { status });
+          if (location) {
+            await storage.updateDriver(driverId, { currentLocation: location });
+          }
+          return res.json({ success: true, order: updatedWasalni });
+        }
+      } catch (_) {}
+      return res.status(404).json({ error: "الطلب غير موجود" });
+    }
     if (order.driverId && order.driverId !== driverId) return res.status(403).json({ error: "غير مصرح لك بتحديث هذا الطلب" });
 
     // تطبيع حالة في الطريق
@@ -632,8 +668,44 @@ router.get("/orders/:id", requireDriverAuth, async (req: AuthenticatedRequest, r
     const { id } = req.params;
     const driverId = req.driverId!;
 
-    const order = await storage.getOrder(id);
-    if (!order || order.driverId !== driverId) return res.status(404).json({ error: "الطلب غير موجود" });
+    let order = await storage.getOrder(id);
+    if (!order || (order.driverId && order.driverId !== driverId)) {
+      try {
+        const wasalni = await storage.getWasalniRequest(id);
+        if (wasalni && (!wasalni.driverId || wasalni.driverId === driverId)) {
+          return res.json({
+            id: wasalni.id,
+            orderNumber: wasalni.requestNumber || wasalni.id.slice(-6),
+            customerName: wasalni.customerName,
+            customerPhone: wasalni.customerPhone,
+            deliveryAddress: wasalni.toAddress,
+            toAddress: wasalni.toAddress,
+            fromAddress: wasalni.fromAddress,
+            customerLocationLat: wasalni.toLat,
+            customerLocationLng: wasalni.toLng,
+            toLat: wasalni.toLat,
+            toLng: wasalni.toLng,
+            fromLat: wasalni.fromLat,
+            fromLng: wasalni.fromLng,
+            restaurantLatitude: wasalni.fromLat,
+            restaurantLongitude: wasalni.fromLng,
+            restaurantAddress: wasalni.fromAddress,
+            restaurantName: 'موقع الاستلام (وصل لي)',
+            restaurantPhone: wasalni.customerPhone,
+            status: wasalni.status,
+            totalAmount: String(wasalni.estimatedFee || "0"),
+            driverEarnings: String(wasalni.estimatedFee || "0"),
+            driverId: wasalni.driverId,
+            notes: wasalni.notes,
+            isWasalni: true,
+            items: JSON.stringify([{ name: wasalni.orderType || 'طرد وصل لي', quantity: 1, price: wasalni.estimatedFee || 0 }]),
+            createdAt: wasalni.createdAt,
+            updatedAt: wasalni.updatedAt,
+          });
+        }
+      } catch (_) {}
+      return res.status(404).json({ error: "الطلب غير موجود" });
+    }
 
     res.json(order);
   } catch (error) {

@@ -16,6 +16,7 @@ import WalletPage from './WalletPage';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { soundAlert } from '@/lib/soundAlert';
 import { useUiSettings } from '@/context/UiSettingsContext';
+import { openInGoogleMaps } from '@/lib/mapUtils';
 import {
   Truck,
   MapPin,
@@ -636,8 +637,26 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
   );
 
   const ordersForMap = [
-    ...availableOrders.map((o: any) => ({ ...o, type: 'available' })),
-    ...currentOrders.map((o: any) => ({ ...o, type: 'current' }))
+    ...availableOrders.map((o: any) => ({
+      ...o,
+      type: 'available',
+      customerLocationLat: o.customerLocationLat ?? o.toLat,
+      customerLocationLng: o.customerLocationLng ?? o.toLng,
+      restaurantLat: o.restaurantLatitude ?? o.restaurantLat ?? o.fromLat,
+      restaurantLng: o.restaurantLongitude ?? o.restaurantLng ?? o.fromLng,
+      deliveryAddress: o.deliveryAddress ?? o.toAddress,
+      restaurantAddress: o.restaurantAddress ?? o.fromAddress,
+    })),
+    ...currentOrders.map((o: any) => ({
+      ...o,
+      type: 'current',
+      customerLocationLat: o.customerLocationLat ?? o.toLat,
+      customerLocationLng: o.customerLocationLng ?? o.toLng,
+      restaurantLat: o.restaurantLatitude ?? o.restaurantLat ?? o.fromLat,
+      restaurantLng: o.restaurantLongitude ?? o.restaurantLng ?? o.fromLng,
+      deliveryAddress: o.deliveryAddress ?? o.toAddress,
+      restaurantAddress: o.restaurantAddress ?? o.fromAddress,
+    }))
   ];
 
   if (isLoading && !dashboardData) {
@@ -765,12 +784,31 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
                           <span>{order.deliveryAddress}</span>
                           <MapPin className="h-4 w-4" />
                         </div>
-                        <Button 
-                          className="w-full bg-green-600 hover:bg-green-700"
-                          onClick={() => setSelectedOrderId(order.id)}
-                        >
-                          عرض التفاصيل والمتابعة
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            className="flex-1 bg-green-600 hover:bg-green-700 font-bold"
+                            onClick={() => setSelectedOrderId(order.id)}
+                          >
+                            عرض التفاصيل والمتابعة
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="text-red-700 border-red-300 hover:bg-red-50 gap-1.5 px-3 font-bold"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openInGoogleMaps({
+                                lat: order.customerLocationLat || order.toLat,
+                                lng: order.customerLocationLng || order.toLng,
+                                address: order.deliveryAddress || order.toAddress,
+                                label: order.customerName,
+                                mode: 'navigate'
+                              });
+                            }}
+                          >
+                            <Navigation className="h-4 w-4 text-red-600" />
+                            تتبع العميل
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -871,7 +909,22 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
       case 'wallet':
         return <WalletPage />;
       case 'map':
-        return <div className="h-[calc(100vh-120px)] p-4"><DriverMapView driverLocation={currentLocation} orders={ordersForMap} /></div>;
+        return (
+          <div className="h-[calc(100vh-120px)] p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between bg-white p-3 rounded-xl border shadow-xs" dir="rtl">
+              <span className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-green-600" />
+                خريطة التتبع المباشر لجميع الطلبات ومواقع العملاء
+              </span>
+              <span className="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
+                {ordersForMap.length} طلبات
+              </span>
+            </div>
+            <div className="flex-1 min-h-[450px]">
+              <DriverMapView driverLocation={currentLocation} orders={ordersForMap} height="100%" />
+            </div>
+          </div>
+        );
       case 'history':
         return <HistoryPage driverId={driverId} onSelectOrder={setSelectedOrderId} />;
       case 'stats':

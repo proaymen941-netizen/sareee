@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Navigation, MapPin, Phone, Package } from 'lucide-react';
+import { Navigation, MapPin, Phone, Package, Store, ExternalLink } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+import { extractCoordinates, openInGoogleMaps, getGoogleMapsUrl } from '@/lib/mapUtils';
 
 // Fix for default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -20,19 +21,19 @@ const driverIcon = new L.Icon({
       <path d="M9 12l2 2 4-4" stroke="white" stroke-width="2.5" fill="none"/>
     </svg>
   `),
-  iconSize: [48, 48],
-  iconAnchor: [24, 24],
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
 });
 
 const destinationIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,' + btoa(`
     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#ef4444" stroke="white" stroke-width="2"/>
-      <circle cx="12" cy="10" r="3" fill="white"/>
+      <circle cx="12" cy="12" r="11" fill="#ef4444" stroke="white" stroke-width="2"/>
+      <path d="M12 7v5l3 3" stroke="white" stroke-width="2" fill="none"/>
     </svg>
   `),
-  iconSize: [48, 48],
-  iconAnchor: [24, 48],
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
 });
 
 const restaurantIcon = new L.Icon({
@@ -42,25 +43,37 @@ const restaurantIcon = new L.Icon({
       <path d="M8 6v12M12 6v6M16 6v2" stroke="white" stroke-width="2" fill="none"/>
     </svg>
   `),
-  iconSize: [48, 48],
-  iconAnchor: [24, 24],
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
 });
 
-interface Order {
+export interface Order {
   id: string;
   orderNumber?: string;
   customerName: string;
-  customerPhone: string;
-  deliveryAddress: string;
-  customerLocationLat?: string;
-  customerLocationLng?: string;
-  restaurantLat?: string;
-  restaurantLng?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  customerLocationLat?: string | number | null;
+  customerLocationLng?: string | number | null;
+  restaurantLat?: string | number | null;
+  restaurantLng?: string | number | null;
+  restaurantLatitude?: string | number | null;
+  restaurantLongitude?: string | number | null;
+  restaurantName?: string;
+  restaurantAddress?: string;
+  restaurantPhone?: string;
+  fromAddress?: string;
+  toAddress?: string;
+  fromLat?: string | number | null;
+  fromLng?: string | number | null;
+  toLat?: string | number | null;
+  toLng?: string | number | null;
   status: string;
-  totalAmount: string;
+  totalAmount?: string;
+  isWasalni?: boolean;
 }
 
-interface DriverMapViewProps {
+export interface DriverMapViewProps {
   orders: Order[];
   driverLocation?: [number, number] | null;
   height?: string;
@@ -73,15 +86,15 @@ function AutoFitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
   const map = useMap();
   
   useEffect(() => {
-    if (bounds) {
-      map.fitBounds(bounds, { padding: [50, 50] });
+    if (bounds && bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
     }
   }, [map, bounds]);
   
   return null;
 }
 
-// Component to track driver location
+// Hook to track driver location
 function useDriverLocation() {
   const [location, setLocation] = useState<[number, number] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,8 +115,8 @@ function useDriverLocation() {
       },
       {
         enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0,
+        timeout: 8000,
+        maximumAge: 5000,
       }
     );
     
@@ -131,51 +144,78 @@ export default function DriverMapView({
   const allPoints: [number, number][] = [];
   if (driverLocation) allPoints.push(driverLocation);
   
-  orders.forEach(order => {
-    if (order.restaurantLat && order.restaurantLng) {
-      allPoints.push([parseFloat(order.restaurantLat), parseFloat(order.restaurantLng)]);
+  // Prepare processed orders with resolved coordinates
+  const processedOrders = orders.map((order) => {
+    const customerCoords = extractCoordinates(
+      order.customerLocationLat ?? order.toLat,
+      order.customerLocationLng ?? order.toLng,
+      order.deliveryAddress ?? order.toAddress
+    );
+
+    const pickupCoords = extractCoordinates(
+      order.restaurantLat ?? order.restaurantLatitude ?? order.fromLat,
+      order.restaurantLng ?? order.restaurantLongitude ?? order.fromLng,
+      order.restaurantAddress ?? order.fromAddress
+    );
+
+    if (pickupCoords) {
+      allPoints.push([pickupCoords.lat, pickupCoords.lng]);
     }
-    if (order.customerLocationLat && order.customerLocationLng) {
-      allPoints.push([parseFloat(order.customerLocationLat), parseFloat(order.customerLocationLng)]);
+    if (customerCoords) {
+      allPoints.push([customerCoords.lat, customerCoords.lng]);
     }
+
+    return {
+      ...order,
+      resolvedCustomerCoords: customerCoords,
+      resolvedPickupCoords: pickupCoords,
+      resolvedCustomerAddress: order.deliveryAddress || order.toAddress || 'عنوان العميل',
+      resolvedPickupAddress: order.restaurantAddress || order.fromAddress || 'موقع الاستلام',
+      resolvedPickupName: order.restaurantName || (order.isWasalni ? 'موقع الاستلام (وصل لي)' : 'المتجر'),
+    };
   });
   
-  const bounds = allPoints.length > 0 
-    ? L.latLngBounds(allPoints) 
-    : null;
+  const bounds = allPoints.length > 0 ? L.latLngBounds(allPoints) : null;
   
-  // Calculate optimal route (simple - can be enhanced with routing API)
+  // Calculate route segments: Driver -> Pickup -> Customer
   const routePoints: [number, number][] = [];
   if (driverLocation) {
     routePoints.push(driverLocation);
-    orders.forEach(order => {
-      if (order.status === 'picked_up' || order.status === 'on_way') {
-        if (order.customerLocationLat && order.customerLocationLng) {
-          routePoints.push([parseFloat(order.customerLocationLat), parseFloat(order.customerLocationLng)]);
-        }
-      } else if (order.status === 'ready' || order.status === 'assigned') {
-        if (order.restaurantLat && order.restaurantLng) {
-          routePoints.push([parseFloat(order.restaurantLat), parseFloat(order.restaurantLng)]);
-        }
-      }
-    });
   }
+  processedOrders.forEach((o) => {
+    if (o.resolvedPickupCoords && (o.status === 'ready' || o.status === 'assigned' || o.status === 'accepted' || o.status === 'pending')) {
+      routePoints.push([o.resolvedPickupCoords.lat, o.resolvedPickupCoords.lng]);
+    }
+    if (o.resolvedCustomerCoords) {
+      routePoints.push([o.resolvedCustomerCoords.lat, o.resolvedCustomerCoords.lng]);
+    }
+  });
   
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
   
   return (
-    <div className="space-y-4">
-      <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+    <div className="space-y-4" dir="rtl">
+      <div
+        style={{
+          height,
+          width: '100%',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        }}
+      >
         <MapContainer
           center={mapCenter}
           zoom={13}
@@ -193,9 +233,9 @@ export default function DriverMapView({
           {driverLocation && (
             <Marker position={driverLocation} icon={driverIcon}>
               <Popup>
-                <div className="text-center">
-                  <p className="font-bold text-green-600">موقعك الحالي</p>
-                  <p className="text-sm text-gray-600">يتم تحديث الموقع تلقائياً</p>
+                <div className="text-center p-1" dir="rtl">
+                  <p className="font-bold text-green-600 text-sm">موقعك الحالي (السائق)</p>
+                  <p className="text-xs text-gray-500">يتم التتبع بواسطة نظام GPS</p>
                 </div>
               </Popup>
             </Marker>
@@ -205,44 +245,77 @@ export default function DriverMapView({
           {routePoints.length > 1 && (
             <Polyline
               positions={routePoints}
-              color="#3b82f6"
+              color="#2563eb"
               weight={4}
-              opacity={0.7}
-              dashArray="10, 10"
+              opacity={0.8}
+              dashArray="8, 8"
             />
           )}
           
-          {/* Order markers */}
-          {orders.map((order) => {
-            const needsPickup = order.status === 'ready' || order.status === 'assigned';
-            const needsDelivery = order.status === 'picked_up' || order.status === 'on_way';
-            
-            // Restaurant marker
-            if (needsPickup && order.restaurantLat && order.restaurantLng) {
-              const restaurantPos: [number, number] = [parseFloat(order.restaurantLat), parseFloat(order.restaurantLng)];
-              const distance = driverLocation 
-                ? calculateDistance(driverLocation[0], driverLocation[1], restaurantPos[0], restaurantPos[1])
+          {/* Render markers for each order */}
+          {processedOrders.map((order) => {
+            const elements = [];
+
+            // 1. Pickup/Restaurant Marker
+            if (order.resolvedPickupCoords) {
+              const pos: [number, number] = [order.resolvedPickupCoords.lat, order.resolvedPickupCoords.lng];
+              const dist = driverLocation
+                ? calculateDistance(driverLocation[0], driverLocation[1], pos[0], pos[1])
                 : null;
-              
-              return (
-                <Marker key={`restaurant-${order.id}`} position={restaurantPos} icon={restaurantIcon}>
+
+              elements.push(
+                <Marker key={`pickup-${order.id}`} position={pos} icon={restaurantIcon}>
                   <Popup>
-                    <div className="min-w-[200px]">
-                      <p className="font-bold text-orange-600 mb-2">استلام من المطعم</p>
-                      <p className="text-sm"><strong>الطلب:</strong> #{order.orderNumber || order.id.slice(0, 8)}</p>
-                      <p className="text-sm"><strong>العميل:</strong> {order.customerName}</p>
-                      {distance && (
-                        <p className="text-sm"><strong>المسافة:</strong> {distance.toFixed(2)} كم</p>
+                    <div className="min-w-[220px] text-right font-sans p-1" dir="rtl">
+                      <div className="flex items-center justify-between gap-2 border-b pb-1.5 mb-2">
+                        <span className="font-bold text-amber-700 flex items-center gap-1 text-sm">
+                          <Store className="h-4 w-4" />
+                          {order.isWasalni ? 'موقع الاستلام (وصل لي)' : 'المتجر / المطعم'}
+                        </span>
+                        <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
+                          #{order.orderNumber || order.id.slice(-6)}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-gray-800 font-semibold mb-1">
+                        {order.resolvedPickupName}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-1 leading-relaxed">
+                        📍 {order.resolvedPickupAddress}
+                      </p>
+
+                      {dist !== null && (
+                        <p className="text-xs text-blue-600 font-medium mb-2">
+                          📏 المسافة من موقعك: <strong>{dist.toFixed(2)} كم</strong>
+                        </p>
                       )}
-                      <div className="mt-2 flex gap-2">
-                        {onNavigate && (
-                          <button
-                            onClick={() => onNavigate(order)}
-                            className="flex-1 bg-blue-600 text-white text-xs py-1 px-2 rounded hover:bg-blue-700"
+
+                      <div className="mt-2 pt-2 border-t flex flex-col gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openInGoogleMaps({
+                              lat: order.resolvedPickupCoords?.lat,
+                              lng: order.resolvedPickupCoords?.lng,
+                              address: order.resolvedPickupAddress,
+                              label: order.resolvedPickupName,
+                              mode: 'navigate'
+                            });
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-2 rounded-lg transition-colors shadow-xs"
+                        >
+                          <Navigation size={13} />
+                          توجيه Google Maps للمتجر
+                        </button>
+
+                        {order.restaurantPhone && (
+                          <a
+                            href={`tel:${order.restaurantPhone}`}
+                            className="w-full flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium py-1 px-2 rounded-lg transition-colors text-center"
                           >
-                            <Navigation size={12} className="inline mr-1" />
-                            توجيه
-                          </button>
+                            <Phone size={12} />
+                            اتصال بالمتجر
+                          </a>
                         )}
                       </div>
                     </div>
@@ -250,44 +323,72 @@ export default function DriverMapView({
                 </Marker>
               );
             }
-            
-            // Customer marker
-            if (needsDelivery && order.customerLocationLat && order.customerLocationLng) {
-              const customerPos: [number, number] = [parseFloat(order.customerLocationLat), parseFloat(order.customerLocationLng)];
-              const distance = driverLocation 
-                ? calculateDistance(driverLocation[0], driverLocation[1], customerPos[0], customerPos[1])
+
+            // 2. Customer Destination Marker
+            if (order.resolvedCustomerCoords) {
+              const pos: [number, number] = [order.resolvedCustomerCoords.lat, order.resolvedCustomerCoords.lng];
+              const dist = driverLocation
+                ? calculateDistance(driverLocation[0], driverLocation[1], pos[0], pos[1])
                 : null;
-              
-              return (
-                <Marker key={`customer-${order.id}`} position={customerPos} icon={destinationIcon}>
+
+              elements.push(
+                <Marker key={`customer-${order.id}`} position={pos} icon={destinationIcon}>
                   <Popup>
-                    <div className="min-w-[200px]">
-                      <p className="font-bold text-red-600 mb-2">توصيل للعميل</p>
-                      <p className="text-sm"><strong>الطلب:</strong> #{order.orderNumber || order.id.slice(0, 8)}</p>
-                      <p className="text-sm"><strong>العميل:</strong> {order.customerName}</p>
-                      <p className="text-sm"><strong>الهاتف:</strong> {order.customerPhone}</p>
-                      <p className="text-sm"><strong>العنوان:</strong> {order.deliveryAddress}</p>
-                      {distance && (
-                        <p className="text-sm"><strong>المسافة:</strong> {distance.toFixed(2)} كم</p>
+                    <div className="min-w-[220px] text-right font-sans p-1" dir="rtl">
+                      <div className="flex items-center justify-between gap-2 border-b pb-1.5 mb-2">
+                        <span className="font-bold text-red-600 flex items-center gap-1 text-sm">
+                          <MapPin className="h-4 w-4" />
+                          {order.isWasalni ? 'عنوان العميل (وصل لي)' : 'عنوان توصيل العميل'}
+                        </span>
+                        <span className="text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-bold">
+                          #{order.orderNumber || order.id.slice(-6)}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-gray-900 font-bold mb-1">
+                        👤 {order.customerName}
+                      </p>
+                      {order.customerPhone && (
+                        <p className="text-xs text-gray-600 mb-1" dir="ltr">
+                          📞 {order.customerPhone}
+                        </p>
                       )}
-                      <div className="mt-2 flex gap-2">
-                        {onCall && (
-                          <button
-                            onClick={() => onCall(order.customerPhone)}
-                            className="flex-1 bg-green-600 text-white text-xs py-1 px-2 rounded hover:bg-green-700"
+                      <p className="text-xs text-gray-700 mb-1.5 leading-relaxed bg-gray-50 p-1.5 rounded border">
+                        📍 {order.resolvedCustomerAddress}
+                      </p>
+
+                      {dist !== null && (
+                        <p className="text-xs text-emerald-700 font-medium mb-2">
+                          📏 المسافة من موقعك: <strong>{dist.toFixed(2)} كم</strong>
+                        </p>
+                      )}
+
+                      <div className="mt-2 pt-2 border-t flex flex-col gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openInGoogleMaps({
+                              lat: order.resolvedCustomerCoords?.lat,
+                              lng: order.resolvedCustomerCoords?.lng,
+                              address: order.resolvedCustomerAddress,
+                              label: order.customerName,
+                              mode: 'navigate'
+                            });
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1.5 px-2 rounded-lg transition-colors shadow-xs"
+                        >
+                          <Navigation size={13} />
+                          توجيه Google Maps للعميل
+                        </button>
+
+                        {order.customerPhone && (
+                          <a
+                            href={`tel:${order.customerPhone}`}
+                            className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-2 rounded-lg transition-colors text-center shadow-xs"
                           >
-                            <Phone size={12} className="inline mr-1" />
-                            اتصال
-                          </button>
-                        )}
-                        {onNavigate && (
-                          <button
-                            onClick={() => onNavigate(order)}
-                            className="flex-1 bg-blue-600 text-white text-xs py-1 px-2 rounded hover:bg-blue-700"
-                          >
-                            <Navigation size={12} className="inline mr-1" />
-                            توجيه
-                          </button>
+                            <Phone size={12} />
+                            اتصال بالعميل
+                          </a>
                         )}
                       </div>
                     </div>
@@ -295,30 +396,30 @@ export default function DriverMapView({
                 </Marker>
               );
             }
-            
-            return null;
+
+            return elements;
           })}
         </MapContainer>
       </div>
       
       {/* Map legend */}
-      <div className="bg-white rounded-lg p-4 shadow-sm">
-        <div className="flex items-center justify-around text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-green-500 border-2 border-white"></div>
-            <span>موقعك</span>
+      <div className="bg-white rounded-xl p-3 shadow-xs border border-gray-100">
+        <div className="flex items-center justify-around text-xs font-semibold text-gray-700">
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-xs"></div>
+            <span>موقعك (السائق)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-orange-500 border-2 border-white"></div>
-            <span>المطعم</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-xs"></div>
+            <span>المتجر / الاستلام</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-red-500 border-2 border-white"></div>
-            <span>العميل</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-xs"></div>
+            <span>عنوان العميل (التوصيل)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-1 w-6 bg-blue-500 border-dashed"></div>
-            <span>المسار</span>
+          <div className="flex items-center gap-1.5">
+            <div className="h-0.5 w-5 bg-blue-600 border-dashed"></div>
+            <span>مسار التوجيه</span>
           </div>
         </div>
       </div>

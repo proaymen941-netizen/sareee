@@ -8,6 +8,7 @@ import { MapPin, Phone, DollarSign, Clock, CheckCircle, Bell, Bike, ArrowLeftRig
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { soundAlert } from '@/lib/soundAlert';
 import { CallContactDialog } from '@/components/CallContactDialog';
+import { openInGoogleMaps } from '@/lib/mapUtils';
 
 interface Order {
   id: string;
@@ -370,6 +371,25 @@ export default function AvailableOrdersPage({ driverId, onSelectOrder, onOrderAc
                       <Button
                         onClick={(e) => {
                           e.stopPropagation();
+                          openInGoogleMaps({
+                            lat: (order as any).customerLocationLat,
+                            lng: (order as any).customerLocationLng,
+                            address: order.deliveryAddress,
+                            label: order.customerName,
+                            mode: 'search'
+                          });
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-blue-700 border-blue-200 hover:bg-blue-50"
+                      >
+                        <Navigation className="h-4 w-4 text-blue-600" />
+                        موقع العميل
+                      </Button>
+
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setAcceptingOrderId(order.id);
                           acceptOrderMutation.mutate(order.id);
                         }}
@@ -479,6 +499,25 @@ export default function AvailableOrdersPage({ driverId, onSelectOrder, onOrderAc
                         className="gap-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
                       >
                         <Phone className="h-4 w-4 text-emerald-600" />اتصال وتواصل
+                      </Button>
+
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openInGoogleMaps({
+                            lat: (req as any).toLat,
+                            lng: (req as any).toLng,
+                            address: req.toAddress,
+                            label: req.customerName,
+                            mode: 'search'
+                          });
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-red-700 border-red-200 hover:bg-red-50"
+                      >
+                        <Navigation className="h-4 w-4 text-red-600" />
+                        موقع التسليم
                       </Button>
 
                       <Button
