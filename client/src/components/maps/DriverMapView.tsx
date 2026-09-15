@@ -291,22 +291,12 @@ export default function DriverMapView({
                       )}
 
                       <div className="mt-2 pt-2 border-t flex flex-col gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openInGoogleMaps({
-                              lat: order.resolvedPickupCoords?.lat,
-                              lng: order.resolvedPickupCoords?.lng,
-                              address: order.resolvedPickupAddress,
-                              label: order.resolvedPickupName,
-                              mode: 'navigate'
-                            });
-                          }}
-                          className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-2 rounded-lg transition-colors shadow-xs"
-                        >
-                          <Navigation size={13} />
-                          توجيه Google Maps للمتجر
-                        </button>
+                        <div className="bg-amber-50 p-2 rounded-lg border border-amber-200 text-xs text-amber-900 font-mono">
+                          🌐 الإحداثيات: {order.resolvedPickupCoords?.lat.toFixed(5)}, {order.resolvedPickupCoords?.lng.toFixed(5)}
+                        </div>
+                        <p className="text-[11px] text-gray-500 text-center">
+                          ✅ يتم التتبع عبر خريطة Leaflet المفتوحة داخل التطبيق
+                        </p>
 
                         {order.restaurantPhone && (
                           <a
@@ -364,22 +354,12 @@ export default function DriverMapView({
                       )}
 
                       <div className="mt-2 pt-2 border-t flex flex-col gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openInGoogleMaps({
-                              lat: order.resolvedCustomerCoords?.lat,
-                              lng: order.resolvedCustomerCoords?.lng,
-                              address: order.resolvedCustomerAddress,
-                              label: order.customerName,
-                              mode: 'navigate'
-                            });
-                          }}
-                          className="w-full flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1.5 px-2 rounded-lg transition-colors shadow-xs"
-                        >
-                          <Navigation size={13} />
-                          توجيه Google Maps للعميل
-                        </button>
+                        <div className="bg-red-50 p-2 rounded-lg border border-red-200 text-xs text-red-900 font-mono">
+                          🌐 إحداثيات العميل: {order.resolvedCustomerCoords?.lat.toFixed(5)}, {order.resolvedCustomerCoords?.lng.toFixed(5)}
+                        </div>
+                        <p className="text-[11px] text-gray-500 text-center">
+                          ✅ يتم التتبع بدقة عالية عبر خريطة Leaflet المفتوحة داخل التطبيق
+                        </p>
 
                         {order.customerPhone && (
                           <a
