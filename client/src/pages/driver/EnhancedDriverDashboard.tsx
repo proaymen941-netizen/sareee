@@ -15,6 +15,7 @@ import ProfilePage from './ProfilePage';
 import WalletPage from './WalletPage';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { soundAlert } from '@/lib/soundAlert';
+import { androidBridge } from '@/lib/androidBridge';
 import { useUiSettings } from '@/context/UiSettingsContext';
 import { openInGoogleMaps } from '@/lib/mapUtils';
 import DriverFloatingNotificationBanner from '@/components/DriverFloatingNotificationBanner';
@@ -96,6 +97,14 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
   const [soundMuted, setSoundMuted] = useState(soundAlert.getMuted());
   const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Register with Android bridge if available
+  useEffect(() => {
+    if (driverId && androidBridge.isAvailable()) {
+      androidBridge.registerDriver(driverId);
+      androidBridge.requestLocationPermission();
+    }
+  }, [driverId]);
   const [claimedPopup, setClaimedPopup] = useState<{
     isOpen: boolean;
     orderNumber?: string;

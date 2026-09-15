@@ -3,6 +3,8 @@
  * (تنبيهات ورنين الطلبات الجديدة المستمر حتى استلام الطلب من قبل أي سائق)
  */
 
+import { androidBridge } from './androidBridge';
+
 class SoundAlertEngine {
   private audioCtx: AudioContext | null = null;
   private ringtoneInterval: any = null;
@@ -76,6 +78,11 @@ class SoundAlertEngine {
     // تشغيل إشعار النظام المباشر إذا كان التطبيق في الخلفية
     this.triggerSystemNotification();
 
+    // Play native ringtone if available
+    if (androidBridge.isAvailable()) {
+      androidBridge.playRingtone();
+    }
+
     if (this.ringtoneInterval) {
       return; // النغمة تعمل بالفعل مسبقاً
     }
@@ -98,16 +105,25 @@ class SoundAlertEngine {
    */
   private triggerSystemNotification() {
     try {
+      const title = '🔔 طلب جديد متاح للجميع!';
+      const body = '📢 يوجد طلب توصيل جديد متاح! اضغط هنا لفتح التطبيق وقبول الطلب فوراً.';
+      
+      // Native App Push Notification (if in Android WebView)
+      if (androidBridge.isAvailable()) {
+        androidBridge.showNotification(title, body);
+      }
+      
+      // Web Notification API (Fallback for browsers)
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         if (!this.activeNotification) {
           const notifOptions: any = {
-            body: '📢 يوجد طلب توصيل جديد متاح! اضغط هنا لفتح التطبيق وقبول الطلب فوراً.',
+            body: body,
             icon: '/icon-192.png',
             tag: 'driver_new_order_alert',
             requireInteraction: true,
             vibrate: [350, 100, 350, 100, 450],
           };
-          this.activeNotification = new Notification('🔔 طلب جديد متاح للجميع!', notifOptions);
+          this.activeNotification = new Notification(title, notifOptions);
 
           this.activeNotification.onclick = () => {
             window.focus();
@@ -128,6 +144,12 @@ class SoundAlertEngine {
    */
   public stopRingtone() {
     this.activeRinging = false;
+    
+    // Stop native ringtone if available
+    if (androidBridge.isAvailable()) {
+      androidBridge.stopRingtone();
+    }
+    
     if (this.ringtoneInterval) {
       clearInterval(this.ringtoneInterval);
       this.ringtoneInterval = null;
