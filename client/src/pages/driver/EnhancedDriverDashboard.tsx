@@ -17,6 +17,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { soundAlert } from '@/lib/soundAlert';
 import { useUiSettings } from '@/context/UiSettingsContext';
 import { openInGoogleMaps } from '@/lib/mapUtils';
+import DriverFloatingNotificationBanner from '@/components/DriverFloatingNotificationBanner';
 import {
   Truck,
   MapPin,
@@ -101,6 +102,7 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
     driverName?: string;
     isWaselLi?: boolean;
   } | null>(null);
+  const [dismissedBannerId, setDismissedBannerId] = useState<string | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const driverWsRef = React.useRef<WebSocket | null>(null);
   const { toast } = useToast();
@@ -1141,6 +1143,30 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
           </div>
         </div>
       )}
+
+      {/* Floating Notification Banner matching user request and image */}
+      {(() => {
+        const latestOrder = unassignedAvailableOrders.find((o: any) => o.id !== dismissedBannerId) || null;
+        if (!latestOrder) return null;
+        return (
+          <DriverFloatingNotificationBanner
+            order={latestOrder}
+            onAccept={(id) => {
+              if (latestOrder.isWasalni) {
+                acceptWasalniMutation.mutate(id);
+              } else {
+                acceptOrderMutation.mutate(id);
+              }
+            }}
+            onViewAll={() => {
+              setActiveTab('available');
+            }}
+            onDismiss={() => {
+              setDismissedBannerId(latestOrder.id);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

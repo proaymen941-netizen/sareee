@@ -478,22 +478,50 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
                 <MapPin className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <p className="font-medium">{order.deliveryAddress || 'لم يتم تحديد العنوان'}</p>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  openInGoogleMaps({
-                    lat: order.customerLocationLat,
-                    lng: order.customerLocationLng,
-                    address: order.deliveryAddress,
-                    label: order.customerName,
-                    mode: 'navigate'
-                  });
-                }}
-                className="w-full gap-2 border-green-600 text-green-700 hover:bg-green-50 font-bold"
-              >
-                <Navigation className="h-4 w-4 text-green-600" />
-                تتبع موقع العميل على خرائط Google
-              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 border-green-600 text-green-700 hover:bg-green-50 font-bold"
+                  >
+                    <Navigation className="h-4 w-4 text-green-600" />
+                    تتبع موقع العميل عبر الخريطة (Leaflet البديلة)
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-[95vw] w-full h-[85vh] p-0 overflow-hidden">
+                  <DialogHeader className="p-4 border-b bg-white z-10">
+                    <DialogTitle className="text-right">موقع التوصيل للعميل: {order.customerName}</DialogTitle>
+                  </DialogHeader>
+                  <div className="relative h-full w-full">
+                    <DriverMapView 
+                      orders={[{
+                        id: order.id,
+                        orderNumber: order.orderNumber,
+                        customerName: order.customerName,
+                        customerPhone: order.customerPhone,
+                        deliveryAddress: order.deliveryAddress,
+                        customerLocationLat: order.customerLocationLat,
+                        customerLocationLng: order.customerLocationLng,
+                        restaurantLat: order.restaurantLatitude,
+                        restaurantLng: order.restaurantLongitude,
+                        restaurantAddress: order.restaurantAddress,
+                        restaurantName: order.restaurantName,
+                        status: order.status,
+                        totalAmount: order.totalAmount,
+                        isWasalni: !!order.isWasalni,
+                      }]}
+                      height="calc(85vh - 60px)"
+                      onCall={(phone) => setCallDialog({
+                        isOpen: true,
+                        name: order.customerName,
+                        role: 'customer',
+                        phone: phone || order.customerPhone,
+                        orderNumber: order.orderNumber
+                      })}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             {order.notes && (
