@@ -43,19 +43,41 @@ export function formatYemenPhone(phoneStr: string): PhoneInfo {
 /**
  * تنفيذ فتح لوحة الاتصال بطريقة آمنة
  * - في بيئة Android WebView، استخدام window.open("tel:...") أو window.location.href = "tel:..."
- *   يتسبب في خطأ net::ERR_UNKNOWN_URL_SCHEME إذا لم يكن الـ WebView مهيأ لاعتراض tel:
- * - استخدام عنصر iframe مخفي يرسل Intent الاتصال لنظام أندرويد دون تغيير صفحة الويب الحالية،
- *   فإن كان الـ WebView يدعمها فتح الاتصال، وإن لم يدعمها لا تتأثر الصفحة أبداً!
+ *   يتسبب في خطأ net::ERR_UNKNOWN_URL_SCHEME أو شاشة بيضاء إذا لم يكن الـ WebView مهيأ لاعتراض tel:
+ * - استخدام عنصر a غير مرئي مع كائن مؤقت، ومحاولة iframe مخفي كنسخة احتياطية،
+ *   مما يضمن إرسال أمر الاتصال لنظام أندرويد دون تغيير صفحة الويب الحالية أو التسبب في شاشة بيضاء.
  */
 export function safeTriggerPhoneCall(phoneNumber: string): boolean {
   if (!phoneNumber) return false;
-  const cleaned = phoneNumber.replace(/[^\d+]/g, '');
+  // تنظيف الرقم مع الحفاظ على علامة + في حال كانت موجودة في البداية
+  const hasPlus = phoneNumber.trim().startsWith('+');
+  const cleaned = phoneNumber.replace(/[^\d]/g, '');
   if (!cleaned) return false;
 
-  const telUrl = `tel:${cleaned}`;
+  const telUrl = `tel:${hasPlus ? '+' : ''}${cleaned}`;
 
   try {
-    // 1. استخدام iframe مخفي لتفادي ERR_UNKNOWN_URL_SCHEME على Android WebView
+    // 1. محاولة النقر عبر عنصر رابط a غير مرئي (الأنسب للمتصفحات الحديثة وPWA)
+    const link = document.createElement('a');
+    link.href = telUrl;
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      try {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      } catch (_) {}
+    }, 1000);
+    return true;
+  } catch (e) {
+    console.warn('⚠️ محاولة فتح رابط الاتصال مباشرة تعذرت:', e);
+  }
+
+  try {
+    // 2. استخدام iframe مخفي لتفادي ERR_UNKNOWN_URL_SCHEME والشاشات البيضاء على Android WebView
     let iframe = document.getElementById('driver-safe-tel-frame') as HTMLIFrameElement | null;
     if (!iframe) {
       iframe = document.createElement('iframe');
@@ -75,6 +97,39 @@ export function safeTriggerPhoneCall(phoneNumber: string): boolean {
   } catch (e) {
     console.warn('⚠️ فشل تشغيل iframe للاتصال:', e);
     return false;
+  }
+}
+
+/**
+ * فتح تطبيق واتساب أو المحادثة بشكل آمن متوافق مع Android WebView دون شاشة بيضاء
+ */
+export function safeOpenWhatsApp(phoneNumber: string, message?: string): boolean {
+  if (!phoneNumber) return false;
+  const url = getWhatsAppLink(phoneNumber, message);
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      try {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      } catch (_) {}
+    }, 1000);
+    return true;
+  } catch (e) {
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return true;
+    } catch (openErr) {
+      console.warn('⚠️ فشل فتح واتساب:', openErr);
+      return false;
+    }
   }
 }
 

@@ -100,6 +100,127 @@ router.put("/:id/profile", async (req, res) => {
   }
 });
 
+// جلب عناوين العميل المباشرة عبر الاستعلام
+router.get("/addresses", async (req, res) => {
+  try {
+    const rawId = (req.query.userId || req.query.customerId || req.query.phone) as string;
+    if (!rawId) {
+      return res.json([]);
+    }
+
+    let targetId = rawId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+    if (!isUuid) {
+      const user = await storage.getUserByUsername(rawId);
+      if (user) targetId = user.id;
+    }
+
+    const addresses = await storage.getUserAddresses(targetId);
+    addresses.sort((a: UserAddress, b: UserAddress) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    res.json(addresses);
+  } catch (error) {
+    console.error("خطأ في جلب عناوين العميل:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// إضافة عنوان جديد عبر /addresses
+router.post("/addresses", async (req, res) => {
+  try {
+    const rawId = (req.body.userId || req.query.userId || req.body.customerId) as string;
+    if (!rawId) {
+      return res.status(400).json({ error: "معرف العميل مطلوب" });
+    }
+
+    let targetId = rawId;
+    let customer = await storage.getUser(rawId);
+    if (!customer) {
+      customer = await storage.getUserByUsername(rawId);
+      if (customer) {
+        targetId = customer.id;
+      } else {
+        // إنشاء حساب عميل تلقائي لربط العنوان به
+        try {
+          customer = await storage.createUser({
+            username: rawId,
+            password: "default_password",
+            name: "عميل",
+            phone: rawId,
+            email: null,
+            address: null
+          });
+          targetId = customer.id;
+        } catch (_) {}
+      }
+    }
+
+    const addressData = req.body;
+    const validatedData = insertUserAddressSchema.omit({ id: true, userId: true, createdAt: true }).parse(addressData);
+    const newAddress = await storage.createUserAddress(targetId, validatedData as any);
+    res.json(newAddress);
+  } catch (error) {
+    console.error("خطأ في إضافة عنوان جديد:", error);
+    if (error instanceof Error && error.name === 'ZodError') {
+      res.status(400).json({ error: "بيانات العنوان غير صحيحة" });
+    } else {
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  }
+});
+
+// تحديث عنوان عبر /addresses/:addressId
+router.put("/addresses/:addressId", async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const rawId = (req.body.userId || req.query.userId || req.body.customerId) as string;
+    let targetId = rawId || '';
+
+    if (rawId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+      if (!isUuid) {
+        const user = await storage.getUserByUsername(rawId);
+        if (user) targetId = user.id;
+      }
+    }
+
+    const updateData = req.body;
+    const validatedData = insertUserAddressSchema.omit({ id: true, userId: true, createdAt: true }).partial().parse(updateData);
+    const updated = await storage.updateUserAddress(addressId, targetId, validatedData);
+    res.json(updated || { success: true });
+  } catch (error) {
+    console.error("خطأ في تحديث العنوان:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// حذف عنوان عبر /addresses/:addressId
+router.delete("/addresses/:addressId", async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const rawId = (req.query.userId || req.body?.userId || req.query.customerId) as string;
+    let targetId = rawId || '';
+
+    if (rawId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+      if (!isUuid) {
+        const user = await storage.getUserByUsername(rawId);
+        if (user) targetId = user.id;
+      }
+    }
+
+    const success = await storage.deleteUserAddress(addressId, targetId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("خطأ في حذف العنوان:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
 // جلب عناوين العميل
 router.get("/:id/addresses", async (req, res) => {
   try {

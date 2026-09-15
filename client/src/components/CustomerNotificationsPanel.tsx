@@ -227,16 +227,29 @@ export function CustomerNotificationsPanel() {
                     key={notif.id}
                     onClick={() => {
                       if (!notif.isRead) markOneReadMutation.mutate(notif.id);
-                      if (notif.orderId) {
-                        // تحقق من نوع الإشعار لتحديد الصفحة المناسبة
-                        const isWasalniNotif = notif.type?.includes('wasalni') || notif.type?.includes('wasal');
-                        if (isWasalniNotif) {
-                          setLocation(`/track-orders`);
-                        } else {
-                          setLocation(`/orders/${notif.orderId}`);
-                        }
-                        setIsOpen(false);
+                      
+                      // فحص ما إذا كان الإشعار يخص وصول الطلبات أو حالة الطلبات النشطة
+                      const isOrderArrivalOrUpdate = 
+                        notif.type?.includes('arrival') || 
+                        notif.type?.includes('arrived') ||
+                        notif.type?.includes('delivered') ||
+                        notif.type?.includes('on_the_way') ||
+                        notif.type?.includes('on_way') ||
+                        notif.type?.includes('wasalni') || 
+                        notif.type?.includes('order') ||
+                        notif.title?.includes('وصول') ||
+                        notif.title?.includes('وصل') ||
+                        notif.title?.includes('طلب') ||
+                        notif.message?.includes('وصول') ||
+                        notif.message?.includes('وصل') ||
+                        notif.message?.includes('طلبك') ||
+                        Boolean(notif.orderId);
+
+                      if (isOrderArrivalOrUpdate) {
+                        // الانتقال مباشرة إلى صفحة تتبع الطلبات (تابع حالة طلباتك النشطة)
+                        setLocation('/track-orders');
                       }
+                      setIsOpen(false);
                     }}
                     className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 cursor-pointer transition-colors ${
                       !notif.isRead ? 'bg-blue-50/60 hover:bg-blue-50' : 'hover:bg-gray-50'

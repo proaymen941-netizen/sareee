@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowRight, ArrowLeft, Search, Package, MapPin, Clock, Phone, User, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Search, Package, MapPin, Clock, Phone, User, Loader2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,31 +9,38 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { useUiSettings } from '@/context/UiSettingsContext';
+import { safeTriggerPhoneCall, safeOpenWhatsApp } from '@/lib/callUtils';
 
 export default function TrackOrdersPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { getSetting } = useUiSettings();
   const [searchOrderNumber, setSearchOrderNumber] = useState('');
   const [searchedOrder, setSearchedOrder] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
 
+  const supportPhone = getSetting('support_phone') || '967777146387';
+  const supportWhatsapp = getSetting('support_whatsapp') || '967777146387';
+  const customerPhone = user?.phone || localStorage.getItem('customer_phone') || '';
+
   // جلب الطلبات النشطة للعميل
   const { data: regularOrders = [], isLoading: loadingOrders } = useQuery<any[]>({
-    queryKey: ['/api/orders/customer', user?.phone],
-    enabled: !!user?.phone,
+    queryKey: ['/api/orders/customer', customerPhone],
+    enabled: !!customerPhone,
     queryFn: async () => {
-      const res = await fetch(`/api/orders/customer/${user?.phone}`);
+      const res = await fetch(`/api/orders/customer/${customerPhone}`);
       if (!res.ok) return [];
       return res.json();
     }
   });
 
   const { data: wasalniOrders = [], isLoading: loadingWasalni } = useQuery<any[]>({
-    queryKey: ['/api/wasalni', { phone: user?.phone }],
-    enabled: !!user?.phone,
+    queryKey: ['/api/wasalni', { phone: customerPhone }],
+    enabled: !!customerPhone,
     queryFn: async () => {
-      const res = await fetch(`/api/wasalni?phone=${user?.phone}`);
+      const res = await fetch(`/api/wasalni?phone=${customerPhone}`);
       if (!res.ok) return [];
       return res.json();
     }
@@ -271,7 +278,7 @@ export default function TrackOrdersPage() {
           <Button
             variant="outline"
             className="h-24 flex flex-col gap-2 rounded-[2rem] border-none shadow-sm bg-white hover:bg-blue-50 transition-all group"
-            onClick={() => setLocation('/addresses')}
+            onClick={() => setLocation('/my-addresses')}
           >
             <div className="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
               <MapPin className="h-5 w-5" />
@@ -290,16 +297,16 @@ export default function TrackOrdersPage() {
           <div className="flex gap-3 relative z-10">
             <Button
               className="flex-1 rounded-2xl bg-white text-gray-900 font-black hover:bg-gray-100 h-11 text-xs gap-2"
-              onClick={() => window.open('tel:+967771234567')}
+              onClick={() => safeTriggerPhoneCall(supportPhone)}
             >
               <Phone className="h-3.5 w-3.5" />
               اتصال سريع
             </Button>
             <Button
               className="flex-1 rounded-2xl bg-[#25D366] text-white font-black hover:opacity-90 h-11 text-xs gap-2"
-              onClick={() => window.open('https://wa.me/967771234567')}
+              onClick={() => safeOpenWhatsApp(supportWhatsapp, 'السلام عليكم، أحتاج مساعدة بخصوص متابعة طلبي')}
             >
-              <User className="h-3.5 w-3.5" />
+              <MessageCircle className="h-3.5 w-3.5" />
               واتساب
             </Button>
           </div>

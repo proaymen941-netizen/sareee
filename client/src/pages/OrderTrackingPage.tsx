@@ -12,6 +12,7 @@ import RatingDialog from '@/components/RatingDialog';
 import { DriverCommunication } from '@/components/DriverCommunication';
 import MapComponent from '@/components/maps/MapComponent';
 import { useToast } from '@/hooks/use-toast';
+import { safeTriggerPhoneCall, safeOpenWhatsApp } from '@/lib/callUtils';
 
 interface OrderStatus {
   id: string;
@@ -68,8 +69,8 @@ export default function OrderTrackingPage() {
     queryKey: ['/api/ui-settings'],
   });
 
-  const supportPhone = uiSettings?.find(s => s.key === 'support_phone')?.value || 'tel:+967777777777';
-  const supportWhatsapp = uiSettings?.find(s => s.key === 'support_whatsapp')?.value || 'https://wa.me/967777777777';
+  const supportPhone = uiSettings?.find(s => s.key === 'support_phone')?.value || '967777146387';
+  const supportWhatsapp = uiSettings?.find(s => s.key === 'support_whatsapp')?.value || '967777146387';
 
   // جلب بيانات الطلب الحقيقية من API مع تحديثات سريعة
   const { data: orderData, isLoading, error, refetch } = useQuery<{order: OrderDetails, tracking: OrderStatus[]}>({
@@ -483,7 +484,7 @@ export default function OrderTrackingPage() {
             <Button 
               variant="outline" 
               className="w-full flex items-center justify-center gap-2 border-green-600 text-green-600 hover:bg-green-50"
-              onClick={() => window.open(supportWhatsapp, '_blank')}
+              onClick={() => safeOpenWhatsApp(supportWhatsapp, `السلام عليكم، أحتاج مساعدة بخصوص طلبي #${order.orderNumber || order.id}`)}
               data-testid="button-whatsapp-support"
             >
               <MessageCircle className="h-4 w-4" />
@@ -492,7 +493,7 @@ export default function OrderTrackingPage() {
             <Button 
               variant="outline" 
               className="w-full flex items-center justify-center gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
-              onClick={() => window.location.href = supportPhone}
+              onClick={() => safeTriggerPhoneCall(supportPhone)}
               data-testid="button-call-support"
             >
               <Phone className="h-4 w-4" />
