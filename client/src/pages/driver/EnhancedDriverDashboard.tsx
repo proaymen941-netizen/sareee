@@ -512,7 +512,10 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
           }
         },
         (error) => {
-          console.error('خطأ في الحصول على الموقع:', error);
+          console.warn('⚠️ تعذر الحصول على إحداثيات GPS المباشرة:', error?.message || error);
+          if (!currentLocation) {
+            setCurrentLocation([15.3694, 44.1910]); // Default fallback location
+          }
         },
         {
           enableHighAccuracy: true,
