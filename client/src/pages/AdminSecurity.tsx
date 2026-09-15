@@ -278,7 +278,7 @@ export default function AdminSecurity() {
                     <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
                     <Label className="font-bold text-sm text-gray-900">مفتاح تطبيق العميل (Customer App Key)</Label>
                   </div>
-                  <span className="text-[11px] text-gray-400 font-mono">https://sareeone1.onrender.com/</span>
+                  <span className="text-[11px] text-gray-400 font-mono">{typeof window !== "undefined" ? window.location.origin + "/" : "/"}</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <div className="relative flex-1">
@@ -321,7 +321,7 @@ export default function AdminSecurity() {
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
                     <Label className="font-bold text-sm text-gray-900">مفتاح تطبيق السائق (Driver App Key)</Label>
                   </div>
-                  <span className="text-[11px] text-gray-400 font-mono">https://sareeone1.onrender.com/drivers</span>
+                  <span className="text-[11px] text-gray-400 font-mono">{typeof window !== "undefined" ? window.location.origin + "/driver" : "/driver"}</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <div className="relative flex-1">
