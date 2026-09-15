@@ -101,35 +101,32 @@ export function safeTriggerPhoneCall(phoneNumber: string): boolean {
 }
 
 /**
- * فتح تطبيق واتساب أو المحادثة بشكل آمن متوافق مع Android WebView دون شاشة بيضاء
+ * فتح تطبيق واتساب أو المحادثة بشكل آمن متوافق مع Android WebView دون شاشة بيضاء عند الإلغاء
  */
 export function safeOpenWhatsApp(phoneNumber: string, message?: string): boolean {
   if (!phoneNumber) return false;
   const url = getWhatsAppLink(phoneNumber, message);
   try {
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      try {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-      } catch (_) {}
-    }, 1000);
+    // استخدام window.open مع _blank يضمن عدم مغادرة الصفحة الحالية أو حدوث شاشة بيضاء عند الضغط على "إلغاء"
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try {
+          if (a.parentNode) a.parentNode.removeChild(a);
+        } catch (_) {}
+      }, 500);
+    }
     return true;
   } catch (e) {
-    try {
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return true;
-    } catch (openErr) {
-      console.warn('⚠️ فشل فتح واتساب:', openErr);
-      return false;
-    }
+    console.warn('⚠️ فشل فتح واتساب:', e);
+    return false;
   }
 }
 
