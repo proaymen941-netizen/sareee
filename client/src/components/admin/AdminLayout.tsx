@@ -239,8 +239,12 @@ const NotificationsPanel = React.memo(({ pendingOrders, pendingWasalni, adminNot
                 fetch(`/api/notifications/${notif.id}/read`, { method: 'PUT' }).catch(() => {});
               }
               const isWasalni = notif.type === 'new_wasalni_request' || (notif.title || '').includes('وصل لي') || (notif.message || '').includes('وصل لي');
+              const isWithdrawal = notif.type === 'withdrawal_request' || (notif.title || '').includes('طلب سحب');
+              
               if (isWasalni) {
                 onNavigate('/admin/wasalni');
+              } else if (isWithdrawal) {
+                onNavigate('/admin/wallet');
               } else if (notif.orderId || (notif.title || '').includes('طلب') || (notif.type || '').includes('order')) {
                 onNavigate('/admin/orders');
               } else {

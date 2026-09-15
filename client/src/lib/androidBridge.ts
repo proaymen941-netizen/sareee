@@ -19,6 +19,16 @@ declare global {
        * Requests location permissions directly from the Android OS.
        */
       requestLocationPermission: () => void;
+
+      /**
+       * Requests microphone permissions directly from the Android OS.
+       */
+      requestMicrophonePermission: () => void;
+
+      /**
+       * Requests push notification permissions directly from the Android OS (Android 13+).
+       */
+      requestNotificationPermission: () => void;
       
       /**
        * Notifies the native app about the logged-in driver's ID, 
@@ -26,6 +36,13 @@ declare global {
        * @param driverId The current driver's unique ID
        */
       registerDriver: (driverId: string) => void;
+
+      /**
+       * Notifies the native app about the logged-in customer's ID,
+       * allowing the app to subscribe to customer-specific push notification topics.
+       * @param customerId The current customer's unique ID
+       */
+      registerCustomer: (customerId: string) => void;
       
       /**
        * Plays the native Android notification/ringtone sound.
@@ -41,6 +58,11 @@ declare global {
        * Fetch Firebase Cloud Messaging (FCM) token from native app if configured.
        */
       getFCMToken: () => string;
+      
+      /**
+       * Get API Key securely stored in the native Android App
+       */
+      getApiKey: () => string;
     };
   }
 }
@@ -49,7 +71,6 @@ export const androidBridge = {
   isAvailable: (): boolean => {
     return typeof window !== 'undefined' && !!window.AndroidBridge;
   },
-
   showNotification: (title: string, message: string): boolean => {
     if (androidBridge.isAvailable() && window.AndroidBridge?.showNotification) {
       window.AndroidBridge.showNotification(title, message);
@@ -57,7 +78,6 @@ export const androidBridge = {
     }
     return false;
   },
-
   requestLocationPermission: (): boolean => {
     if (androidBridge.isAvailable() && window.AndroidBridge?.requestLocationPermission) {
       window.AndroidBridge.requestLocationPermission();
@@ -65,7 +85,20 @@ export const androidBridge = {
     }
     return false;
   },
-
+  requestMicrophonePermission: (): boolean => {
+    if (androidBridge.isAvailable() && window.AndroidBridge?.requestMicrophonePermission) {
+      window.AndroidBridge.requestMicrophonePermission();
+      return true;
+    }
+    return false;
+  },
+  requestNotificationPermission: (): boolean => {
+    if (androidBridge.isAvailable() && window.AndroidBridge?.requestNotificationPermission) {
+      window.AndroidBridge.requestNotificationPermission();
+      return true;
+    }
+    return false;
+  },
   registerDriver: (driverId: string): boolean => {
     if (androidBridge.isAvailable() && window.AndroidBridge?.registerDriver) {
       window.AndroidBridge.registerDriver(driverId);
@@ -73,7 +106,13 @@ export const androidBridge = {
     }
     return false;
   },
-
+  registerCustomer: (customerId: string): boolean => {
+    if (androidBridge.isAvailable() && window.AndroidBridge?.registerCustomer) {
+      window.AndroidBridge.registerCustomer(customerId);
+      return true;
+    }
+    return false;
+  },
   playRingtone: (): boolean => {
     if (androidBridge.isAvailable() && window.AndroidBridge?.playRingtone) {
       window.AndroidBridge.playRingtone();
@@ -81,7 +120,6 @@ export const androidBridge = {
     }
     return false;
   },
-
   stopRingtone: (): boolean => {
     if (androidBridge.isAvailable() && window.AndroidBridge?.stopRingtone) {
       window.AndroidBridge.stopRingtone();
@@ -89,10 +127,15 @@ export const androidBridge = {
     }
     return false;
   },
-
   getFCMToken: (): string | null => {
     if (androidBridge.isAvailable() && window.AndroidBridge?.getFCMToken) {
       return window.AndroidBridge.getFCMToken();
+    }
+    return null;
+  },
+  getApiKey: (): string | null => {
+    if (androidBridge.isAvailable() && window.AndroidBridge?.getApiKey) {
+      return window.AndroidBridge.getApiKey();
     }
     return null;
   }

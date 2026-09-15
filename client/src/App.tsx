@@ -35,6 +35,8 @@ import NotFound from "@/pages/not-found";
 
 import SplashScreen from "./components/SplashScreen";
 
+import { androidBridge } from "./lib/androidBridge";
+
 function MainApp() {
   useSettingsSync();
   const { location: userLocation } = useUserLocation();
@@ -48,6 +50,16 @@ function MainApp() {
   });
 
   const { isAuthenticated, user } = useAuth();
+
+  // Register with Android Bridge if customer is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      if (androidBridge.isAvailable()) {
+        androidBridge.registerCustomer(user.id);
+        androidBridge.requestNotificationPermission(); // Ask for notification permission specifically on Android 13+
+      }
+    }
+  }, [isAuthenticated, user?.id]);
 
   // Pre-warm caches on cold start (covers users who already saw splash this session)
   useEffect(() => {
