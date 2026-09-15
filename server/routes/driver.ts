@@ -844,6 +844,14 @@ router.post("/withdraw", requireDriverAuth, async (req: AuthenticatedRequest, re
       adminNotes: `وسيلة السحب: ${method || 'كاش'}`
     });
 
+    // خصم المبلغ من الرصيد المتاح وتحويله لمعلق
+    await storage.updateDriverBalance(driverId, {
+      amount: amount,
+      type: 'withdrawal',
+      description: `طلب سحب: ${method || 'كاش'}`,
+      orderId: withdrawal.id
+    });
+
     // إرسال إشعار للإدارة بطلب السحب الجديد
     try {
       const driver = await storage.getDriver(driverId);

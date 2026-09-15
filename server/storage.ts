@@ -726,6 +726,7 @@ export class MemStorage {
       case 'commission':
       case 'salary':
       case 'bonus':
+      case 'adjustment':
         newTotalBalance += amount;
         newAvailableBalance += amount;
         break;
@@ -733,15 +734,15 @@ export class MemStorage {
         newTotalBalance -= amount;
         newAvailableBalance -= amount;
         break;
-      case 'withdrawal':
+      case 'withdrawal': // Requested by driver
         newAvailableBalance -= amount;
-        newWithdrawnAmount += amount;
         newPendingAmount += amount;
         break;
-      case 'withdrawal_approved':
+      case 'withdrawal_approved': // Approved by admin
         newPendingAmount -= amount;
+        newWithdrawnAmount += amount;
         break;
-      case 'withdrawal_rejected':
+      case 'withdrawal_rejected': // Rejected by admin
         newAvailableBalance += amount;
         newPendingAmount -= amount;
         break;

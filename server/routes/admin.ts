@@ -1540,6 +1540,13 @@ router.post("/drivers/:id/transactions", async (req, res) => {
       referenceId: "admin_manual"
     });
 
+    // Update actual driver balance to reflect transaction
+    await storage.updateDriverBalance(id, {
+      amount: parseFloat(amount.toString()),
+      type,
+      description: description || "تسوية يدوية من الإدارة"
+    });
+
     res.status(201).json(transaction);
   } catch (error) {
     console.error("خطأ في إنشاء المعاملة:", error);
@@ -1629,15 +1636,36 @@ router.post("/withdrawals/:id/approve", async (req, res) => {
       processedAt: new Date()
     });
     
+    let isNewSchema = false;
     if (!updated) {
       try {
         updated = await storage.updateWithdrawalRequest(id, { status: 'completed' });
+        isNewSchema = true;
       } catch (e) {}
     }
 
     if (!updated) {
       return res.status(404).json({ error: "طلب السحب غير موجود" });
     }
+
+    // خصم الرصيد المعلق وإضافة الحركة للسائق
+    const driverId = isNewSchema ? updated.entityId : updated.driverId;
+    
+    await storage.updateDriverBalance(driverId, {
+      amount: parseFloat(updated.amount.toString()),
+      type: 'withdrawal_approved',
+      description: `موافقة على سحب رصيد`,
+      orderId: updated.id
+    });
+    
+    // إنشاء معاملة للسائق لتوثيق السحب
+    await storage.createDriverTransaction({
+      driverId: driverId,
+      amount: updated.amount.toString(),
+      type: 'withdrawal',
+      description: "موافقة على سحب رصيد من الإدارة",
+      referenceId: updated.id
+    });
 
     res.json(updated);
   } catch (error) {
@@ -1656,15 +1684,36 @@ router.post("/withdrawals/:id/reject", async (req, res) => {
       adminNotes: reason
     });
     
+    let isNewSchema = false;
     if (!updated) {
       try {
         updated = await storage.updateWithdrawalRequest(id, { status: 'rejected', rejectionReason: reason });
+        isNewSchema = true;
       } catch (e) {}
     }
 
     if (!updated) {
       return res.status(404).json({ error: "طلب السحب غير موجود" });
     }
+
+    // استرجاع الرصيد للسائق
+    const driverId = isNewSchema ? updated.entityId : updated.driverId;
+    
+    await storage.updateDriverBalance(driverId, {
+      amount: parseFloat(updated.amount.toString()),
+      type: 'withdrawal_rejected',
+      description: `رفض طلب سحب: ${reason || ''}`,
+      orderId: updated.id
+    });
+
+    // إنشاء معاملة للسائق
+    await storage.createDriverTransaction({
+      driverId: driverId,
+      amount: updated.amount.toString(),
+      type: 'deduction', // Use deduction logic or just a record? We can use 'bonus' to add it back visually in transactions if needed, but the balance is updated correctly above.
+      description: `استرجاع رصيد بعد رفض السحب: ${reason || ''}`,
+      referenceId: updated.id
+    });
 
     res.json(updated);
   } catch (error) {

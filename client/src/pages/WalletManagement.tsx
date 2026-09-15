@@ -5,6 +5,7 @@ import {
   ArrowDownLeft, ArrowUpRight, Clock, AlertCircle, Phone
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface CustomerWalletInfo {
   id: string;
@@ -93,7 +94,6 @@ export default function WalletManagement() {
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [driverDetails, setDriverDetails] = useState<DriverDetailFinances | null>(null);
   const [isDriverDetailLoading, setIsDriverDetailLoading] = useState(false);
-  const [pendingWithdrawals, setPendingWithdrawals] = useState<any[]>([]);
 
   // Form for driver manual transaction
   const [showDriverTxForm, setShowDriverTxForm] = useState(false);
@@ -215,15 +215,10 @@ export default function WalletManagement() {
     }
   };
 
-  const fetchPendingWithdrawals = async () => {
-    try {
-      const response = await fetch('/api/admin/withdrawals/pending');
-      const data = await response.json();
-      if (Array.isArray(data)) setPendingWithdrawals(data);
-    } catch (error) {
-      console.error('خطأ في جلب طلبات السحب:', error);
-    }
-  };
+  const { data: pendingWithdrawals = [], refetch: fetchPendingWithdrawals } = useQuery<any[]>({
+    queryKey: ['/api/admin/withdrawals/pending'],
+    refetchInterval: 15000,
+  });
 
   const fetchDriverDetails = async (driverId: string) => {
     setIsDriverDetailLoading(true);
@@ -277,12 +272,12 @@ export default function WalletManagement() {
     try {
       const endpoint = action === 'approve'
         ? `/api/admin/withdrawals/${withdrawalId}/approve`
-        : `/api/admin/withdrawals/${withdrawalId}`;
+        : `/api/admin/withdrawals/${withdrawalId}/reject`;
       
       const response = await fetch(endpoint, {
-        method: action === 'approve' ? 'POST' : 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: action === 'reject' ? JSON.stringify({ status: 'rejected', adminNotes: 'تم الرفض من الإدارة' }) : undefined
+        body: action === 'reject' ? JSON.stringify({ reason: 'تم الرفض من الإدارة' }) : undefined
       });
 
       if (response.ok) {
