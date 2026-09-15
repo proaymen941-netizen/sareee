@@ -247,27 +247,47 @@ router.get("/orders/available", requireDriverAuth, async (req: AuthenticatedRequ
         } catch (_) {}
       }
 
-      if (!storeLat && order.customerLocationLat) {
-        storeLat = parseFloat(order.customerLocationLat);
-        storeLng = parseFloat(order.customerLocationLng);
+      let customerLat = order.customerLocationLat ? parseFloat(order.customerLocationLat) : null;
+      let customerLng = order.customerLocationLng ? parseFloat(order.customerLocationLng) : null;
+
+      if (!storeLat && customerLat) {
+        storeLat = customerLat;
+        storeLng = customerLng;
       }
 
       let distanceKm: number | null = null;
-      if (driverLat !== null && driverLng !== null && storeLat !== null && storeLng !== null) {
+      let customerDistanceKm: number | null = null;
+      let distanceClassification: string | null = null;
+
+      const calcHaversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
         const R = 6371;
-        const dLat = (storeLat - driverLat) * (Math.PI / 180);
-        const dLon = (storeLng - driverLng) * (Math.PI / 180);
+        const dLat = (lat2 - lat1) * (Math.PI / 180);
+        const dLon = (lon2 - lon1) * (Math.PI / 180);
         const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                  Math.cos(driverLat * (Math.PI / 180)) * Math.cos(storeLat * (Math.PI / 180)) *
+                  Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
                   Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        distanceKm = Math.round(R * c * 10) / 10;
+        return Math.round(R * c * 10) / 10;
+      };
+
+      if (driverLat !== null && driverLng !== null) {
+        if (storeLat !== null && storeLng !== null) {
+          distanceKm = calcHaversine(driverLat, driverLng, storeLat, storeLng);
+          if (distanceKm <= 2) distanceClassification = 'قريب جداً';
+          else if (distanceKm <= 5) distanceClassification = 'متوسط المسافة';
+          else distanceClassification = 'بعيد';
+        }
+        if (customerLat !== null && customerLng !== null) {
+          customerDistanceKm = calcHaversine(driverLat, driverLng, customerLat, customerLng);
+        }
       }
 
       return {
         ...order,
         restaurantName,
         distanceKm,
+        customerDistanceKm,
+        distanceClassification,
         isNearest: false,
       };
     }));
@@ -331,7 +351,71 @@ router.get("/orders", requireDriverAuth, async (req: AuthenticatedRequest, res) 
 
     driverOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    res.json(driverOrders);
+    const driver = await storage.getDriver(driverId);
+    const driverLat = driver?.latitude ? parseFloat(driver.latitude) : null;
+    const driverLng = driver?.longitude ? parseFloat(driver.longitude) : null;
+
+    const calcHaversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * (Math.PI / 180);
+        const dLon = (lon2 - lon1) * (Math.PI / 180);
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c * 10) / 10;
+    };
+
+    const enrichedOrders = await Promise.all(driverOrders.map(async (order) => {
+      let storeLat: number | null = order.pickupLocationLat ? parseFloat(order.pickupLocationLat) : null;
+      let storeLng: number | null = order.pickupLocationLng ? parseFloat(order.pickupLocationLng) : null;
+      let restaurantName = order.restaurantName || 'المتجر الرئيسي';
+
+      if (!storeLat && order.restaurantId) {
+        try {
+          const rest = await storage.getRestaurant(order.restaurantId);
+          if (rest) {
+            storeLat = rest.latitude ? parseFloat(rest.latitude) : null;
+            storeLng = rest.longitude ? parseFloat(rest.longitude) : null;
+            if (rest.name) restaurantName = rest.name;
+          }
+        } catch (_) {}
+      }
+
+      let customerLat = order.customerLocationLat ? parseFloat(order.customerLocationLat) : null;
+      let customerLng = order.customerLocationLng ? parseFloat(order.customerLocationLng) : null;
+
+      if (!storeLat && customerLat) {
+        storeLat = customerLat;
+        storeLng = customerLng;
+      }
+
+      let distanceKm: number | null = null;
+      let customerDistanceKm: number | null = null;
+      let distanceClassification: string | null = null;
+
+      if (driverLat !== null && driverLng !== null) {
+        if (storeLat !== null && storeLng !== null) {
+          distanceKm = calcHaversine(driverLat, driverLng, storeLat, storeLng);
+          if (distanceKm <= 2) distanceClassification = 'قريب جداً';
+          else if (distanceKm <= 5) distanceClassification = 'متوسط المسافة';
+          else distanceClassification = 'بعيد';
+        }
+        if (customerLat !== null && customerLng !== null) {
+          customerDistanceKm = calcHaversine(driverLat, driverLng, customerLat, customerLng);
+        }
+      }
+
+      return {
+        ...order,
+        restaurantName,
+        distanceKm,
+        customerDistanceKm,
+        distanceClassification
+      };
+    }));
+
+    res.json(enrichedOrders);
   } catch (error) {
     console.error("خطأ في جلب طلبات السائق:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
@@ -667,13 +751,16 @@ router.get("/orders/:id", requireDriverAuth, async (req: AuthenticatedRequest, r
   try {
     const { id } = req.params;
     const driverId = req.driverId!;
-
+    const driver = await storage.getDriver(driverId);
+    
     let order = await storage.getOrder(id);
+    let orderDataToReturn: any = null;
+
     if (!order || (order.driverId && order.driverId !== driverId)) {
       try {
         const wasalni = await storage.getWasalniRequest(id);
         if (wasalni && (!wasalni.driverId || wasalni.driverId === driverId)) {
-          return res.json({
+          orderDataToReturn = {
             id: wasalni.id,
             orderNumber: wasalni.requestNumber || wasalni.id.slice(-6),
             customerName: wasalni.customerName,
@@ -701,13 +788,65 @@ router.get("/orders/:id", requireDriverAuth, async (req: AuthenticatedRequest, r
             items: JSON.stringify([{ name: wasalni.orderType || 'طرد وصل لي', quantity: 1, price: wasalni.estimatedFee || 0 }]),
             createdAt: wasalni.createdAt,
             updatedAt: wasalni.updatedAt,
-          });
+          };
         }
       } catch (_) {}
+    } else {
+       orderDataToReturn = { ...order };
+       if (!orderDataToReturn.restaurantName && orderDataToReturn.restaurantId) {
+          try {
+             const rest = await storage.getRestaurant(orderDataToReturn.restaurantId);
+             if (rest) {
+                orderDataToReturn.restaurantName = rest.name;
+                orderDataToReturn.restaurantPhone = rest.phone;
+                orderDataToReturn.restaurantAddress = rest.address;
+                orderDataToReturn.restaurantLatitude = rest.latitude;
+                orderDataToReturn.restaurantLongitude = rest.longitude;
+             }
+          } catch(e) {}
+       }
+    }
+
+    if (!orderDataToReturn) {
       return res.status(404).json({ error: "الطلب غير موجود" });
     }
 
-    res.json(order);
+    // Calculate Distance
+    let driverLat = driver?.latitude ? parseFloat(driver.latitude) : null;
+    let driverLng = driver?.longitude ? parseFloat(driver.longitude) : null;
+    let storeLat = orderDataToReturn.restaurantLatitude || orderDataToReturn.pickupLocationLat ? parseFloat(orderDataToReturn.restaurantLatitude || orderDataToReturn.pickupLocationLat) : null;
+    let storeLng = orderDataToReturn.restaurantLongitude || orderDataToReturn.pickupLocationLng ? parseFloat(orderDataToReturn.restaurantLongitude || orderDataToReturn.pickupLocationLng) : null;
+    let customerLat = orderDataToReturn.customerLocationLat ? parseFloat(orderDataToReturn.customerLocationLat) : null;
+    let customerLng = orderDataToReturn.customerLocationLng ? parseFloat(orderDataToReturn.customerLocationLng) : null;
+    
+    if (!storeLat && customerLat) { storeLat = customerLat; storeLng = customerLng; }
+
+    const calcHaversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * (Math.PI / 180);
+        const dLon = (lon2 - lon1) * (Math.PI / 180);
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c * 10) / 10;
+    };
+
+    if (driverLat !== null && driverLng !== null) {
+        if (storeLat !== null && storeLng !== null) {
+            let d = calcHaversine(driverLat, driverLng, storeLat, storeLng);
+            orderDataToReturn.distanceKm = d;
+            if (d <= 2) orderDataToReturn.distanceClassification = 'قريب جداً';
+            else if (d <= 5) orderDataToReturn.distanceClassification = 'متوسط المسافة';
+            else orderDataToReturn.distanceClassification = 'بعيد';
+        }
+        if (customerLat !== null && customerLng !== null) {
+            orderDataToReturn.customerDistanceKm = calcHaversine(driverLat, driverLng, customerLat, customerLng);
+        }
+    }
+
+    res.json(orderDataToReturn);
+
   } catch (error) {
     res.status(500).json({ error: "خطأ في الخادم" });
   }
@@ -1143,23 +1282,42 @@ router.get("/wasalni", requireDriverAuth, async (req: AuthenticatedRequest, res)
 
     const enrichedRequests = allRequests.map((r: any) => {
       let distanceKm: number | null = null;
+      let customerDistanceKm: number | null = null;
+      let distanceClassification: string | null = null;
+
       const fromLat = r.fromLat ? parseFloat(r.fromLat) : null;
       const fromLng = r.fromLng ? parseFloat(r.fromLng) : null;
+      const toLat = r.toLat ? parseFloat(r.toLat) : null;
+      const toLng = r.toLng ? parseFloat(r.toLng) : null;
 
-      if (driverLat !== null && driverLng !== null && fromLat !== null && fromLng !== null) {
+      const calcHaversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
         const R = 6371;
-        const dLat = (fromLat - driverLat) * (Math.PI / 180);
-        const dLon = (fromLng - driverLng) * (Math.PI / 180);
+        const dLat = (lat2 - lat1) * (Math.PI / 180);
+        const dLon = (lon2 - lon1) * (Math.PI / 180);
         const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                  Math.cos(driverLat * (Math.PI / 180)) * Math.cos(fromLat * (Math.PI / 180)) *
+                  Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
                   Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        distanceKm = Math.round(R * c * 10) / 10;
+        return Math.round(R * c * 10) / 10;
+      };
+
+      if (driverLat !== null && driverLng !== null) {
+        if (fromLat !== null && fromLng !== null) {
+          distanceKm = calcHaversine(driverLat, driverLng, fromLat, fromLng);
+          if (distanceKm <= 2) distanceClassification = 'قريب جداً';
+          else if (distanceKm <= 5) distanceClassification = 'متوسط المسافة';
+          else distanceClassification = 'بعيد';
+        }
+        if (toLat !== null && toLng !== null) {
+          customerDistanceKm = calcHaversine(driverLat, driverLng, toLat, toLng);
+        }
       }
 
       return {
         ...r,
         distanceKm,
+        customerDistanceKm,
+        distanceClassification,
         isNearest: false,
       };
     });

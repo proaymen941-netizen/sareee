@@ -68,6 +68,9 @@ interface Order {
   adminPhone?: string;
   isWasalni?: boolean;
   orderType?: string;
+  distanceKm?: number | null;
+  customerDistanceKm?: number | null;
+  distanceClassification?: string | null;
 }
 
 interface OrderDetailsPageProps {
@@ -474,10 +477,17 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
 
             <div className="border-t pt-4">
               <p className="text-sm text-gray-600 mb-2">عنوان التوصيل</p>
-              <div className="flex gap-2 mb-4">
+              <div className="flex gap-2 mb-2">
                 <MapPin className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <p className="font-medium">{order.deliveryAddress || 'لم يتم تحديد العنوان'}</p>
               </div>
+              {order.customerDistanceKm !== null && order.customerDistanceKm !== undefined && (
+                <div className="mb-4">
+                  <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded-md inline-block">
+                    📍 يبعد العميل عن موقعك الحالي {order.customerDistanceKm} كم
+                  </span>
+                </div>
+              )}
               <Dialog>
                 <DialogTrigger asChild>
                   <Button
@@ -574,6 +584,14 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
                 <MapPin className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
                 <p className="font-medium">{order.restaurantAddress || 'عنوان المطعم'}</p>
               </div>
+              {order.distanceKm !== null && order.distanceKm !== undefined && (
+                <div className="mt-2">
+                  <span className="text-xs font-bold text-orange-700 bg-orange-100 px-2 py-1 rounded-md inline-block">
+                    📍 يبعد المتجر عن موقعك الحالي {order.distanceKm} كم
+                    {order.distanceClassification && ` (${order.distanceClassification})`}
+                  </span>
+                </div>
+              )}
             </div>
 
             {order.restaurantLatitude && order.restaurantLongitude && (

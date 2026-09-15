@@ -30,6 +30,9 @@ interface Order {
   restaurantLongitude?: string;
   createdAt: Date;
   driverId?: string;
+  distanceKm?: number | null;
+  customerDistanceKm?: number | null;
+  distanceClassification?: string | null;
 }
 
 interface ActiveOrdersPageProps {
@@ -263,7 +266,22 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
                   <div className="space-y-2 mb-4 border-t pt-3">
                     <div className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-gray-700">{order.deliveryAddress}</p>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-gray-700">{order.deliveryAddress}</p>
+                        {order.distanceKm !== null && order.distanceKm !== undefined && (
+                          <div className="flex flex-col gap-1 mt-1">
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded inline-flex w-fit">
+                              📍 المتجر يبعد عنك {order.distanceKm} كم
+                              {order.distanceClassification && ` (${order.distanceClassification})`}
+                            </span>
+                            {order.customerDistanceKm !== null && order.customerDistanceKm !== undefined && (
+                              <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded inline-flex w-fit">
+                                📍 العميل يبعد عنك {order.customerDistanceKm} كم
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-gray-500" />
@@ -380,9 +398,22 @@ export default function ActiveOrdersPage({ driverId, onSelectOrder }: ActiveOrde
                   <div className="space-y-2 mb-4 border-t pt-3">
                     <div className="flex items-start gap-2">
                       <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
-                      <div>
+                      <div className="flex flex-col gap-1">
                         <p className="text-[10px] text-gray-400 font-bold">من (الاستلام)</p>
                         <p className="text-sm text-gray-700">{req.fromAddress}</p>
+                        {req.distanceKm !== null && req.distanceKm !== undefined && (
+                          <div className="flex flex-col gap-1 mt-1">
+                            <span className="text-xs font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded inline-flex w-fit">
+                              📍 نقطة الاستلام تبعد عنك {req.distanceKm} كم
+                              {req.distanceClassification && ` (${req.distanceClassification})`}
+                            </span>
+                            {req.customerDistanceKm !== null && req.customerDistanceKm !== undefined && (
+                              <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded inline-flex w-fit">
+                                📍 نقطة التوصيل تبعد عنك {req.customerDistanceKm} كم
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-start gap-2">

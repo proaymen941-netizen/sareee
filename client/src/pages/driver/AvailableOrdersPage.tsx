@@ -30,6 +30,8 @@ interface Order {
   orderType?: string;
   estimatedFee?: string;
   distanceKm?: number | null;
+  customerDistanceKm?: number | null;
+  distanceClassification?: string | null;
   isNearest?: boolean;
 }
 
@@ -313,9 +315,17 @@ export default function AvailableOrdersPage({ driverId, onSelectOrder, onOrderAc
                         <div>
                           <p className="text-sm text-gray-700 font-medium">{order.deliveryAddress}</p>
                           {order.distanceKm !== null && order.distanceKm !== undefined && (
-                            <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded mt-1 inline-block">
-                              📍 يبعد {order.distanceKm} كم عن موقعك
-                            </span>
+                            <div className="flex flex-col gap-1 mt-1">
+                              <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded inline-flex w-fit">
+                                📍 المتجر يبعد عنك {order.distanceKm} كم
+                                {order.distanceClassification && ` (${order.distanceClassification})`}
+                              </span>
+                              {order.customerDistanceKm !== null && order.customerDistanceKm !== undefined && (
+                                <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded inline-flex w-fit">
+                                  📍 العميل يبعد عنك {order.customerDistanceKm} كم
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -442,9 +452,17 @@ export default function AvailableOrdersPage({ driverId, onSelectOrder, onOrderAc
                           <p className="text-[10px] text-gray-500 font-bold">من (موقع الاستلام)</p>
                           <p className="text-sm text-gray-800 font-medium">{req.fromAddress}</p>
                           {req.distanceKm !== null && req.distanceKm !== undefined && (
-                            <span className="text-xs font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded mt-1 inline-block">
-                              📍 يبعد {req.distanceKm} كم عنك
-                            </span>
+                            <div className="flex flex-col gap-1 mt-1">
+                              <span className="text-xs font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded inline-flex w-fit">
+                                📍 نقطة الاستلام تبعد عنك {req.distanceKm} كم
+                                {req.distanceClassification && ` (${req.distanceClassification})`}
+                              </span>
+                              {req.customerDistanceKm !== null && req.customerDistanceKm !== undefined && (
+                                <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded inline-flex w-fit">
+                                  📍 نقطة التوصيل تبعد عنك {req.customerDistanceKm} كم
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
