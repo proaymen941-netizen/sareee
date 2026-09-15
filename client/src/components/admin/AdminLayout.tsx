@@ -375,13 +375,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       const handleMessage = (event: MessageEvent) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.type === "order_update" || msg.type === "new_order" || msg.type === "NEW_NOTIFICATION" || msg.type === "settings_changed") {
+          if (msg.type === "order_update" || msg.type === "new_order" || msg.type === "NEW_NOTIFICATION" || msg.type === "settings_changed" || msg.type === "withdrawal_request") {
             queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
             queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
             queryClient.invalidateQueries({ queryKey: ['/api/admin/notifications'] });
             queryClient.invalidateQueries({ queryKey: ['/api/notifications/customer'] });
             queryClient.invalidateQueries({ queryKey: ['/api/wasalni'] });
             queryClient.invalidateQueries({ queryKey: ['/api/admin/ui-settings'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawals/pending'] });
           }
           if (msg.type === "order_unassigned_alert") {
             const p = msg.payload || {};
@@ -450,6 +451,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     refetchInterval: 15000,
   });
 
+  const { data: pendingWithdrawals = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/withdrawals/pending'],
+    refetchInterval: 15000,
+  });
+
   const filteredAdminNotifs = useMemo(() => {
     const customerExcludeTypes = [
       "wasalni_received",
@@ -486,7 +492,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const unreadNotifsCount = filteredAdminNotifs.filter((n: any) => !n.isRead).length;
   const pendingOrdersCount = pendingOrders.length;
   const pendingWasalniCount = pendingWasalni.length;
-  const totalNotifCount = Math.max(pendingOrdersCount + pendingWasalniCount, unreadNotifsCount);
+  const pendingWithdrawalsCount = pendingWithdrawals.length;
+  const totalNotifCount = Math.max(pendingOrdersCount + pendingWasalniCount + pendingWithdrawalsCount, unreadNotifsCount);
 
   const getLogoUrl = useCallback(() => uiSettings?.find(s => s.key === 'header_logo_url')?.value || '', [uiSettings]);
   const getSidebarImageUrl = useCallback(() => uiSettings?.find(s => s.key === 'sidebar_image_url')?.value || '', [uiSettings]);
@@ -526,7 +533,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       items: [
         { icon: Truck, label: 'إدارة السائقين', path: '/admin/drivers', permission: 'manage_drivers' },
         { icon: DollarSign, label: 'رسوم التوصيل', path: '/admin/delivery-fees', permission: 'manage_drivers' },
-        { icon: Wallet, label: 'محافظ السائقين', path: '/admin/wallet', permission: 'manage_drivers' },
+        { icon: Wallet, label: 'محافظ السائقين', path: '/admin/wallet', badge: pendingWithdrawalsCount, permission: 'manage_drivers' },
       ].filter(item => hasPermission(item.permission))
     },
     {
@@ -560,7 +567,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { icon: User, label: 'الملف الشخصي', path: '/admin/profile', permission: null },
       ].filter(item => hasPermission(item.permission))
     },
-  ], [pendingOrdersCount, pendingWasalniCount, hasPermission]);
+  ], [pendingOrdersCount, pendingWasalniCount, pendingWithdrawalsCount, hasPermission]);
 
   const handleNavScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     navScrollRef.current = (e.currentTarget as HTMLDivElement).scrollTop;

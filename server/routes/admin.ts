@@ -1551,11 +1551,13 @@ router.post("/drivers/:id/transactions", async (req, res) => {
 router.get("/withdrawals/pending", async (req, res) => {
   try {
     const driversList = await storage.getDrivers();
-    const allWithdrawals = await Promise.all(
+    
+    // Fetch from old schema (just in case)
+    const allOldWithdrawals = await Promise.all(
       driversList.map(driver => storage.getDriverWithdrawals(driver.id))
     );
     
-    const pendingWithdrawals = allWithdrawals
+    const pendingOldWithdrawals = allOldWithdrawals
       .flat()
       .filter(w => w.status === 'pending')
       .map(w => {
@@ -1567,7 +1569,24 @@ router.get("/withdrawals/pending", async (req, res) => {
         };
       });
 
-    res.json(pendingWithdrawals);
+    // Fetch from new schema
+    const newWithdrawals = await storage.getPendingWithdrawalRequests();
+    const pendingNewWithdrawals = newWithdrawals
+      .filter(w => w.entityType === 'driver')
+      .map(w => {
+        const driver = driversList.find(d => d.id === w.entityId);
+        return {
+          ...w,
+          driverId: w.entityId, // Map for frontend compatibility
+          bankName: w.adminNotes || 'كاش',
+          accountNumber: w.bankDetails || '',
+          userName: driver?.name || 'سائق غير معروف',
+          userType: 'driver'
+        };
+      });
+
+    // Merge both
+    res.json([...pendingOldWithdrawals, ...pendingNewWithdrawals]);
   } catch (error) {
     console.error("خطأ في جلب طلبات السحب المعلقة:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
@@ -1605,10 +1624,16 @@ router.put("/withdrawals/:id", async (req, res) => {
 router.post("/withdrawals/:id/approve", async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = await storage.updateWithdrawal(id, {
+    let updated: any = await storage.updateWithdrawal(id, {
       status: 'completed',
       processedAt: new Date()
     });
+    
+    if (!updated) {
+      try {
+        updated = await storage.updateWithdrawalRequest(id, { status: 'completed' });
+      } catch (e) {}
+    }
 
     if (!updated) {
       return res.status(404).json({ error: "طلب السحب غير موجود" });
@@ -1626,10 +1651,16 @@ router.post("/withdrawals/:id/reject", async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    const updated = await storage.updateWithdrawal(id, {
+    let updated: any = await storage.updateWithdrawal(id, {
       status: 'rejected',
       adminNotes: reason
     });
+    
+    if (!updated) {
+      try {
+        updated = await storage.updateWithdrawalRequest(id, { status: 'rejected', rejectionReason: reason });
+      } catch (e) {}
+    }
 
     if (!updated) {
       return res.status(404).json({ error: "طلب السحب غير موجود" });

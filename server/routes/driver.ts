@@ -844,6 +844,32 @@ router.post("/withdraw", requireDriverAuth, async (req: AuthenticatedRequest, re
       adminNotes: `وسيلة السحب: ${method || 'كاش'}`
     });
 
+    // إرسال إشعار للإدارة بطلب السحب الجديد
+    try {
+      const driver = await storage.getDriver(driverId);
+      const driverName = driver?.name || 'سائق';
+      await storage.createNotification({
+        type: 'withdrawal_request',
+        title: 'طلب سحب رصيد جديد',
+        message: `طلب السائق ${driverName} سحب مبلغ ${amount} ر.ي`,
+        recipientType: 'admin',
+        recipientId: 'all',
+        isRead: false
+      });
+      
+      const ws = req.app.get('ws');
+      if (ws && typeof ws.sendToAdmin === 'function') {
+        ws.sendToAdmin('withdrawal_request', {
+          driverId,
+          driverName,
+          amount,
+          timestamp: new Date()
+        });
+      }
+    } catch (notifErr) {
+      console.error('⚠️ خطأ في إرسال إشعار السحب للإدارة:', notifErr);
+    }
+
     res.json({ success: true, withdrawal });
   } catch (error) {
     res.status(500).json({ error: "خطأ في الخادم" });
