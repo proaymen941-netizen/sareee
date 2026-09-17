@@ -10,7 +10,9 @@ interface SplashScreenProps {
   onFinish: () => void;
 }
 
-const MIN_SPLASH_MS = 600;
+// الحد الأدنى للمدة الزمنية الكافية لاكتمال ظهور كافة الحركات والنصوص والشعار وزر البداية
+const DEFAULT_SPLASH_DURATION_MS = 3800;
+const MIN_SPLASH_DURATION_MS = 3200;
 const MAX_BOOTSTRAP_MS = 2500;
 
 const PARTICLE_COUNT = 22;
@@ -20,15 +22,26 @@ const RAY_COUNT = 12;
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const { getSetting, loading: settingsLoading } = useUiSettings();
   const { user } = useAuth();
-  const [show, setShow] = useState(true);
+  const [isExiting, setIsExiting] = useState(false);
   const [ready, setReady] = useState(false);
   const [lettersConnected, setLettersConnected] = useState(false);
+
+  // حساب المدة الزمنية لعرض الشاشة باحترام إعدادات لوحة التحكم إن وُجدت
+  const rawDuration = getSetting('splash_duration');
+  const splashDurationMs = useMemo(() => {
+    if (!rawDuration) return DEFAULT_SPLASH_DURATION_MS;
+    const parsed = parseFloat(rawDuration);
+    if (isNaN(parsed) || parsed <= 0) return DEFAULT_SPLASH_DURATION_MS;
+    // إذا كُتبت بالثواني (مثل 3.8) نحولها للمللي ثانية، وإلا نعتبرها بالمللي ثانية
+    const inMs = parsed < 100 ? parsed * 1000 : parsed;
+    return Math.max(MIN_SPLASH_DURATION_MS, inMs);
+  }, [rawDuration]);
 
   useEffect(() => {
     // التحول من الحروف المقطعة (وقت الظهور) إلى النص المتصل بعد الانتهاء من الحركة
     const letterTimer = setTimeout(() => {
       setLettersConnected(true);
-    }, 2200);
+    }, 2400);
 
     return () => clearTimeout(letterTimer);
   }, []);
@@ -43,25 +56,34 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
     const bootPromise = prefetchBootstrap({ phone, customerId, force: true });
     const timeoutPromise = new Promise(resolve => setTimeout(resolve, MAX_BOOTSTRAP_MS));
 
+    // تفعيل زر البدء فور انتهاء التحميل التمهيدي وبعد اكتمال حركة دخول الزر
     Promise.race([bootPromise, timeoutPromise]).finally(() => {
       const elapsed = Date.now() - startedAt;
-      const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
+      const readyDelay = Math.max(0, 1400 - elapsed);
       setTimeout(() => {
         if (!cancelled) {
           setReady(true);
-          // الانتقال التلقائي السريع فور الجاهزية
-          setTimeout(() => {
-            if (!cancelled) {
-              setShow(false);
-              setTimeout(onFinish, 200);
-            }
-          }, 400);
         }
-      }, remaining);
+      }, readyDelay);
     });
 
-    return () => { cancelled = true; };
-  }, [user?.id, user?.phone, onFinish]);
+    // الانتقال التلقائي السلس بعد اكتمال كامل مدة العرض وظهور كافة المحتويات
+    const autoFinishTimer = setTimeout(() => {
+      if (!cancelled) {
+        setIsExiting(true);
+        setTimeout(() => {
+          if (!cancelled) {
+            onFinish();
+          }
+        }, 500);
+      }
+    }, splashDurationMs);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(autoFinishTimer);
+    };
+  }, [user?.id, user?.phone, onFinish, splashDurationMs]);
 
   // Pre-compute random positions once so they don't shift on re-render
   const particles = useMemo(() =>
@@ -100,18 +122,17 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const buttonText = getSetting('splash_button_text') || 'ابدأ الآن';
 
   const handleStart = () => {
-    setShow(false);
+    if (isExiting) return;
+    setIsExiting(true);
     setTimeout(onFinish, 500);
   };
 
-  if (!show) {
-    return (
-      <div className="fixed inset-0 bg-[#C73208] z-[9999] transition-opacity duration-500 opacity-0 pointer-events-none" />
-    );
-  }
-
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col transition-opacity duration-500 overflow-hidden bg-gradient-to-b from-[#C73208] via-[#E03A0E] to-[#B52200]">
+    <div
+      className={`fixed inset-0 z-[9999] flex flex-col transition-opacity duration-500 overflow-hidden bg-gradient-to-b from-[#C73208] via-[#E03A0E] to-[#B52200] ${
+        isExiting ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`}
+    >
       {/* خلفية شبكية متدرجة متحركة */}
       <div className="absolute inset-0 splash-bg-mesh pointer-events-none" />
 

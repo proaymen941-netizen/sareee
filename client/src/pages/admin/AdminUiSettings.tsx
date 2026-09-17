@@ -666,6 +666,7 @@ export default function AdminUiSettings() {
               <SettingRow label="عنوان شاشة الترحيب" {...rowProps('splash_title')} placeholder="السريع ون" description="النص الرئيسي في شاشة الترحيب" />
               <SettingRow label="نص الترحيب (وصف)" {...rowProps('splash_subtitle')} type="textarea" placeholder="أفضل وجبات طازجة..." description="الوصف أسفل العنوان" />
               <SettingRow label="نص زر البداية" {...rowProps('splash_button_text')} placeholder="ابدأ الآن" description="النص على زر البدء في شاشة الترحيب" />
+              <SettingRow label="مدة عرض شاشة الترحيب (بالثواني)" {...rowProps('splash_duration')} placeholder="3.8" description="المدة الكافية لاكتمال عرض كافة المحتويات والتأثيرات (مثال: 3.8 ثانية)" />
             </SectionCard>
 
             {/* الدعم والتواصل */}
