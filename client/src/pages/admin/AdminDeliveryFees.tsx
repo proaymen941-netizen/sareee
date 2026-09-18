@@ -43,11 +43,15 @@ import {
   Play,
   RotateCcw,
   Clock,
-  ArrowRight
+  ArrowRight,
+  ShieldAlert,
+  Eye,
+  Check
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import GeoZoneMapEditor from '@/components/maps/GeoZoneMapEditor';
 import GeoZoneOverviewMap from '@/components/maps/GeoZoneOverviewMap';
+import OutOfDeliveryZoneModal from '@/components/OutOfDeliveryZoneModal';
 
 interface DeliveryZone {
   id: string;
@@ -251,6 +255,52 @@ export default function AdminDeliveryFees() {
   const [testSubtotal, setTestSubtotal] = useState<string>('6000');
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
+
+  // Zone Restriction Settings state
+  const { data: zoneRestrictionData } = useQuery<{
+    enableRestriction: boolean;
+    maxDistanceKm: number;
+    restrictionMode: string;
+    geoZonesCount: number;
+    activeGeoZonesCount: number;
+  }>({
+    queryKey: ['/api/delivery-fees/zone-restriction'],
+  });
+
+  const [enableZoneRestriction, setEnableZoneRestriction] = useState(true);
+  const [maxDistanceKm, setMaxDistanceKm] = useState('25');
+  const [restrictionMode, setRestrictionMode] = useState('both');
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (zoneRestrictionData) {
+      setEnableZoneRestriction(zoneRestrictionData.enableRestriction ?? true);
+      setMaxDistanceKm(String(zoneRestrictionData.maxDistanceKm ?? '25'));
+      setRestrictionMode(zoneRestrictionData.restrictionMode || 'both');
+    }
+  }, [zoneRestrictionData]);
+
+  const saveZoneRestrictionMutation = useMutation({
+    mutationFn: async (data: { enableRestriction: boolean; maxDistanceKm: number; restrictionMode: string }) => {
+      const res = await apiRequest('POST', '/api/delivery-fees/zone-restriction', data);
+      return res.json();
+    },
+    onSuccess: (res) => {
+      toast({
+        title: 'تم حفظ إعدادات نطاق التوصيل بنجاح ✅',
+        description: res.message || 'تم تحديث النطاق المسموح به وتطبيقه على الفور في تطبيق العميل'
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/delivery-fees/zone-restriction'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] });
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'خطأ في حفظ الإعدادات',
+        description: err.message,
+        variant: 'destructive'
+      });
+    }
+  });
 
   // Mutations
   const saveSettingsMutation = useMutation({
@@ -518,12 +568,12 @@ export default function AdminDeliveryFees() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="rules" className="flex items-center gap-1.5 py-2.5 text-xs md:text-sm">
-            <ShieldCheck className="h-4 w-4" />
-            القواعد الديناميكية
-            {deliveryRules.length > 0 && (
-              <Badge variant="secondary" className="mr-1 text-[10px] px-1.5 py-0 h-4">
-                {deliveryRules.length}
+          <TabsTrigger value="zone-restrictions" className="flex items-center gap-1.5 py-2.5 text-xs md:text-sm font-medium">
+            <ShieldAlert className="h-4 w-4 text-[#F05215]" />
+            نطاق ومناطق التوصيل المسموح بها
+            {enableZoneRestriction && (
+              <Badge className="mr-1 text-[10px] px-1.5 py-0 h-4 bg-emerald-600 text-white hover:bg-emerald-600">
+                مُفعّل
               </Badge>
             )}
           </TabsTrigger>
@@ -1153,202 +1203,267 @@ export default function AdminDeliveryFees() {
         </TabsContent>
 
         {/* ========================================================
-            TAB 4: DYNAMIC RULES (القواعد الديناميكية)
+            TAB 4: ALLOWED DELIVERY ZONES & RESTRICTIONS (نطاق ومناطق التوصيل المسموح بها)
            ======================================================== */}
-        <TabsContent value="rules" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <TabsContent value="zone-restrictions" className="space-y-6">
+          {/* Card 1: Main Restriction Settings */}
+          <Card className="border-2 border-primary/20">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
-                  القواعد الديناميكية المخصصة
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ShieldAlert className="h-5 w-5 text-[#F05215]" />
+                  إدارة نطاق ومناطق التوصيل المسموح بها
                 </CardTitle>
-                <CardDescription>
-                  تطبيق رسوم مخصصة استناداً إلى قيمة الطلب، المسافة، أو مناطق محددة حسب الأولوية
+                <CardDescription className="text-xs sm:text-sm mt-1">
+                  التحكم في حظر الطلبات التي تقع خارج المناطق المعتمدة لمنع استقبالها في لوحة التحكم وتنبيه العميل فوراً
                 </CardDescription>
               </div>
 
-              <Dialog open={isAddRuleOpen} onOpenChange={setIsAddRuleOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="text-xs">
-                    <Plus className="h-4 w-4 ml-1.5" />
-                    إضافة قاعدة جديدة
-                  </Button>
-                </DialogTrigger>
-                <DialogContent dir="rtl" className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>إضافة قاعدة ديناميكية جديدة</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-1.5">
-                      <Label>اسم القاعدة</Label>
-                      <Input
-                        value={newRule.name}
-                        onChange={(e) => setNewRule(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="مثال: خصم الطلبات العائلية أو رسوم المسافات البعيدة"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>نوع شرط القاعدة</Label>
-                      <Select 
-                        value={newRule.ruleType} 
-                        onValueChange={(v: any) => setNewRule(prev => ({ ...prev, ruleType: v }))}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="distance">حسب نطاق المسافة (كم)</SelectItem>
-                          <SelectItem value="order_value">حسب قيمة سلة الطلب (ريال)</SelectItem>
-                          <SelectItem value="zone">حسب المنطقة الجغرافية</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {newRule.ruleType === 'distance' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label>من مسافة (كم)</Label>
-                          <Input
-                            type="number"
-                            value={newRule.minDistance || ''}
-                            onChange={(e) => setNewRule(prev => ({ ...prev, minDistance: e.target.value }))}
-                            placeholder="0"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>إلى مسافة (كم)</Label>
-                          <Input
-                            type="number"
-                            value={newRule.maxDistance || ''}
-                            onChange={(e) => setNewRule(prev => ({ ...prev, maxDistance: e.target.value }))}
-                            placeholder="10"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {newRule.ruleType === 'order_value' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label>من قيمة طلب (ريال)</Label>
-                          <Input
-                            type="number"
-                            value={newRule.minOrderValue || ''}
-                            onChange={(e) => setNewRule(prev => ({ ...prev, minOrderValue: e.target.value }))}
-                            placeholder="5000"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>إلى قيمة طلب (ريال)</Label>
-                          <Input
-                            type="number"
-                            value={newRule.maxOrderValue || ''}
-                            onChange={(e) => setNewRule(prev => ({ ...prev, maxOrderValue: e.target.value }))}
-                            placeholder="20000"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {newRule.ruleType === 'zone' && (
-                      <div className="space-y-1.5">
-                        <Label>المنطقة الجغرافية المطبقة</Label>
-                        <Select 
-                          value={newRule.geoZoneId} 
-                          onValueChange={(v) => setNewRule(prev => ({ ...prev, geoZoneId: v }))}
-                        >
-                          <SelectTrigger><SelectValue placeholder="اختر منطقة جغرافية" /></SelectTrigger>
-                          <SelectContent>
-                            {geoZones.map(z => (
-                              <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>الرسوم المطبقة (ريال)</Label>
-                        <Input
-                          type="number"
-                          value={newRule.fee}
-                          onChange={(e) => setNewRule(prev => ({ ...prev, fee: e.target.value }))}
-                          placeholder="800"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>الأولوية (الرقم الأكبر أولاً)</Label>
-                        <Input
-                          type="number"
-                          value={newRule.priority || 1}
-                          onChange={(e) => setNewRule(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))}
-                          placeholder="1"
-                        />
-                      </div>
-                    </div>
-
-                    <Button
-                      onClick={() => addRuleMutation.mutate(newRule)}
-                      disabled={addRuleMutation.isPending || !newRule.name || !newRule.fee}
-                      className="w-full"
-                    >
-                      {addRuleMutation.isPending ? 'جاري الحفظ...' : 'حفظ القاعدة'}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPreviewModalOpen(true)}
+                  className="border-[#F05215]/40 text-[#C73208] hover:bg-[#F05215]/10 text-xs font-semibold"
+                >
+                  <Eye className="h-3.5 w-3.5 ml-1.5" />
+                  معاينة تنبيه العميل
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => saveZoneRestrictionMutation.mutate({
+                    enableRestriction: enableZoneRestriction,
+                    maxDistanceKm: parseFloat(maxDistanceKm) || 25,
+                    restrictionMode
+                  })}
+                  disabled={saveZoneRestrictionMutation.isPending}
+                  className="bg-[#F05215] hover:bg-[#C03A0A] text-white text-xs font-semibold"
+                >
+                  <Save className="h-3.5 w-3.5 ml-1.5" />
+                  {saveZoneRestrictionMutation.isPending ? 'جاري الحفظ...' : 'حفظ وتطبيق التغييرات'}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
-              {rulesLoading ? (
-                <p className="text-sm text-muted-foreground text-center p-6">جاري تحميل القواعد...</p>
-              ) : deliveryRules.length === 0 ? (
-                <div className="p-8 text-center border rounded-lg bg-muted/20 space-y-2">
-                  <ShieldCheck className="h-10 w-10 text-muted-foreground mx-auto" />
-                  <p className="font-medium">لم يتم تعريف أي قواعد ديناميكية بعد</p>
+
+            <CardContent className="space-y-6 pt-2">
+              {/* Master Switch */}
+              <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-bold text-base cursor-pointer">
+                      تفعيل نظام منع وحظر الطلبات خارج نطاق التوصيل
+                    </Label>
+                    <Badge variant={enableZoneRestriction ? 'default' : 'outline'} className={enableZoneRestriction ? 'bg-emerald-600 text-white' : ''}>
+                      {enableZoneRestriction ? 'نظام الحظر نشط' : 'نظام الحظر معطل'}
+                    </Badge>
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    تتيح لك القواعد الديناميكية فرض رسوم خاصة لحالات محددة (مثل طلبات السلة الكبيرة أو المسافات البعيدة)
+                    عند التفعيل، لن يتمكن أي عميل يقع خارج المناطق المعتمدة من تأكيد الطلب، وستظهر له نافذة التنبيه المنبثقة وزر تغيير الموقع.
                   </p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {deliveryRules.map((rule) => (
-                    <Card key={rule.id} className="p-4 flex items-center justify-between border">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-sm">{rule.name}</h4>
-                          <Badge variant="outline" className="text-[10px]">
-                            {rule.ruleType === 'distance' && 'شرط مسافة'}
-                            {rule.ruleType === 'order_value' && 'شرط قيمة طلب'}
-                            {rule.ruleType === 'zone' && 'شرط منطقة'}
-                          </Badge>
-                          <span className="text-[10px] text-muted-foreground">
-                            الأولوية: {rule.priority}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {rule.ruleType === 'distance' && `المسافة: من ${rule.minDistance || 0} إلى ${rule.maxDistance || '∞'} كم`}
-                          {rule.ruleType === 'order_value' && `قيمة الطلب: من ${rule.minOrderValue || 0} إلى ${rule.maxOrderValue || '∞'} ريال`}
-                          {rule.ruleType === 'zone' && `المنطقة الجغرافية: ${geoZones.find(z => z.id === rule.geoZoneId)?.name || 'محددة'}`}
-                        </p>
-                      </div>
+                <Switch
+                  checked={enableZoneRestriction}
+                  onCheckedChange={setEnableZoneRestriction}
+                  className="data-[state=checked]:bg-[#F05215]"
+                />
+              </div>
 
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-primary text-base">
-                          {rule.fee} ريال
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteRule(rule.id)}
-                          className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
+              {/* Mode & Max Distance Configuration */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="font-semibold text-sm">منهجية وطريقة تحديد النطاق المسموح</Label>
+                  <Select
+                    value={restrictionMode}
+                    onValueChange={setRestrictionMode}
+                  >
+                    <SelectTrigger className="h-11 font-medium">
+                      <SelectValue placeholder="اختر طريقة تقييد النطاق" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="both" className="py-2.5">
+                        🌟 كلاهما معاً (ضمن مناطق الخريطة + أقصى مسافة بالكيلومتر) [موصى به]
+                      </SelectItem>
+                      <SelectItem value="geo_zones" className="py-2.5">
+                        🗺️ حسب المناطق الجغرافية المحددة بالخريطة فقط (Geo-Zones)
+                      </SelectItem>
+                      <SelectItem value="max_distance" className="py-2.5">
+                        📏 حسب أقصى مسافة توصيل بالكيلومتر فقط من موقع المتجر
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    {restrictionMode === 'both' && 'يُسمح بالتوصيل فقط إذا كان موقع العميل يقع داخل إحدى مناطق الخريطة ولا يتجاوز أقصى مسافة مسموحة.'}
+                    {restrictionMode === 'geo_zones' && 'يجب أن يكون موقع العميل بدقة داخل إحدى المناطق الجغرافية المعتمدة على الخريطة أدناه.'}
+                    {restrictionMode === 'max_distance' && 'يُسمح بالطلب لأي موقع لا تتجاوز المسافة المحسوبة إليه الحد الأقصى المحدد بالكيلومتر.'}
+                  </p>
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <Label className="font-semibold text-sm">أقصى مسافة توصيل مسموحة (كم)</Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="1"
+                      max="100"
+                      value={maxDistanceKm}
+                      onChange={(e) => setMaxDistanceKm(e.target.value)}
+                      placeholder="25"
+                      className="h-11 pr-3 pl-12 font-bold"
+                    />
+                    <span className="absolute left-3 top-3 text-xs text-muted-foreground font-semibold">كم</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    المسافة القصوى التي يقبل النظام توصيل الطلبات إليها (افتراضياً 25 كم).
+                  </p>
+                </div>
+              </div>
+
+              {/* Functional Explanation Notice */}
+              <div className="p-4 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 rounded-xl space-y-2">
+                <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold text-sm">
+                  <Info className="h-4 w-4 shrink-0 text-amber-600" />
+                  <span>آلية التنفيذ والحماية في تطبيق العميل:</span>
+                </div>
+                <ul className="text-xs text-amber-800 dark:text-amber-400 space-y-1.5 list-disc list-inside pr-1 leading-relaxed">
+                  <li><strong>فحص فوري عند اختيار الموقع:</strong> بمجرد تحديد العميل لموقعه على الخريطة في صفحة السلة، يفحص الخادم إحداثياته فوراً مقابل المناطق المعتمدة.</li>
+                  <li><strong>حظر الإرسال إلى لوحة التحكم:</strong> يتم تعطيل زر "تأكيد الطلب" ويُرفض أي طلب قادم من خارج النطاق تلقائياً مع كود <code className="bg-amber-200/50 px-1 py-0.5 rounded font-mono">OUT_OF_DELIVERY_ZONE</code>.</li>
+                  <li><strong>رسالة التنبيه المنبثقة:</strong> تظهر النافذة التصميمية المعتمدة (مع الرمز التعبيري الحزين) وزر فوري <span className="font-bold">"تغيير الموقع"</span> للعودة للخريطة واختيار موقع متاح.</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Interactive Allowed Delivery Zones on Map */}
+          <Card>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  المناطق الجغرافية المعتمدة للتوصيل ({geoZones.filter(z => z.isActive).length} منطقة نشطة)
+                </CardTitle>
+                <CardDescription>
+                  رسم وتحديد مضلعات ونطاقات التوصيل المسموح بها مباشرة على الخريطة
+                </CardDescription>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {geoZones.length === 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => seedGeoZonesMutation.mutate()}
+                    disabled={seedGeoZonesMutation.isPending}
+                    className="text-xs"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 ml-1.5 text-amber-500" />
+                    إضافة مناطق صنعاء الافتراضية
+                  </Button>
+                )}
+
+                <Button 
+                  size="sm" 
+                  onClick={() => setIsAddGeoZoneOpen(true)}
+                  className="text-xs bg-[#F05215] hover:bg-[#C03A0A] text-white"
+                >
+                  <Plus className="h-4 w-4 ml-1.5" />
+                  رسم منطقة جديدة على الخريطة
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5">
+              {/* Overview Map */}
+              <div className="rounded-xl overflow-hidden border">
+                <GeoZoneOverviewMap
+                  zones={geoZones}
+                  height="360px"
+                />
+              </div>
+
+              {/* Zones List / Cards */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-foreground">
+                    المناطق المعتمدة المسجلة ({geoZones.length}):
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    يتم قبول طلبات العملاء فقط إذا كانوا داخل إحدى هذه المناطق النشطة
+                  </span>
+                </div>
+
+                {geoZonesLoading ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">جاري تحميل المناطق...</p>
+                ) : geoZones.length === 0 ? (
+                  <div className="text-center p-8 border rounded-xl bg-muted/20 space-y-3">
+                    <MapPin className="h-10 w-10 text-muted-foreground mx-auto" />
+                    <p className="font-semibold text-sm">لم يتم تسجيل أي منطقة جغرافية بعد</p>
+                    <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                      انقر على "رسم منطقة جديدة" لتحديد نطاق مخصص، أو أضف مناطق صنعاء المعتمدة بنقرة واحدة للبدء فوراً.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => seedGeoZonesMutation.mutate()}
+                      disabled={seedGeoZonesMutation.isPending}
+                      className="bg-primary text-white text-xs font-semibold"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 ml-1.5" />
+                      إضافة مناطق صنعاء الافتراضية الآن
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {geoZones.map((zone) => {
+                      let pointCount = 0;
+                      try {
+                        const parsed = JSON.parse(zone.coordinates || '[]');
+                        pointCount = Array.isArray(parsed) ? parsed.length : 0;
+                      } catch {
+                        pointCount = 0;
+                      }
+
+                      return (
+                        <Card key={zone.id} className="p-3.5 border hover:border-primary/50 transition-colors">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-sm">{zone.name}</h4>
+                                <Badge
+                                  variant={zone.isActive ? 'default' : 'secondary'}
+                                  className={`text-[10px] h-4.5 px-1.5 ${zone.isActive ? 'bg-emerald-600 text-white' : ''}`}
+                                >
+                                  {zone.isActive ? 'مسموحة ونشطة' : 'معطلة'}
+                                </Badge>
+                              </div>
+                              {zone.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-1">
+                                  {zone.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-3 pt-1 text-[11px] text-muted-foreground">
+                                <span>رسوم التوصيل: <strong className="text-foreground">{zone.deliveryFee || '0'} ريال</strong></span>
+                                <span>نقاط النطاق: <strong>{pointCount}</strong></span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteGeoZone(zone.id)}
+                                className="text-destructive hover:bg-destructive/10 h-7 w-7"
+                                title="حذف المنطقة"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1698,6 +1813,13 @@ export default function AdminDeliveryFees() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* نافذة معاينة تنبيه العميل (خارج نطاق التوصيل) للمشرف */}
+      <OutOfDeliveryZoneModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        isPreview={true}
+      />
     </div>
   );
 }

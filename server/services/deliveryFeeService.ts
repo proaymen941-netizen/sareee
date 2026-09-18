@@ -28,6 +28,8 @@ export interface DeliveryFeeResult {
   distance: number;
   estimatedTime: string;
   calculationMethod: string;
+  isOutsideDeliveryZone?: boolean;
+  outsideReason?: string;
   feeBreakdown: {
     baseFee: number;
     distanceFee: number;
@@ -274,17 +276,24 @@ export async function calculateDeliveryFee(
   orderSubtotal: number
 ): Promise<DeliveryFeeResult> {
   // 1. جلب جميع البيانات المطلوبة بشكل متوازي للأداء الأمثل
-  const [geoZones, deliveryRules, discounts, deliverySettings, restaurant] = await Promise.all([
+  const [geoZones, deliveryRules, discounts, deliverySettings, restaurant, uiSettingsList] = await Promise.all([
     storage.getGeoZones(),
     storage.getDeliveryRules(),
     storage.getDeliveryDiscounts(),
     getDeliveryFeeSettings(),
-    restaurantId ? storage.getRestaurant(restaurantId) : Promise.resolve(null)
+    restaurantId ? storage.getRestaurant(restaurantId) : Promise.resolve(null),
+    storage.getUiSettings()
   ]);
 
   const activeGeoZones = geoZones.filter(z => z.isActive);
   const activeRules = deliveryRules.filter(r => r.isActive);
   const activeDiscounts = discounts.filter(d => d.isActive);
+
+  // إعدادات التحقق من نطاق التوصيل المسموح به
+  const uiSettingsMap = new Map((uiSettingsList || []).map((s: any) => [s.key, s.value]));
+  const isRestrictionEnabled = uiSettingsMap.get('enable_delivery_zone_restriction') === 'true';
+  const maxAllowedDistance = parseFloat(uiSettingsMap.get('max_delivery_distance_km') || '25');
+  const restrictionMode = uiSettingsMap.get('delivery_restriction_mode') || 'both'; // 'geo_zones' | 'max_distance' | 'both'
 
   // 2. تحديد موقع المتجر (المطعم -> إعدادات رسوم التوصيل -> إعدادات النظام -> صنعاء كافتراضي)
   let storeLocation: DeliveryLocation = { lat: 15.3694, lng: 44.1910 };
@@ -458,6 +467,38 @@ export async function calculateDeliveryFee(
     }
   }
 
+  // التحقق مما إذا كان موقع العميل خارج نطاق التوصيل المسموح به
+  let isOutsideDeliveryZone = false;
+  let outsideReason: string | undefined = undefined;
+
+  if (isRestrictionEnabled) {
+    if (restrictionMode === 'max_distance') {
+      if (distance > maxAllowedDistance) {
+        isOutsideDeliveryZone = true;
+        outsideReason = `الموقع يبعد ${(Number(distance) || 0).toFixed(1)} كم عن نطاق المتجر، وهو خارج الحد الأقصى للتوصيل (${maxAllowedDistance} كم).`;
+      }
+    } else if (restrictionMode === 'geo_zones') {
+      if (activeGeoZones.length > 0) {
+        if (!matchingGeoZone) {
+          isOutsideDeliveryZone = true;
+          outsideReason = 'الموقع المحدد يقع خارج مناطق وأحياء التوصيل المعتمدة لدينا.';
+        }
+      } else if (distance > maxAllowedDistance) {
+        isOutsideDeliveryZone = true;
+        outsideReason = `الموقع المحدد يبعد ${(Number(distance) || 0).toFixed(1)} كم وهو خارج نطاق التوصيل المتاح.`;
+      }
+    } else {
+      // وضع كلاهما (both): يجب أن يقع ضمن إحدى المناطق المسموحة (إذا كانت معرّفة) وضمن الحد الأقصى للمسافة
+      if (activeGeoZones.length > 0 && !matchingGeoZone) {
+        isOutsideDeliveryZone = true;
+        outsideReason = 'الموقع المحدد يقع خارج مناطق وأحياء التوصيل المعتمدة لدينا.';
+      } else if (distance > maxAllowedDistance) {
+        isOutsideDeliveryZone = true;
+        outsideReason = `الموقع المحدد يبعد ${(Number(distance) || 0).toFixed(1)} كم عن المتجر وهو خارج أقصى نطاق للتوصيل (${maxAllowedDistance} كم).`;
+      }
+    }
+  }
+
   // تطبيق حدود الحد الأدنى والحد الأقصى لرسوم التوصيل
   if (!isFreeDelivery) {
     const minAllowed = deliverySettings.minFee > 0 ? deliverySettings.minFee : DEFAULT_MIN_FEE;
@@ -472,6 +513,8 @@ export async function calculateDeliveryFee(
     distance,
     estimatedTime,
     calculationMethod,
+    isOutsideDeliveryZone,
+    outsideReason,
     feeBreakdown: {
       baseFee: isFreeDelivery ? 0 : deliverySettings.baseFee,
       distanceFee: isFreeDelivery ? 0 : Math.max(0, Math.round((appliedFee - deliverySettings.baseFee) * 100) / 100),

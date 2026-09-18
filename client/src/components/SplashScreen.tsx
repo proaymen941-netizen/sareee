@@ -11,8 +11,8 @@ interface SplashScreenProps {
 }
 
 // الحد الأدنى للمدة الزمنية الكافية لاكتمال ظهور كافة الحركات والنصوص والشعار وزر البداية
-const DEFAULT_SPLASH_DURATION_MS = 3800;
-const MIN_SPLASH_DURATION_MS = 3200;
+const DEFAULT_SPLASH_DURATION_MS = 5000;
+const MIN_SPLASH_DURATION_MS = 4200;
 const MAX_BOOTSTRAP_MS = 2500;
 
 const PARTICLE_COUNT = 22;

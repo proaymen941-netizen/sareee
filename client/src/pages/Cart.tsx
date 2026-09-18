@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import AppClosedOverlay from '@/components/AppClosedOverlay';
+import OutOfDeliveryZoneModal from '@/components/OutOfDeliveryZoneModal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +53,9 @@ export default function Cart() {
   const [showConfirmOrder, setShowConfirmOrder] = useState(false);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
   const [showAppClosedOverlay, setShowAppClosedOverlay] = useState(false);
+  const [showOutOfZoneModal, setShowOutOfZoneModal] = useState(false);
+  const [outOfZoneReason, setOutOfZoneReason] = useState('');
+  const [isOutsideZone, setIsOutsideZone] = useState(false);
 
   const [orderForm, setOrderForm] = useState({
     customerName: user?.name || user?.username || localStorage.getItem('customer_name') || '',
@@ -173,11 +177,19 @@ export default function Cart() {
         
         if (data.success) {
           setDeliveryFee(data.fee);
-          
-          toast({
-            title: "تم تحديث رسوم التوصيل",
-            description: `المسافة: ${(Number(data?.distance) || 0).toFixed(1)} كم، الرسوم: ${formatCurrency(data?.fee || 0)}`,
-          });
+
+          if (data.isOutsideDeliveryZone) {
+            setIsOutsideZone(true);
+            setOutOfZoneReason(data.outsideReason || 'الموقع المحدد خارج نطاق ومناطق التوصيل المعتمدة لدينا.');
+            setShowOutOfZoneModal(true);
+          } else {
+            setIsOutsideZone(false);
+            setOutOfZoneReason('');
+            toast({
+              title: "تم تحديث رسوم التوصيل",
+              description: `المسافة: ${(Number(data?.distance) || 0).toFixed(1)} كم، الرسوم: ${formatCurrency(data?.fee || 0)}`,
+            });
+          }
         }
       } catch (error) {
         console.error('Error calculating delivery fee:', error);
@@ -188,6 +200,20 @@ export default function Cart() {
         });
       }
     }
+  };
+
+  const handleChangeLocation = () => {
+    setShowOutOfZoneModal(false);
+    const locationSection = document.getElementById('delivery-location-section');
+    if (locationSection) {
+      locationSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setTimeout(() => {
+      const pickerBtn = document.querySelector('[data-testid="button-location-picker"]') as HTMLButtonElement;
+      if (pickerBtn) {
+        pickerBtn.click();
+      }
+    }, 250);
   };
 
   const placeOrderMutation = useMutation({
@@ -233,6 +259,18 @@ export default function Cart() {
         } catch {
           if (serverPart) displayMsg = serverPart;
         }
+      }
+
+      // إذا كان موقع العميل خارج نطاق التوصيل، يتم عرض نافذة التنبيه المخصصة مع زر تغيير الموقع
+      if (
+        serverCode === 'OUT_OF_DELIVERY_ZONE' ||
+        displayMsg.includes('خارج نطاق التوصيل') ||
+        displayMsg.includes('خارج مناطق وأحياء التوصيل')
+      ) {
+        setIsOutsideZone(true);
+        setOutOfZoneReason(displayMsg);
+        setShowOutOfZoneModal(true);
+        return;
       }
 
       // If server says app is closed, show the overlay instead of a toast
@@ -309,11 +347,21 @@ export default function Cart() {
       return;
     }
 
+    // منع تأكيد الطلب إذا كان الموقع خارج نطاق التوصيل
+    if (isOutsideZone) {
+      setShowOutOfZoneModal(true);
+      return;
+    }
+
     setShowConfirmOrder(true);
   };
 
   const confirmAndPlaceOrder = () => {
     setShowConfirmOrder(false);
+    if (isOutsideZone) {
+      setShowOutOfZoneModal(true);
+      return;
+    }
     placeOrderMutation.mutate(buildOrderData());
   };
 
@@ -484,7 +532,7 @@ export default function Cart() {
             </Card>
 
             {/* قسم العنوان مع منتقي الموقع */}
-            <Card>
+            <Card id="delivery-location-section">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <MapPin className="h-5 w-5 text-[#F05215]" />
@@ -510,7 +558,45 @@ export default function Cart() {
                   />
                 </div>
 
-                {orderForm.locationData && (
+                {/* تنبيه إذا كان الموقع خارج نطاق التوصيل المسموح به */}
+                {isOutsideZone && (
+                  <div className="mt-3 p-4 bg-red-50 dark:bg-red-950/40 border-2 border-red-300 dark:border-red-900/60 rounded-2xl">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <span className="text-sm font-bold text-red-700 dark:text-red-300 block">
+                          الموقع المحدد خارج نطاق التوصيل
+                        </span>
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-1 leading-relaxed">
+                          {outOfZoneReason || 'نأسف، موقع التوصيل المحدد يقع خارج نطاق ومناطق التوصيل المعتمدة لدينا حالياً.'}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleChangeLocation}
+                            className="bg-[#C73208] hover:bg-[#A92A06] text-white text-xs font-bold h-9 rounded-xl shadow-xs flex items-center gap-1.5"
+                            data-testid="button-banner-change-location"
+                          >
+                            <MapPin className="h-3.5 w-3.5" />
+                            <span>تغيير الموقع الآن</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setShowOutOfZoneModal(true)}
+                            className="border-red-300 text-red-700 dark:text-red-300 text-xs font-bold h-9 rounded-xl"
+                          >
+                            عرض التفاصيل
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!isOutsideZone && orderForm.locationData && (
                   <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-green-600" />
@@ -663,21 +749,35 @@ export default function Cart() {
             {/* زر تأكيد الطلب */}
             {items.length > 0 && (
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-4 space-y-2">
                   <Button 
-                    className={`w-full font-semibold py-3 text-lg ${canPlaceOrder ? 'bg-[#F05215] hover:bg-[#C03A0A] text-white' : 'bg-gray-400 text-white cursor-not-allowed'}`}
-                    onClick={handlePlaceOrder}
+                    className={`w-full font-semibold py-3 text-lg transition-all ${
+                      isOutsideZone 
+                        ? 'bg-red-600 hover:bg-red-700 text-white' 
+                        : canPlaceOrder 
+                          ? 'bg-[#F05215] hover:bg-[#C03A0A] text-white' 
+                          : 'bg-gray-400 text-white cursor-not-allowed'
+                    }`}
+                    onClick={isOutsideZone ? () => setShowOutOfZoneModal(true) : handlePlaceOrder}
                     disabled={placeOrderMutation.isPending || !orderForm.locationData || !canPlaceOrder}
                     data-testid="button-place-order"
                   >
                     {placeOrderMutation.isPending 
                       ? 'جاري تأكيد الطلب...' 
-                      : !canPlaceOrder 
-                        ? (!appStatus.isOpen ? '🔒 التطبيق مغلق حالياً' : '🔒 المتجر مغلق حالياً')
-                        : !orderForm.locationData 
-                          ? 'يرجى تحديد الموقع للمتابعة' 
-                          : `تأكيد الطلب - ${formatCurrency(total)}`}
+                      : isOutsideZone
+                        ? '⚠️ الموقع خارج نطاق التوصيل'
+                        : !canPlaceOrder 
+                          ? (!appStatus.isOpen ? '🔒 التطبيق مغلق حالياً' : '🔒 المتجر مغلق حالياً')
+                          : !orderForm.locationData 
+                            ? 'يرجى تحديد الموقع للمتابعة' 
+                            : `تأكيد الطلب - ${formatCurrency(total)}`}
                   </Button>
+
+                  {isOutsideZone && (
+                    <p className="text-center text-xs text-red-600 dark:text-red-400 font-medium">
+                      لا يمكن إرسال الطلب لأن موقع التوصيل يقع خارج المناطق المعتمدة.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -704,6 +804,14 @@ export default function Cart() {
           </div>
         </div>
       </div>
+
+      {/* نافذة التنبيه: خارج نطاق التوصيل مع زر تغيير الموقع والدعم الفني */}
+      <OutOfDeliveryZoneModal
+        isOpen={showOutOfZoneModal}
+        onClose={() => setShowOutOfZoneModal(false)}
+        onChangeLocation={handleChangeLocation}
+        reason={outOfZoneReason}
+      />
     </div>
   );
 }

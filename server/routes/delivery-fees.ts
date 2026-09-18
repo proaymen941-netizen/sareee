@@ -589,4 +589,59 @@ router.delete("/discounts/:id", async (req, res) => {
   }
 });
 
+// --- Delivery Zone Restriction (مناطق ونطاق التوصيل المسموح بها) ---
+
+router.get("/zone-restriction", async (req, res) => {
+  try {
+    const uiSettings = await storage.getUiSettings();
+    const map = new Map((uiSettings || []).map((s: any) => [s.key, s.value]));
+
+    res.json({
+      enableRestriction: map.get('enable_delivery_zone_restriction') === 'true',
+      maxDistanceKm: parseFloat(map.get('max_delivery_distance_km') || '25'),
+      restrictionMode: map.get('delivery_restriction_mode') || 'both',
+      centerLat: parseFloat(map.get('store_lat') || map.get('delivery_center_lat') || '15.3694'),
+      centerLng: parseFloat(map.get('store_lng') || map.get('delivery_center_lng') || '44.1910'),
+    });
+  } catch (error) {
+    console.error('خطأ في جلب إعدادات تقييد نطاق التوصيل:', error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.post("/zone-restriction", async (req, res) => {
+  try {
+    const { enableRestriction, maxDistanceKm, restrictionMode, centerLat, centerLng } = req.body;
+
+    if (enableRestriction !== undefined) {
+      await storage.setUiSetting('enable_delivery_zone_restriction', enableRestriction ? 'true' : 'false');
+    }
+    if (maxDistanceKm !== undefined) {
+      await storage.setUiSetting('max_delivery_distance_km', String(maxDistanceKm));
+    }
+    if (restrictionMode !== undefined) {
+      await storage.setUiSetting('delivery_restriction_mode', String(restrictionMode));
+    }
+    if (centerLat !== undefined && centerLat !== null) {
+      await storage.setUiSetting('delivery_center_lat', String(centerLat));
+      await storage.setUiSetting('store_lat', String(centerLat));
+    }
+    if (centerLng !== undefined && centerLng !== null) {
+      await storage.setUiSetting('delivery_center_lng', String(centerLng));
+      await storage.setUiSetting('store_lng', String(centerLng));
+    }
+
+    // بث التحديث لجميع واجهات التطبيق المتصلة
+    broadcastSettingsChanged();
+
+    res.json({
+      success: true,
+      message: "تم حفظ وتحديث إعدادات نطاق ومناطق التوصيل المسموح بها بنجاح"
+    });
+  } catch (error: any) {
+    console.error('خطأ في حفظ إعدادات تقييد نطاق التوصيل:', error);
+    res.status(500).json({ error: error.message || "خطأ في الخادم" });
+  }
+});
+
 export default router;

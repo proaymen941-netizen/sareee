@@ -100,14 +100,18 @@ function MainApp() {
   const needsRedirectToAuth = !isAuthenticated && !isGuest && !isAuthPage && !isAdminRoute && !isDriverRoute;
 
   useEffect(() => {
+    // لا تقم بالتحويل أو التوجيه إلا بعد اكتمال شاشة الترحيب (Splash Screen) بالكامل
+    if (showSplash) return;
+
     if (needsRedirectToAuth) {
       setLocation('/auth');
     } else if (isAuthenticated && currentLocation === '/auth') {
       setLocation('/');
     }
-  }, [needsRedirectToAuth, isAuthenticated, currentLocation, setLocation]);
+  }, [showSplash, needsRedirectToAuth, isAuthenticated, currentLocation, setLocation]);
 
-  if (showSplash && !isAdminRoute && !isDriverRoute && !isAuthPage) {
+  // عرض شاشة الترحيب (Splash Screen) حتى تكتمل كافة محتوياتها وعناصرها بالكامل
+  if (showSplash && !isAdminRoute && !isDriverRoute) {
     return <SplashScreen onFinish={handleSplashFinish} />;
   }
 

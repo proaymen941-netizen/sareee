@@ -155,6 +155,17 @@ router.post("/", async (req, res) => {
           restaurantId,
           parseFloat(subtotal || '0')
         );
+
+        // إذا كان موقع العميل خارج نطاق التوصيل المسموح به، يتم منع إنشاء الطلب فوراً
+        if (feeResult.isOutsideDeliveryZone) {
+          return res.status(400).json({
+            error: feeResult.outsideReason || "عذراً، موقع التوصيل المحدد يقع خارج نطاق التوصيل المسموح به حالياً.",
+            code: "OUT_OF_DELIVERY_ZONE",
+            isOutsideDeliveryZone: true,
+            reason: feeResult.outsideReason
+          });
+        }
+
         finalDeliveryFee = feeResult.fee;
         distance = feeResult.distance;
       } catch (feeError) {
