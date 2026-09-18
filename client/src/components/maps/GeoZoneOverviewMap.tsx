@@ -46,7 +46,29 @@ interface GeoZoneOverviewMapProps {
   testLocation?: { lat: number; lng: number } | null;
   storeLocation?: { lat: number; lng: number } | null;
   onMapClick?: (lat: number, lng: number) => void;
+  draggableStorePin?: boolean;
+  onStorePinDragEnd?: (lat: number, lng: number) => void;
+  deliveryRadiusKm?: number;
+  flyToTarget?: [number, number] | null;
 }
+
+const deliveryCenterPinIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24">
+      <defs>
+        <filter id="pinShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.45"/>
+        </filter>
+      </defs>
+      <path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 8 12 8 12s8-6.75 8-12c0-4.42-3.58-8-8-8z" fill="#F05215" stroke="#ffffff" stroke-width="2" filter="url(#pinShadow)"/>
+      <circle cx="12" cy="10" r="4.2" fill="#ffffff"/>
+      <circle cx="12" cy="10" r="2.3" fill="#F05215"/>
+    </svg>
+  `),
+  iconSize: [44, 44],
+  iconAnchor: [22, 42],
+  popupAnchor: [0, -42]
+});
 
 function MapEvents({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
   const map = useMap();
@@ -71,6 +93,16 @@ function ViewUpdater({ center, zoom }: { center: [number, number]; zoom: number 
   return null;
 }
 
+function MapFlyController({ target }: { target?: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) {
+      map.flyTo(target, map.getZoom() || 13, { duration: 0.8 });
+    }
+  }, [map, target]);
+  return null;
+}
+
 export default function GeoZoneOverviewMap({
   zones,
   center = [15.3550, 44.2080],
@@ -78,7 +110,11 @@ export default function GeoZoneOverviewMap({
   height = '380px',
   testLocation,
   storeLocation,
-  onMapClick
+  onMapClick,
+  draggableStorePin = false,
+  onStorePinDragEnd,
+  deliveryRadiusKm,
+  flyToTarget
 }: GeoZoneOverviewMapProps) {
   return (
     <div style={{ height }} className="w-full rounded-lg overflow-hidden border relative z-0">
@@ -93,15 +129,69 @@ export default function GeoZoneOverviewMap({
         />
 
         <ViewUpdater center={center} zoom={zoom} />
+        <MapFlyController target={flyToTarget} />
         <MapEvents onMapClick={onMapClick} />
 
-        {/* Store Marker if provided */}
-        {storeLocation && (
-          <Marker position={[storeLocation.lat, storeLocation.lng]} icon={storePinIcon}>
+        {/* Delivery Radius Circle around Store Pin */}
+        {storeLocation && deliveryRadiusKm && deliveryRadiusKm > 0 && (
+          <Circle
+            center={[storeLocation.lat, storeLocation.lng]}
+            radius={deliveryRadiusKm * 1000}
+            pathOptions={{
+              color: '#F05215',
+              fillColor: '#F05215',
+              fillOpacity: 0.12,
+              weight: 2.5,
+              dashArray: '6, 6'
+            }}
+          >
             <Popup>
-              <div className="text-right p-1" dir="rtl">
-                <span className="font-bold text-emerald-600 block">المتجر الرئيسي</span>
-                <span className="text-xs text-muted-foreground">نقطة انطلاق التوصيل</span>
+              <div className="text-right p-1.5 font-sans" dir="rtl">
+                <strong className="block font-bold text-sm text-[#F05215]">
+                  دائرة أقصى مسافة توصيل ({deliveryRadiusKm} كم)
+                </strong>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  يُسمح بالتوصيل داخل هذا النطاق ويتم حظر أي طلب خارجه
+                </p>
+                <div className="mt-1 text-[11px] text-muted-foreground font-mono">
+                  المساحة التقريبية: ~{Math.round(Math.PI * deliveryRadiusKm * deliveryRadiusKm)} كم²
+                </div>
+              </div>
+            </Popup>
+          </Circle>
+        )}
+
+        {/* Store / Delivery Center Marker */}
+        {storeLocation && (
+          <Marker
+            position={[storeLocation.lat, storeLocation.lng]}
+            icon={deliveryCenterPinIcon}
+            draggable={draggableStorePin}
+            eventHandlers={{
+              dragend: (e) => {
+                const marker = e.target;
+                const position = marker.getLatLng();
+                if (onStorePinDragEnd) {
+                  onStorePinDragEnd(Number(position.lat.toFixed(6)), Number(position.lng.toFixed(6)));
+                }
+              }
+            }}
+          >
+            <Popup>
+              <div className="text-right p-1.5 font-sans" dir="rtl">
+                <span className="font-bold text-[#F05215] block text-sm">📍 دبوس مركز التوصيل (المتجر)</span>
+                {draggableStorePin ? (
+                  <span className="text-xs text-muted-foreground block mt-0.5">
+                    يمكنك سحب هذا الدبوس أو النقر على الخريطة لتغيير المركز
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground block mt-0.5">
+                    نقطة انطلاق التوصيل
+                  </span>
+                )}
+                <span className="text-[11px] font-mono bg-muted px-1.5 py-0.5 rounded mt-1 inline-block">
+                  {storeLocation.lat.toFixed(5)}, {storeLocation.lng.toFixed(5)}
+                </span>
               </div>
             </Popup>
           </Marker>

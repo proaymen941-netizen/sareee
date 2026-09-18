@@ -46,8 +46,18 @@ import {
   ArrowRight,
   ShieldAlert,
   Eye,
-  Check
+  Check,
+  LocateFixed,
+  Crosshair,
+  ZoomIn,
+  ZoomOut,
+  Compass,
+  Maximize2,
+  Minimize2,
+  Pencil,
+  Edit
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 import { apiRequest } from '@/lib/queryClient';
 import GeoZoneMapEditor from '@/components/maps/GeoZoneMapEditor';
 import GeoZoneOverviewMap from '@/components/maps/GeoZoneOverviewMap';
@@ -185,7 +195,30 @@ export default function AdminDeliveryFees() {
 
   // Modal Dialogs
   const [isAddZoneOpen, setIsAddZoneOpen] = useState(false);
+  const [isEditZoneOpen, setIsEditZoneOpen] = useState(false);
+  const [editingZone, setEditingZone] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    minDistance: string;
+    maxDistance: string;
+    deliveryFee: string;
+    estimatedTime: string;
+    isActive: boolean;
+  } | null>(null);
+
   const [isAddGeoZoneOpen, setIsAddGeoZoneOpen] = useState(false);
+  const [isEditGeoZoneOpen, setIsEditGeoZoneOpen] = useState(false);
+  const [editingGeoZone, setEditingGeoZone] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    coordinates: string;
+    deliveryFee: string;
+    surgeMultiplier: string;
+    isActive: boolean;
+  } | null>(null);
+
   const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
   const [isAddDiscountOpen, setIsAddDiscountOpen] = useState(false);
 
@@ -263,6 +296,8 @@ export default function AdminDeliveryFees() {
     restrictionMode: string;
     geoZonesCount: number;
     activeGeoZonesCount: number;
+    centerLat?: number;
+    centerLng?: number;
   }>({
     queryKey: ['/api/delivery-fees/zone-restriction'],
   });
@@ -271,27 +306,47 @@ export default function AdminDeliveryFees() {
   const [maxDistanceKm, setMaxDistanceKm] = useState('25');
   const [restrictionMode, setRestrictionMode] = useState('both');
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number }>({
+    lat: 15.3694,
+    lng: 44.1910
+  });
+  const [mapFlyTarget, setMapFlyTarget] = useState<[number, number] | null>(null);
+  const [isLocatingGps, setIsLocatingGps] = useState(false);
 
   useEffect(() => {
     if (zoneRestrictionData) {
       setEnableZoneRestriction(zoneRestrictionData.enableRestriction ?? true);
       setMaxDistanceKm(String(zoneRestrictionData.maxDistanceKm ?? '25'));
       setRestrictionMode(zoneRestrictionData.restrictionMode || 'both');
+      if (zoneRestrictionData.centerLat && zoneRestrictionData.centerLng) {
+        setPinLocation({
+          lat: Number(zoneRestrictionData.centerLat),
+          lng: Number(zoneRestrictionData.centerLng)
+        });
+        setMapFlyTarget([Number(zoneRestrictionData.centerLat), Number(zoneRestrictionData.centerLng)]);
+      }
     }
   }, [zoneRestrictionData]);
 
   const saveZoneRestrictionMutation = useMutation({
-    mutationFn: async (data: { enableRestriction: boolean; maxDistanceKm: number; restrictionMode: string }) => {
+    mutationFn: async (data: { 
+      enableRestriction: boolean; 
+      maxDistanceKm: number; 
+      restrictionMode: string;
+      centerLat?: number;
+      centerLng?: number;
+    }) => {
       const res = await apiRequest('POST', '/api/delivery-fees/zone-restriction', data);
       return res.json();
     },
     onSuccess: (res) => {
       toast({
-        title: 'تم حفظ إعدادات نطاق التوصيل بنجاح ✅',
-        description: res.message || 'تم تحديث النطاق المسموح به وتطبيقه على الفور في تطبيق العميل'
+        title: 'تم حفظ وتطبيق دبوس ونطاق التوصيل بنجاح ✅',
+        description: res.message || 'تم تحديث الدبوس والمسافة ونطاق التوصيل وتطبيقها فوراً على تطبيق العميل'
       });
       queryClient.invalidateQueries({ queryKey: ['/api/delivery-fees/zone-restriction'] });
       queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/delivery-fees/settings'] });
     },
     onError: (err: any) => {
       toast({
@@ -301,6 +356,66 @@ export default function AdminDeliveryFees() {
       });
     }
   });
+
+  const handleLocateCurrentPosition = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: 'خاصية تحديد الموقع غير متوفرة',
+        description: 'متصفحك لا يدعم الوصول للموقع الجغرافي',
+        variant: 'destructive'
+      });
+      return;
+    }
+    setIsLocatingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocatingGps(false);
+        const newLat = Number(pos.coords.latitude.toFixed(6));
+        const newLng = Number(pos.coords.longitude.toFixed(6));
+        setPinLocation({ lat: newLat, lng: newLng });
+        setMapFlyTarget([newLat, newLng]);
+        toast({
+          title: 'تم تحديد موقعك بدقة 📍',
+          description: `تم نقل دبوس مركز التوصيل إلى إحداثياتك (${newLat}, ${newLng})`
+        });
+      },
+      (err) => {
+        setIsLocatingGps(false);
+        toast({
+          title: 'تعذر تحديد الموقع',
+          description: 'يرجى التأكد من تفعيل إذن الموقع في متصفحك',
+          variant: 'destructive'
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const STORE_PIN_PRESETS = [
+    { name: 'صنعاء - السبعين وحدّة', lat: 15.3180, lng: 44.1950 },
+    { name: 'صنعاء - التحرير وباب اليمن', lat: 15.3550, lng: 44.2080 },
+    { name: 'صنعاء - مذبح والستين', lat: 15.3780, lng: 44.1700 },
+    { name: 'صنعاء - الحصبة والمطار', lat: 15.4100, lng: 44.2150 },
+    { name: 'عدن - المنصورة', lat: 12.8600, lng: 44.9850 },
+    { name: 'عدن - كريتر والمعلا', lat: 12.7850, lng: 45.0350 },
+    { name: 'تعز - المركز والجمهوري', lat: 13.5780, lng: 44.0150 },
+    { name: 'حضرموت - المكلا', lat: 14.5400, lng: 49.1250 },
+  ];
+
+  const handleApplyPinPreset = (preset: { name: string; lat: number; lng: number }) => {
+    setPinLocation({ lat: preset.lat, lng: preset.lng });
+    setMapFlyTarget([preset.lat, preset.lng]);
+    toast({
+      title: `تم نقل الدبوس إلى ${preset.name} 📍`,
+      description: `الإحداثيات: ${preset.lat}, ${preset.lng}`
+    });
+  };
+
+  const handleAdjustDistance = (deltaKm: number) => {
+    const current = parseFloat(maxDistanceKm) || 25;
+    const nextVal = Math.max(1, Math.min(100, Number((current + deltaKm).toFixed(1))));
+    setMaxDistanceKm(String(nextVal));
+  };
 
   // Mutations
   const saveSettingsMutation = useMutation({
@@ -445,6 +560,100 @@ export default function AdminDeliveryFees() {
       toast({ title: 'خطأ في حفظ الخصم', description: err.message, variant: 'destructive' });
     }
   });
+
+  // Update Distance Zone Mutation
+  const updateZoneMutation = useMutation({
+    mutationFn: async (data: NonNullable<typeof editingZone>) => {
+      if (!data.name.trim()) throw new Error('اسم الشريحة مطلوب');
+      const response = await apiRequest('PUT', `/api/delivery-fees/zones/${data.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'تم حفظ وتحديث شريحة المسافة بنجاح ✅' });
+      queryClient.invalidateQueries({ queryKey: ['/api/delivery-fees/zones'] });
+      setIsEditZoneOpen(false);
+      setEditingZone(null);
+    },
+    onError: (err: any) => {
+      toast({ title: 'خطأ في تعديل شريحة المسافة', description: err.message, variant: 'destructive' });
+    }
+  });
+
+  // Update Geo-Zone Mutation
+  const updateGeoZoneMutation = useMutation({
+    mutationFn: async (data: NonNullable<typeof editingGeoZone>) => {
+      if (!data.name.trim()) throw new Error('اسم المنطقة الجغرافية مطلوب');
+      if (!data.coordinates || data.coordinates === '[]') {
+        throw new Error('يرجى تحديد حدود المنطقة على الخريطة');
+      }
+      const response = await apiRequest('PATCH', `/api/delivery-fees/geo-zones/${data.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'تم حفظ وتحديث المنطقة الجغرافية بنجاح ✅' });
+      queryClient.invalidateQueries({ queryKey: ['/api/delivery-fees/geo-zones'] });
+      setIsEditGeoZoneOpen(false);
+      setEditingGeoZone(null);
+    },
+    onError: (err: any) => {
+      toast({ title: 'خطأ في تعديل المنطقة الجغرافية', description: err.message, variant: 'destructive' });
+    }
+  });
+
+  // Toggle active status handlers
+  const toggleZoneActive = async (zone: any) => {
+    try {
+      const newStatus = zone.isActive === false ? true : false;
+      await apiRequest('PUT', `/api/delivery-fees/zones/${zone.id}`, {
+        ...zone,
+        isActive: newStatus
+      });
+      toast({ title: newStatus ? 'تم تفعيل شريحة المسافة بنجاح ✅' : 'تم تعطيل شريحة المسافة ⏸️' });
+      queryClient.invalidateQueries({ queryKey: ['/api/delivery-fees/zones'] });
+    } catch (e: any) {
+      toast({ title: 'خطأ في تغيير حالة الشريحة', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleGeoZoneActive = async (zone: any) => {
+    try {
+      const newStatus = !zone.isActive;
+      await apiRequest('PATCH', `/api/delivery-fees/geo-zones/${zone.id}`, {
+        isActive: newStatus
+      });
+      toast({ title: newStatus ? 'تم تفعيل المنطقة الجغرافية بنجاح ✅' : 'تم تعطيل المنطقة الجغرافية ⏸️' });
+      queryClient.invalidateQueries({ queryKey: ['/api/delivery-fees/geo-zones'] });
+    } catch (e: any) {
+      toast({ title: 'خطأ في تغيير حالة المنطقة', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleOpenEditZone = (zone: any) => {
+    setEditingZone({
+      id: zone.id,
+      name: zone.name || '',
+      description: zone.description || '',
+      minDistance: String(zone.minDistance ?? '0'),
+      maxDistance: String(zone.maxDistance ?? '5'),
+      deliveryFee: String(zone.deliveryFee ?? '500'),
+      estimatedTime: zone.estimatedTime || '20-30 دقيقة',
+      isActive: zone.isActive !== false
+    });
+    setIsEditZoneOpen(true);
+  };
+
+  const handleOpenEditGeoZone = (zone: any) => {
+    setEditingGeoZone({
+      id: zone.id,
+      name: zone.name || '',
+      description: zone.description || '',
+      coordinates: zone.coordinates || '',
+      deliveryFee: String(zone.deliveryFee ?? '1000'),
+      surgeMultiplier: String(zone.surgeMultiplier ?? '1.00'),
+      isActive: zone.isActive !== false
+    });
+    setIsEditGeoZoneOpen(true);
+  };
 
   // Delete handlers
   const deleteDistanceZone = async (id: string) => {
@@ -931,6 +1140,111 @@ export default function AdminDeliveryFees() {
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {/* نافذة تعديل شريحة المسافة */}
+                <Dialog open={isEditZoneOpen} onOpenChange={setIsEditZoneOpen}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Pencil className="h-5 w-5 text-primary" />
+                        تعديل شريحة المسافة وحفظ التغييرات
+                      </DialogTitle>
+                    </DialogHeader>
+
+                    {editingZone && (
+                      <div className="space-y-4 pt-2">
+                        <div className="space-y-1.5">
+                          <Label>اسم الشريحة</Label>
+                          <Input
+                            value={editingZone.name}
+                            onChange={(e) => setEditingZone(prev => prev ? { ...prev, name: e.target.value } : null)}
+                            placeholder="مثال: المنطقة القريبة (0-3 كم)"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>الوصف (اختياري)</Label>
+                          <Input
+                            value={editingZone.description}
+                            onChange={(e) => setEditingZone(prev => prev ? { ...prev, description: e.target.value } : null)}
+                            placeholder="أحياء وسط المدينة..."
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label>من مسافة (كم)</Label>
+                            <Input
+                              type="number"
+                              step="0.5"
+                              value={editingZone.minDistance}
+                              onChange={(e) => setEditingZone(prev => prev ? { ...prev, minDistance: e.target.value } : null)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>إلى مسافة (كم)</Label>
+                            <Input
+                              type="number"
+                              step="0.5"
+                              value={editingZone.maxDistance}
+                              onChange={(e) => setEditingZone(prev => prev ? { ...prev, maxDistance: e.target.value } : null)}
+                              placeholder="5"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label>رسوم التوصيل (ريال)</Label>
+                            <Input
+                              type="number"
+                              value={editingZone.deliveryFee}
+                              onChange={(e) => setEditingZone(prev => prev ? { ...prev, deliveryFee: e.target.value } : null)}
+                              placeholder="500"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>الوقت المقدر</Label>
+                            <Input
+                              value={editingZone.estimatedTime}
+                              onChange={(e) => setEditingZone(prev => prev ? { ...prev, estimatedTime: e.target.value } : null)}
+                              placeholder="20-30 دقيقة"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/30">
+                          <div className="space-y-0.5">
+                            <Label className="text-sm font-semibold">حالة الشريحة</Label>
+                            <p className="text-xs text-muted-foreground">
+                              {editingZone.isActive ? 'مفعلة وتدخل في حساب الرسوم لتطبيق العميل' : 'معطلة مؤقتاً'}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={editingZone.isActive}
+                            onCheckedChange={(checked) => setEditingZone(prev => prev ? { ...prev, isActive: checked } : null)}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2">
+                          <Button
+                            onClick={() => editingZone && updateZoneMutation.mutate(editingZone)}
+                            disabled={updateZoneMutation.isPending || !editingZone.name || !editingZone.deliveryFee}
+                            className="flex-1 gap-2"
+                          >
+                            <Save className="h-4 w-4" />
+                            {updateZoneMutation.isPending ? 'جاري حفظ التعديل...' : 'حفظ التعديلات وتطبيقها فوراً'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsEditZoneOpen(false)}
+                          >
+                            إلغاء
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
@@ -959,7 +1273,12 @@ export default function AdminDeliveryFees() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <h4 className="font-bold text-base">{zone.name}</h4>
-                            <Badge variant={zone.isActive !== false ? 'default' : 'secondary'} className="text-[10px]">
+                            <Badge 
+                              variant={zone.isActive !== false ? 'default' : 'secondary'} 
+                              className="text-[10px] cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => toggleZoneActive(zone)}
+                              title="انقر لتغيير حالة التفعيل"
+                            >
                               {zone.isActive !== false ? 'مفعلة' : 'معطلة'}
                             </Badge>
                           </div>
@@ -968,14 +1287,28 @@ export default function AdminDeliveryFees() {
                           )}
                         </div>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteDistanceZone(zone.id)}
-                          className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEditZone(zone)}
+                            className="h-8 px-2.5 text-xs text-primary hover:text-primary hover:bg-primary/5 flex items-center gap-1"
+                            title="تعديل شريحة المسافة"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span>تعديل</span>
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteDistanceZone(zone.id)}
+                            className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                            title="حذف الشريحة"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="mt-4 pt-3 border-t grid grid-cols-3 gap-2 text-center text-xs">
@@ -1121,6 +1454,119 @@ export default function AdminDeliveryFees() {
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {/* نافذة تعديل المنطقة الجغرافية */}
+                <Dialog open={isEditGeoZoneOpen} onOpenChange={setIsEditGeoZoneOpen}>
+                  <DialogContent dir="rtl" className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Pencil className="h-5 w-5 text-primary" />
+                        تعديل المنطقة الجغرافية والرسوم وحدود الخريطة
+                      </DialogTitle>
+                    </DialogHeader>
+
+                    {editingGeoZone && (
+                      <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label>اسم المنطقة الجغرافية</Label>
+                            <Input
+                              value={editingGeoZone.name}
+                              onChange={(e) => setEditingGeoZone(prev => prev ? { ...prev, name: e.target.value } : null)}
+                              placeholder="مثال: منطقة حدة والسبعين"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>وصف المنطقة (اختياري)</Label>
+                            <Input
+                              value={editingGeoZone.description}
+                              onChange={(e) => setEditingGeoZone(prev => prev ? { ...prev, description: e.target.value } : null)}
+                              placeholder="الأحياء المشمولة ضمن النطاق"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label>رسوم التوصيل لهذه المنطقة (ريال)</Label>
+                            <Input
+                              type="number"
+                              value={editingGeoZone.deliveryFee}
+                              onChange={(e) => setEditingGeoZone(prev => prev ? { ...prev, deliveryFee: e.target.value } : null)}
+                              placeholder="1000"
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                              الرسوم المطبقة عندما يكون عنوان العميل داخل هذه المنطقة
+                            </p>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>معامل زيادة الذروة (افتراضي: 1.00)</Label>
+                            <Input
+                              type="number"
+                              step="0.05"
+                              value={editingGeoZone.surgeMultiplier}
+                              onChange={(e) => setEditingGeoZone(prev => prev ? { ...prev, surgeMultiplier: e.target.value } : null)}
+                              placeholder="1.00"
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                              1.00 = رسوم عادية، 1.20 = زيادة 20% في أوقات الذروة
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/30">
+                          <div className="space-y-0.5">
+                            <Label className="text-sm font-semibold">حالة المنطقة</Label>
+                            <p className="text-xs text-muted-foreground">
+                              {editingGeoZone.isActive ? 'مفعلة وتدخل في حساب الرسوم ونطاق التوصيل المسموح به' : 'معطلة مؤقتاً'}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={editingGeoZone.isActive}
+                            onCheckedChange={(checked) => setEditingGeoZone(prev => prev ? { ...prev, isActive: checked } : null)}
+                          />
+                        </div>
+
+                        {/* Interactive Map Editor pre-loaded with current zone coordinates */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold">تعديل حدود المنطقة على الخريطة</Label>
+                            <span className="text-xs text-muted-foreground">
+                              يمكنك تحريك المركز أو تغيير نصف القطر أو إعادة رسم المضلع
+                            </span>
+                          </div>
+                          <GeoZoneMapEditor
+                            initialCoordinates={editingGeoZone.coordinates}
+                            existingZones={geoZones.filter(z => z.id !== editingGeoZone.id)}
+                            onChange={(coordsJson) => {
+                              setEditingGeoZone(prev => prev ? { ...prev, coordinates: coordsJson } : null);
+                            }}
+                            height="380px"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2">
+                          <Button
+                            onClick={() => editingGeoZone && updateGeoZoneMutation.mutate(editingGeoZone)}
+                            disabled={updateGeoZoneMutation.isPending || !editingGeoZone.name || !editingGeoZone.coordinates}
+                            className="flex-1 h-11 text-base font-semibold gap-2"
+                          >
+                            <Save className="h-4 w-4" />
+                            {updateGeoZoneMutation.isPending ? 'جاري حفظ التعديلات...' : 'حفظ تعديلات المنطقة الجغرافية وتطبيقها فوراً'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsEditGeoZoneOpen(false)}
+                            className="h-11 px-5"
+                          >
+                            إلغاء
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1161,20 +1607,43 @@ export default function AdminDeliveryFees() {
                       return (
                         <Card key={zone.id} className="p-4 border hover:border-primary/50 transition-colors">
                           <div className="flex items-start justify-between gap-2">
-                            <div className="space-y-1">
-                              <h4 className="font-bold text-sm">{zone.name}</h4>
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-sm">{zone.name}</h4>
+                                <Badge 
+                                  variant={zone.isActive !== false ? 'default' : 'secondary'} 
+                                  className="text-[10px] cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => toggleGeoZoneActive(zone)}
+                                  title="انقر لتغيير حالة التفعيل"
+                                >
+                                  {zone.isActive !== false ? 'مفعلة' : 'معطلة'}
+                                </Badge>
+                              </div>
                               {zone.description && (
                                 <p className="text-xs text-muted-foreground line-clamp-2">{zone.description}</p>
                               )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteGeoZone(zone.id)}
-                              className="text-destructive hover:bg-destructive/10 h-7 w-7 shrink-0"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEditGeoZone(zone)}
+                                className="h-7 px-2 text-xs text-primary hover:text-primary hover:bg-primary/5 flex items-center gap-1"
+                                title="تعديل المنطقة الجغرافية"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span>تعديل</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteGeoZone(zone.id)}
+                                className="text-destructive hover:bg-destructive/10 h-7 w-7"
+                                title="حذف المنطقة"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
 
                           <div className="mt-3 pt-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -1334,7 +1803,246 @@ export default function AdminDeliveryFees() {
             </CardContent>
           </Card>
 
-          {/* Card 2: Interactive Allowed Delivery Zones on Map */}
+          {/* Card 2: Interactive Map with Pin, Distance Scaling & Radius Controls */}
+          <Card className="border-2 border-[#F05215]/30 shadow-sm">
+            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <MapPin className="h-5 w-5 text-[#F05215]" />
+                  <span>دبوس مركز التوصيل وتكبير/تصغير نطاق المسافة على الخريطة</span>
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm mt-1">
+                  انقر على أي نقطة بالخريطة أو اسحب الدبوس 📍 لتحديد مركز المتجر، وتحكّم في تكبير وتصغير دائرة المسافة المسموحة بالكيلومتر ليتم تطبيقها فوراً على تطبيق العميل
+                </CardDescription>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLocateCurrentPosition}
+                  disabled={isLocatingGps}
+                  className="border-emerald-600/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-xs font-semibold"
+                >
+                  <LocateFixed className={`h-3.5 w-3.5 ml-1.5 ${isLocatingGps ? 'animate-spin' : ''}`} />
+                  {isLocatingGps ? 'جاري التحديد...' : 'موقعي الحالي (GPS)'}
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => saveZoneRestrictionMutation.mutate({
+                    enableRestriction: enableZoneRestriction,
+                    maxDistanceKm: parseFloat(maxDistanceKm) || 25,
+                    restrictionMode,
+                    centerLat: pinLocation.lat,
+                    centerLng: pinLocation.lng
+                  })}
+                  disabled={saveZoneRestrictionMutation.isPending}
+                  className="bg-[#F05215] hover:bg-[#C03A0A] text-white text-xs font-semibold"
+                >
+                  <Save className="h-3.5 w-3.5 ml-1.5" />
+                  {saveZoneRestrictionMutation.isPending ? 'جاري الحفظ...' : 'حفظ وتطبيق الدبوس والمسافة'}
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5">
+              {/* Quick City Presets */}
+              <div className="flex flex-wrap items-center gap-1.5 p-2.5 bg-muted/40 rounded-xl border">
+                <span className="text-xs font-bold text-muted-foreground ml-2 flex items-center gap-1 shrink-0">
+                  <Compass className="h-3.5 w-3.5 text-[#F05215]" />
+                  مراكز ومواقع سريعة:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {STORE_PIN_PRESETS.map((preset) => (
+                    <Button
+                      key={preset.name}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyPinPreset(preset)}
+                      className="h-7 px-2.5 text-[11px] rounded-full hover:border-[#F05215] hover:text-[#F05215] transition-colors"
+                    >
+                      {preset.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Distance Scaling & Fine Tuning Bar */}
+              <div className="bg-card p-4 rounded-xl border shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                        <ZoomIn className="h-4 w-4 text-[#F05215]" />
+                        <span>تكبير وتصغير مسافة التوصيل المسموح بها</span>
+                      </h4>
+                      <Badge className="bg-[#F05215] text-white text-xs px-2 py-0.5 font-bold">
+                        {maxDistanceKm} كم
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      حرّك شريط التمرير أو استخدم أزرار الزيادة والنقصان لتكبير أو تصغير دائرة التغطية على الخريطة
+                    </p>
+                  </div>
+
+                  {/* Increment / Decrement Stepper */}
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto bg-muted/50 p-1 rounded-lg border">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAdjustDistance(-5)}
+                      className="h-8 px-2 text-xs font-bold hover:bg-background"
+                      title="تصغير المسافة بـ 5 كم"
+                    >
+                      -5 كم
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAdjustDistance(-1)}
+                      className="h-8 px-2.5 text-xs font-bold hover:bg-background"
+                      title="تصغير المسافة بـ 1 كم"
+                    >
+                      -1 كم
+                    </Button>
+                    <div className="h-5 w-px bg-border mx-1" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAdjustDistance(1)}
+                      className="h-8 px-2.5 text-xs font-bold text-[#F05215] hover:bg-background"
+                      title="تكبير المسافة بـ 1 كم"
+                    >
+                      +1 كم
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAdjustDistance(5)}
+                      className="h-8 px-2 text-xs font-bold text-[#F05215] hover:bg-background"
+                      title="تكبير المسافة بـ 5 كم"
+                    >
+                      +5 كم
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Slider */}
+                <div className="space-y-2 pt-1">
+                  <Slider
+                    value={[parseFloat(maxDistanceKm) || 25]}
+                    min={1}
+                    max={50}
+                    step={0.5}
+                    onValueChange={(val) => setMaxDistanceKm(String(val[0]))}
+                    className="py-1"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground px-1">
+                    <span>1 كم (نطاق ضيق)</span>
+                    <span>15 كم</span>
+                    <span className="font-bold text-[#F05215]">25 كم (الافتراضي)</span>
+                    <span>35 كم</span>
+                    <span>50 كم (أقصى نطاق)</span>
+                  </div>
+                </div>
+
+                {/* Quick Distance Presets */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-xs text-muted-foreground font-medium">مسافات جاهزة:</span>
+                  {[3, 5, 8, 10, 15, 20, 25, 30, 40, 50].map((dist) => (
+                    <Button
+                      key={dist}
+                      type="button"
+                      variant={parseFloat(maxDistanceKm) === dist ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setMaxDistanceKm(String(dist))}
+                      className={`h-6 px-2 text-[11px] rounded-md ${
+                        parseFloat(maxDistanceKm) === dist ? 'bg-[#F05215] text-white' : ''
+                      }`}
+                    >
+                      {dist} كم
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Live Stats Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="p-3 bg-muted/40 rounded-lg border text-right">
+                    <span className="text-[11px] text-muted-foreground block">إحداثيات الدبوس (المركز)</span>
+                    <span className="font-mono text-xs font-bold text-foreground block mt-0.5">
+                      {pinLocation.lat.toFixed(5)}, {pinLocation.lng.toFixed(5)}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-muted/40 rounded-lg border text-right">
+                    <span className="text-[11px] text-muted-foreground block">مساحة التغطية المسموحة</span>
+                    <span className="font-mono text-xs font-bold text-[#F05215] block mt-0.5">
+                      ~{Math.round(Math.PI * Math.pow(parseFloat(maxDistanceKm) || 25, 2)).toLocaleString()} كم²
+                    </span>
+                  </div>
+                  <div className="p-3 bg-muted/40 rounded-lg border text-right">
+                    <span className="text-[11px] text-muted-foreground block">أقصى وقت متوقع للوصول</span>
+                    <span className="font-mono text-xs font-bold text-foreground block mt-0.5">
+                      ~{Math.round((parseFloat(maxDistanceKm) || 25) * 1.8 + 10)} دقيقة
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* The Interactive Map */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                  <span className="flex items-center gap-1 font-semibold text-foreground">
+                    <Crosshair className="h-3.5 w-3.5 text-[#F05215]" />
+                    الخريطة التفاعلية المباشرة:
+                  </span>
+                  <span>
+                    اسحب الدبوس 📍 أو انقر في أي مكان لتغيير مركز التوصيل
+                  </span>
+                </div>
+
+                <div className="rounded-xl overflow-hidden border shadow-xs">
+                  <GeoZoneOverviewMap
+                    zones={geoZones}
+                    storeLocation={pinLocation}
+                    deliveryRadiusKm={parseFloat(maxDistanceKm) || 25}
+                    draggableStorePin={true}
+                    onStorePinDragEnd={(lat, lng) => setPinLocation({ lat, lng })}
+                    onMapClick={(lat, lng) => setPinLocation({ lat, lng })}
+                    flyToTarget={mapFlyTarget}
+                    height="420px"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-muted/20 border rounded-xl">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="inline-block w-3 h-3 rounded-full bg-[#F05215]" />
+                    <span>الدبوس البرتقالي: مركز المتجر</span>
+                    <span className="inline-block w-3 h-3 rounded-full border-2 border-[#F05215] border-dashed ml-2" />
+                    <span>الدائرة المتقطعة: أقصى مسافة ({maxDistanceKm} كم)</span>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    onClick={() => saveZoneRestrictionMutation.mutate({
+                      enableRestriction: enableZoneRestriction,
+                      maxDistanceKm: parseFloat(maxDistanceKm) || 25,
+                      restrictionMode,
+                      centerLat: pinLocation.lat,
+                      centerLng: pinLocation.lng
+                    })}
+                    disabled={saveZoneRestrictionMutation.isPending}
+                    className="w-full sm:w-auto bg-[#F05215] hover:bg-[#C03A0A] text-white text-xs font-semibold px-5"
+                  >
+                    <Save className="h-3.5 w-3.5 ml-1.5" />
+                    {saveZoneRestrictionMutation.isPending ? 'جاري الحفظ والتطبيق...' : 'حفظ وتطبيق دبوس ونطاق التوصيل في تطبيق العميل'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Interactive Allowed Delivery Zones on Map */}
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3">
               <div>
@@ -1343,7 +2051,7 @@ export default function AdminDeliveryFees() {
                   المناطق الجغرافية المعتمدة للتوصيل ({geoZones.filter(z => z.isActive).length} منطقة نشطة)
                 </CardTitle>
                 <CardDescription>
-                  رسم وتحديد مضلعات ونطاقات التوصيل المسموح بها مباشرة على الخريطة
+                  رسم وتحديد مضلعات ونطاقات التوصيل المسموح بها وحفظها أو حذفها
                 </CardDescription>
               </div>
 
@@ -1373,13 +2081,6 @@ export default function AdminDeliveryFees() {
             </CardHeader>
 
             <CardContent className="space-y-5">
-              {/* Overview Map */}
-              <div className="rounded-xl overflow-hidden border">
-                <GeoZoneOverviewMap
-                  zones={geoZones}
-                  height="360px"
-                />
-              </div>
 
               {/* Zones List / Cards */}
               <div className="space-y-3">
@@ -1430,7 +2131,11 @@ export default function AdminDeliveryFees() {
                                 <h4 className="font-bold text-sm">{zone.name}</h4>
                                 <Badge
                                   variant={zone.isActive ? 'default' : 'secondary'}
-                                  className={`text-[10px] h-4.5 px-1.5 ${zone.isActive ? 'bg-emerald-600 text-white' : ''}`}
+                                  className={`text-[10px] h-4.5 px-1.5 cursor-pointer hover:opacity-80 transition-opacity ${
+                                    zone.isActive ? 'bg-emerald-600 text-white' : ''
+                                  }`}
+                                  onClick={() => toggleGeoZoneActive(zone)}
+                                  title="انقر لتغيير حالة التفعيل"
                                 >
                                   {zone.isActive ? 'مسموحة ونشطة' : 'معطلة'}
                                 </Badge>
@@ -1447,6 +2152,17 @@ export default function AdminDeliveryFees() {
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEditGeoZone(zone)}
+                                className="h-7 px-2 text-xs text-primary hover:text-primary hover:bg-primary/5 flex items-center gap-1"
+                                title="تعديل المنطقة الجغرافية"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span>تعديل</span>
+                              </Button>
+
                               <Button
                                 variant="ghost"
                                 size="icon"

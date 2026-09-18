@@ -112,6 +112,7 @@ export interface IStorage {
   getUiSettings(): Promise<UiSettings[]>;
   getUiSetting(key: string): Promise<UiSettings | undefined>;
   updateUiSetting(key: string, value: string): Promise<UiSettings | undefined>;
+  setUiSetting(key: string, value: string): Promise<UiSettings | undefined>;
   createUiSetting(setting: InsertUiSettings): Promise<UiSettings>;
   deleteUiSetting(key: string): Promise<boolean>;
 
@@ -1446,6 +1447,10 @@ export class MemStorage {
     };
     this.uiSettings.set(key, newSetting);
     return newSetting;
+  }
+
+  async setUiSetting(key: string, value: string): Promise<UiSettings | undefined> {
+    return this.updateUiSetting(key, value);
   }
 
   async createUiSetting(setting: InsertUiSettings): Promise<UiSettings> {

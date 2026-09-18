@@ -295,10 +295,18 @@ export async function calculateDeliveryFee(
   const maxAllowedDistance = parseFloat(uiSettingsMap.get('max_delivery_distance_km') || '25');
   const restrictionMode = uiSettingsMap.get('delivery_restriction_mode') || 'both'; // 'geo_zones' | 'max_distance' | 'both'
 
-  // 2. تحديد موقع المتجر (المطعم -> إعدادات رسوم التوصيل -> إعدادات النظام -> صنعاء كافتراضي)
+  // 2. تحديد موقع المتجر (إعدادات دبوس التوصيل بالخريطة -> المطعم -> إعدادات رسوم التوصيل -> صنعاء كافتراضي)
   let storeLocation: DeliveryLocation = { lat: 15.3694, lng: 44.1910 };
-  
-  if (restaurant && restaurant.latitude && restaurant.longitude && parseFloat(String(restaurant.latitude)) !== 0) {
+
+  const centerLatVal = parseFloat(uiSettingsMap.get('delivery_center_lat') || uiSettingsMap.get('store_lat') || '0');
+  const centerLngVal = parseFloat(uiSettingsMap.get('delivery_center_lng') || uiSettingsMap.get('store_lng') || '0');
+
+  if (centerLatVal !== 0 && !isNaN(centerLatVal) && centerLngVal !== 0 && !isNaN(centerLngVal)) {
+    storeLocation = {
+      lat: centerLatVal,
+      lng: centerLngVal
+    };
+  } else if (restaurant && restaurant.latitude && restaurant.longitude && parseFloat(String(restaurant.latitude)) !== 0) {
     storeLocation = {
       lat: parseFloat(String(restaurant.latitude)),
       lng: parseFloat(String(restaurant.longitude))

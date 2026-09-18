@@ -306,12 +306,16 @@ router.post("/zones", async (req, res) => {
       minDistance: z.string().optional(),
       maxDistance: z.string(),
       deliveryFee: z.string(),
-      estimatedTime: z.string().optional()
+      estimatedTime: z.string().optional(),
+      isActive: z.boolean().optional()
     });
 
     const validatedData = zoneSchema.parse(req.body);
     const newZone = await storage.createDeliveryZone(validatedData);
     
+    // تفريغ الكاش لضمان تطبيق التغييرات فوراً للعملاء
+    deliveryFeeCache.clear();
+
     res.status(201).json({ success: true, zone: newZone });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -325,8 +329,8 @@ router.post("/zones", async (req, res) => {
   }
 });
 
-// تحديث منطقة توصيل
-router.put("/zones/:id", async (req, res) => {
+// تحديث منطقة توصيل (دعم PUT و PATCH)
+const handleUpdateDeliveryZone = async (req: express.Request, res: express.Response) => {
   try {
     const { id } = req.params;
     const updated = await storage.updateDeliveryZone(id, req.body);
@@ -335,12 +339,17 @@ router.put("/zones/:id", async (req, res) => {
       return res.status(404).json({ error: "المنطقة غير موجودة" });
     }
 
-    res.json({ success: true, zone: updated });
+    // تفريغ الكاش لضمان تطبيق التغييرات فوراً للعملاء
+    deliveryFeeCache.clear();
+
+    res.json({ success: true, zone: updated, message: "تم تحديث شريحة المسافة بنجاح" });
   } catch (error) {
     console.error('خطأ في تحديث منطقة التوصيل:', error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
-});
+};
+router.put("/zones/:id", handleUpdateDeliveryZone);
+router.patch("/zones/:id", handleUpdateDeliveryZone);
 
 // حذف منطقة توصيل
 router.delete("/zones/:id", async (req, res) => {
@@ -351,6 +360,9 @@ router.delete("/zones/:id", async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ error: "المنطقة غير موجودة" });
     }
+
+    // تفريغ الكاش لضمان تطبيق التغييرات فوراً للعملاء
+    deliveryFeeCache.clear();
 
     res.json({ success: true, message: "تم حذف المنطقة بنجاح" });
   } catch (error) {
@@ -374,6 +386,8 @@ router.post("/zones/seed-defaults", async (req, res) => {
       const zone = await storage.createDeliveryZone(z);
       created.push(zone);
     }
+
+    deliveryFeeCache.clear();
 
     res.json({ success: true, message: "تم إنشاء شرائح المسافة الافتراضية بنجاح", count: created.length, zones: created });
   } catch (error: any) {
@@ -399,6 +413,7 @@ router.post("/geo-zones", async (req, res) => {
     const coercedData = coerceRequestData(req.body);
     const validatedData = insertGeoZoneSchema.parse(coercedData);
     const zone = await storage.createGeoZone(validatedData);
+    deliveryFeeCache.clear();
     res.status(201).json(zone);
   } catch (error: any) {
     console.error('خطأ في إضافة المنطقة الجغرافية:', error);
@@ -466,6 +481,8 @@ router.post("/geo-zones/seed-defaults", async (req, res) => {
       created.push(zone);
     }
 
+    deliveryFeeCache.clear();
+
     res.json({ success: true, message: "تم إنشاء المناطق الجغرافية الافتراضية بنجاح", count: created.length, zones: created });
   } catch (error: any) {
     console.error('خطأ في إنشاء المناطق الجغرافية الافتراضية:', error);
@@ -473,25 +490,36 @@ router.post("/geo-zones/seed-defaults", async (req, res) => {
   }
 });
 
-router.patch("/geo-zones/:id", async (req, res) => {
+// تحديث منطقة جغرافية (دعم PATCH و PUT)
+const handleUpdateGeoZone = async (req: express.Request, res: express.Response) => {
   try {
     const { id } = req.params;
     const coercedData = coerceRequestData(req.body);
     const validatedData = insertGeoZoneSchema.partial().parse(coercedData);
     const zone = await storage.updateGeoZone(id, validatedData);
     if (!zone) return res.status(404).json({ error: "المنطقة غير موجودة" });
-    res.json(zone);
+    
+    // تفريغ الكاش لضمان تطبيق التغييرات فوراً للعملاء
+    deliveryFeeCache.clear();
+
+    res.json({ success: true, zone, message: "تم تحديث المنطقة الجغرافية بنجاح" });
   } catch (error: any) {
     res.status(400).json({ error: error.message || "بيانات المنطقة غير صحيحة" });
   }
-});
+};
+router.patch("/geo-zones/:id", handleUpdateGeoZone);
+router.put("/geo-zones/:id", handleUpdateGeoZone);
 
 router.delete("/geo-zones/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const success = await storage.deleteGeoZone(id);
     if (!success) return res.status(404).json({ error: "المنطقة غير موجودة" });
-    res.status(204).send();
+
+    // تفريغ الكاش لضمان تطبيق التغييرات فوراً للعملاء
+    deliveryFeeCache.clear();
+
+    res.json({ success: true, message: "تم حذف المنطقة الجغرافية بنجاح" });
   } catch (error) {
     res.status(500).json({ error: "فشل حذف المنطقة" });
   }
@@ -613,23 +641,49 @@ router.post("/zone-restriction", async (req, res) => {
   try {
     const { enableRestriction, maxDistanceKm, restrictionMode, centerLat, centerLng } = req.body;
 
+    const saveSetting = async (key: string, val: string) => {
+      if (typeof storage.setUiSetting === 'function') {
+        await storage.setUiSetting(key, val);
+      } else if (typeof storage.updateUiSetting === 'function') {
+        await storage.updateUiSetting(key, val);
+      }
+    };
+
     if (enableRestriction !== undefined) {
-      await storage.setUiSetting('enable_delivery_zone_restriction', enableRestriction ? 'true' : 'false');
+      await saveSetting('enable_delivery_zone_restriction', enableRestriction ? 'true' : 'false');
     }
     if (maxDistanceKm !== undefined) {
-      await storage.setUiSetting('max_delivery_distance_km', String(maxDistanceKm));
+      await saveSetting('max_delivery_distance_km', String(maxDistanceKm));
     }
     if (restrictionMode !== undefined) {
-      await storage.setUiSetting('delivery_restriction_mode', String(restrictionMode));
+      await saveSetting('delivery_restriction_mode', String(restrictionMode));
     }
     if (centerLat !== undefined && centerLat !== null) {
-      await storage.setUiSetting('delivery_center_lat', String(centerLat));
-      await storage.setUiSetting('store_lat', String(centerLat));
+      await saveSetting('delivery_center_lat', String(centerLat));
+      await saveSetting('store_lat', String(centerLat));
     }
     if (centerLng !== undefined && centerLng !== null) {
-      await storage.setUiSetting('delivery_center_lng', String(centerLng));
-      await storage.setUiSetting('store_lng', String(centerLng));
+      await saveSetting('delivery_center_lng', String(centerLng));
+      await saveSetting('store_lng', String(centerLng));
     }
+
+    // أيضاً تحديث إعدادات المتجر في جدول delivery_fee_settings لمطابقة الدبوس بدقة
+    try {
+      const existingSettings = await storage.getDeliveryFeeSettings();
+      if (existingSettings && existingSettings.length > 0) {
+        const updatePayload: any = {};
+        if (centerLat !== undefined && centerLat !== null) updatePayload.storeLat = parseFloat(String(centerLat));
+        if (centerLng !== undefined && centerLng !== null) updatePayload.storeLng = parseFloat(String(centerLng));
+        if (Object.keys(updatePayload).length > 0) {
+          await storage.updateDeliveryFeeSettings(existingSettings[0].id, updatePayload);
+        }
+      }
+    } catch (syncErr) {
+      console.warn('تنبيه: تعذر مزامنة موقع الدبوس مع جدول delivery_fee_settings:', syncErr);
+    }
+
+    // تفريغ كاش حساب الرسوم لضمان التطبيق اللحظي
+    deliveryFeeCache.clear();
 
     // بث التحديث لجميع واجهات التطبيق المتصلة
     broadcastSettingsChanged();
