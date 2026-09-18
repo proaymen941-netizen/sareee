@@ -17,6 +17,7 @@ import { getAppStatus, getRestaurantStatus } from '@/utils/restaurantHours';
 import { formatCurrency } from '@/lib/utils';
 import AppClosedOverlay from '@/components/AppClosedOverlay';
 import { useAuth } from '@/context/AuthContext';
+import OutOfDeliveryZoneModal from '@/components/OutOfDeliveryZoneModal';
 
 export default function CartPage() {
   const [, setLocation] = useLocation();
@@ -26,6 +27,8 @@ export default function CartPage() {
   const { user } = useAuth();
   const { location: userLocation, getCurrentLocation } = useCoordinates();
   const [calculatingFee, setCalculatingFee] = useState(false);
+  const [showOutOfZoneModal, setShowOutOfZoneModal] = useState(false);
+  const [outOfZoneReason, setOutOfZoneReason] = useState('');
   const [deliveryInfo, setDeliveryInfo] = useState<{
     distance: number;
     estimatedTime: string;
@@ -378,6 +381,16 @@ export default function CartPage() {
       if (errorCode === "APP_CLOSED") {
         setAppClosedMessage(displayMsg);
         setShowAppClosedOverlay(true);
+        return;
+      }
+
+      if (
+        errorCode === "OUT_OF_DELIVERY_ZONE" ||
+        displayMsg.includes("خارج نطاق التوصيل") ||
+        displayMsg.includes("خارج مناطق وأحياء التوصيل")
+      ) {
+        setOutOfZoneReason(displayMsg);
+        setShowOutOfZoneModal(true);
         return;
       }
       
@@ -776,6 +789,21 @@ export default function CartPage() {
           onScheduleOrder={undefined}
         />
       )}
+
+      {/* نافذة التنبيه: خارج نطاق التوصيل */}
+      <OutOfDeliveryZoneModal
+        isOpen={showOutOfZoneModal}
+        onClose={() => setShowOutOfZoneModal(false)}
+        onChangeLocation={() => {
+          setShowOutOfZoneModal(false);
+          const locationEl = document.getElementById('delivery-address-input');
+          if (locationEl) {
+            locationEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            locationEl.focus();
+          }
+        }}
+        reason={outOfZoneReason}
+      />
     </div>
   );
 }

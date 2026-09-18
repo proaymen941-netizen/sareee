@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import OutOfDeliveryZoneModal from '@/components/OutOfDeliveryZoneModal';
 
 interface CartProps {
   isOpen: boolean;
@@ -47,6 +48,11 @@ export function Cart({ isOpen, onClose }: CartProps) {
   // حالة تأكيد الإرسال المكرر
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+
+  // حالة الخروج عن نطاق التوصيل
+  const [showOutOfZoneModal, setShowOutOfZoneModal] = useState(false);
+  const [isOutsideZone, setIsOutsideZone] = useState(false);
+  const [outOfZoneReason, setOutOfZoneReason] = useState('');
 
   // ─── نظام الكوبون ───────────────────────────────────────────────────
   const [couponCode, setCouponCode] = useState('');
@@ -191,6 +197,15 @@ export function Cart({ isOpen, onClose }: CartProps) {
           setDeliveryFee(data.fee);
           setDeliveryDetails(data);
           setContextDeliveryFee(data.fee);
+
+          if (data.isOutsideDeliveryZone) {
+            setIsOutsideZone(true);
+            setOutOfZoneReason(data.outsideReason || 'الموقع المحدد خارج نطاق ومناطق التوصيل المعتمدة لدينا.');
+            setShowOutOfZoneModal(true);
+          } else {
+            setIsOutsideZone(false);
+            setOutOfZoneReason('');
+          }
         }
       } catch (error: any) {
         if (isMounted && error.name !== 'AbortError') {
@@ -344,6 +359,12 @@ export function Cart({ isOpen, onClose }: CartProps) {
       return;
     }
 
+    // التحقق من نطاق التوصيل
+    if (isOutsideZone) {
+      setShowOutOfZoneModal(true);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // إرسال الطلب مباشرة
@@ -359,7 +380,18 @@ export function Cart({ isOpen, onClose }: CartProps) {
         clearCart();
         onClose();
       } else {
-        throw new Error(result.error || 'فشل في إرسال الطلب');
+        const errorMsg = result.error || 'فشل في إرسال الطلب';
+        if (
+          result.data?.code === 'OUT_OF_DELIVERY_ZONE' ||
+          errorMsg.includes('خارج نطاق التوصيل') ||
+          errorMsg.includes('خارج مناطق وأحياء التوصيل')
+        ) {
+          setIsOutsideZone(true);
+          setOutOfZoneReason(errorMsg);
+          setShowOutOfZoneModal(true);
+          return;
+        }
+        throw new Error(errorMsg);
       }
     } catch (error: any) {
       console.error('Order error:', error);
@@ -814,6 +846,17 @@ export function Cart({ isOpen, onClose }: CartProps) {
           </div>
         </div>
       )}
+
+      {/* نافذة التنبيه عند الخروج عن نطاق التوصيل */}
+      <OutOfDeliveryZoneModal
+        isOpen={showOutOfZoneModal}
+        onClose={() => setShowOutOfZoneModal(false)}
+        onChangeLocation={() => {
+          setShowOutOfZoneModal(false);
+          setShowLocationPicker(true);
+        }}
+        reason={outOfZoneReason}
+      />
     </div>
   );
 }
