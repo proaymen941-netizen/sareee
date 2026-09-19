@@ -71,6 +71,16 @@ let sqlClient: ReturnType<typeof postgres> | null = null;
 let uiSettingsMemoryCache: { data: any[]; timestamp: number } | null = null;
 let categoriesMemoryCache: { data: any[]; timestamp: number } | null = null;
 
+export function isOutsideRenderWithInternalUrl(url?: string): boolean {
+  const targetUrl = url || process.env.DATABASE_URL;
+  if (!targetUrl) return false;
+  const isInternal = targetUrl.includes("dpg-") && !targetUrl.includes(".render.com");
+  if (!isInternal) return false;
+  // If running on Render, the internal URL is valid and expected!
+  const isRunningOnRender = process.env.RENDER === "true" || !!process.env.RENDER_SERVICE_ID || !!process.env.RENDER_INSTANCE_ID;
+  return !isRunningOnRender;
+}
+
 export function getDb() {
   if (!internalDb) {
     // Use DATABASE_URL from environment variables
@@ -86,18 +96,17 @@ export function getDb() {
           return () => createDummyQuery();
         }
       });
-      return new Proxy({}, {
+      internalDb = new Proxy({}, {
         get(_target, prop) {
           if (prop === 'then') return undefined;
           return () => createDummyQuery();
         }
       }) as unknown as ReturnType<typeof drizzle>;
+      return internalDb;
     }
     
-    if (databaseUrl.includes("dpg-") && !databaseUrl.includes(".render.com")) {
-      console.error("❌ ERROR: Your DATABASE_URL appears to be a Render 'Internal Database URL' (dpg-...).");
-      console.error("👉 Fix: You MUST use the 'External Database URL' from the Render dashboard because this application is running outside Render's internal network.");
-      console.warn("⚠️ Falling back to safe mock DB proxy for now.");
+    if (isOutsideRenderWithInternalUrl(databaseUrl)) {
+      console.warn("ℹ️ Running outside Render with a Render Internal Database URL (dpg-...). Using memory storage for preview; PostgreSQL will be used automatically when running on Render.");
       
       const createDummyQuery = (): any => new Proxy(Promise.resolve([]), {
         get(target, prop) {
@@ -107,12 +116,13 @@ export function getDb() {
           return () => createDummyQuery();
         }
       });
-      return new Proxy({}, {
+      internalDb = new Proxy({}, {
         get(_target, prop) {
           if (prop === 'then') return undefined;
           return () => createDummyQuery();
         }
       }) as unknown as ReturnType<typeof drizzle>;
+      return internalDb;
     }
     
     console.log("🗺️ Using PostgreSQL database connection...");  // Debug log

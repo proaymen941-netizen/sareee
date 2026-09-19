@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { isOutsideRenderWithInternalUrl } from "./db";
 
 function getSslOption(url: string) {
   if (!url) return undefined;
@@ -17,8 +18,8 @@ export async function ensureTablesExist() {
     return;
   }
 
-  if (databaseUrl.includes("dpg-") && !databaseUrl.includes(".render.com")) {
-    console.warn("⚠️ Skipping auto-migrate: DATABASE_URL is a Render Internal URL (dpg-...). Falling back to memory storage.");
+  if (isOutsideRenderWithInternalUrl(databaseUrl)) {
+    console.warn("ℹ️ Skipping auto-migrate: DATABASE_URL is a Render Internal URL running outside Render. Tables will auto-migrate when deployed on Render.");
     return;
   }
 

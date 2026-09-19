@@ -1,9 +1,8 @@
-import { dbStorage } from './db';
+import { dbStorage, isOutsideRenderWithInternalUrl } from './db';
 import { storage } from './storage';
 
 function isInternalRenderUrl(): boolean {
-  const url = process.env.DATABASE_URL;
-  return !!(url && url.includes("dpg-") && !url.includes(".render.com"));
+  return isOutsideRenderWithInternalUrl();
 }
 
 // القائمة الكاملة للإعدادات الافتراضية - يتم التحقق منها وإضافتها عند كل تشغيل
